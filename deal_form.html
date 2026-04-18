@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>案件登録 - エー・ファクトリー</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#2563eb;--blue-bg:#eff6ff;--blue-dark:#1d4ed8;
+  --green:#16a34a;--green-bg:#f0fdf4;
+  --red:#dc2626;--red-bg:#fef2f2;
+  --amber:#d97706;--amber-bg:#fffbeb;
+  --purple:#7c3aed;--purple-bg:#f5f3ff;
+  --text:#1a1917;--text2:#6b6860;--text3:#9c9a94;
+  --border:#e0ddd4;--bg:#f5f4f1;--surface:#fff;
+  --r:8px;--r-lg:14px
+}
+body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;background:var(--bg);
+  color:var(--text);font-size:13px;min-height:100vh}
+.wrap{max-width:1060px;margin:0 auto;padding:14px 20px 32px}
+
+/* トップバー */
+.topbar{background:#1e3a5f;color:#fff;height:46px;
+  display:flex;align-items:center;padding:0 20px;gap:14px;
+  position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.topbar-logo{font-size:13px;font-weight:800;letter-spacing:.04em}
+.topbar-sub{font-size:13px;font-weight:600;opacity:.8}
+.topbar-spacer{flex:1}
+.topbar-date{font-size:11px;opacity:.5}
+.dash-btn{padding:5px 14px;border-radius:20px;
+  border:1.5px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);
+  color:#fff;font-size:12px;font-weight:700;cursor:pointer;
+  font-family:inherit;transition:.15s;white-space:nowrap}
+.dash-btn:hover{background:rgba(255,255,255,.2)}
+
+/* 2カラムグリッド */
+.form-grid{display:grid;grid-template-columns:320px 1fr;gap:14px;align-items:start}
+
+.card{background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-lg);padding:14px 16px;margin-bottom:10px}
+.sec{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.06em;
+  text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.sec::after{content:'';flex:1;height:1px;background:var(--border)}
+
+.fg{margin-bottom:11px}.fg:last-child{margin-bottom:0}
+.fl{font-size:11px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px}
+.fl .req{color:var(--red);margin-left:2px}
+.fi,.fsel,.fta{width:100%;padding:8px 10px;border:1.5px solid var(--border);
+  border-radius:var(--r);font-size:14px;font-family:inherit;
+  background:var(--surface);color:var(--text);-webkit-appearance:none;transition:.15s}
+.fi:focus,.fsel:focus,.fta:focus{outline:none;border-color:var(--blue);
+  box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.fi:disabled,.fsel:disabled{background:#f9f9f9;color:var(--text3)}
+.fsel{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239c9a94' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+.fta{resize:vertical;min-height:80px}
+
+/* 担当者バナー */
+.person-banner{display:flex;align-items:center;justify-content:space-between;
+  background:var(--blue-bg);border:1.5px solid #bfdbfe;border-radius:var(--r);
+  padding:9px 12px;cursor:pointer}
+.person-banner-name{font-size:15px;font-weight:700;color:var(--blue)}
+.person-banner-change{font-size:11px;color:var(--blue);text-decoration:underline}
+.person-select-wrap{display:none;margin-top:6px}
+
+/* 確度ランク（横並びアイコン） */
+.rank-row{display:flex;gap:10px}
+.rank-btn{width:42px;height:42px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:14px;cursor:pointer;
+  border:2.5px solid transparent;transition:.15s;user-select:none}
+.rank-btn[data-v="売上"]{background:#ede9fe;color:#7c3aed}
+.rank-btn[data-v="決定"]{background:#fee2e2;color:#dc2626}
+.rank-btn[data-v="A"]   {background:#fef3c7;color:#d97706}
+.rank-btn[data-v="B"]   {background:#eff6ff;color:#2563eb}
+.rank-btn[data-v="C"]   {background:#f3f4f6;color:#6b7280}
+.rank-btn.sel[data-v="売上"]{border-color:#7c3aed;background:#7c3aed;color:#fff;transform:scale(1.1)}
+.rank-btn.sel[data-v="決定"]{border-color:#dc2626;background:#dc2626;color:#fff;transform:scale(1.1)}
+.rank-btn.sel[data-v="A"]   {border-color:#d97706;background:#d97706;color:#fff;transform:scale(1.1)}
+.rank-btn.sel[data-v="B"]   {border-color:#2563eb;background:#2563eb;color:#fff;transform:scale(1.1)}
+.rank-btn.sel[data-v="C"]   {border-color:#6b7280;background:#6b7280;color:#fff;transform:scale(1.1)}
+
+/* 数式行 */
+.calc-row{display:flex;align-items:flex-end;gap:5px;flex-wrap:nowrap}
+.calc-field{display:flex;flex-direction:column;flex:2;min-width:0}
+.calc-field.fn{flex:1;min-width:52px}
+.calc-op{font-size:15px;font-weight:700;color:var(--text3);
+  padding-bottom:9px;flex-shrink:0;user-select:none}
+
+/* 金額カード（横並び） */
+.amount-card{background:var(--blue-bg);border:1.5px solid #bfdbfe;
+  border-radius:var(--r);padding:10px 14px;margin-top:10px;
+  display:none;gap:0}
+.amount-items{display:flex;gap:0;align-items:stretch}
+.amount-item{flex:1;text-align:center;padding:6px 8px;
+  border-right:1px solid #dbeafe}
+.amount-item:last-child{border-right:none}
+.amount-label{font-size:11px;color:#1d4ed8;font-weight:500;display:block;margin-bottom:2px}
+.amount-value{font-size:15px;font-weight:700;color:#1d4ed8;display:block}
+.amount-value.highlight{font-size:17px;color:#7c3aed}
+
+/* スケジュール＋メモ 横並び */
+.lower-grid{display:grid;grid-template-columns:190px 1fr;gap:12px;margin-top:10px}
+
+/* 商材：よく使うチップ */
+.product-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.product-chip{padding:6px 14px;border:1.5px solid var(--border);border-radius:20px;
+  cursor:pointer;font-size:12px;font-weight:600;background:var(--surface);
+  color:var(--text2);transition:.15s;user-select:none}
+.product-chip:hover{border-color:var(--blue);color:var(--blue)}
+.product-chip.sel{border-color:var(--blue);background:var(--blue);color:#fff}
+.product-other-label{font-size:11px;color:var(--text3);margin-bottom:4px;display:block}
+
+/* サジェスト */
+.suggest-wrap{position:relative}
+.suggest-list{position:absolute;top:100%;left:0;right:0;z-index:100;
+  background:var(--surface);border:1.5px solid var(--blue);
+  border-radius:var(--r);box-shadow:0 4px 16px rgba(0,0,0,.1);
+  max-height:200px;overflow-y:auto;display:none}
+.suggest-item{padding:9px 12px;cursor:pointer;font-size:13px;
+  border-bottom:1px solid var(--border);transition:.1s}
+.suggest-item:last-child{border-bottom:none}
+.suggest-item:hover{background:var(--blue-bg)}
+.suggest-item .s-code{font-size:11px;color:var(--text3);display:block}
+
+.quote-notice{font-size:11px;color:var(--amber);background:var(--amber-bg);
+  padding:5px 9px;border-radius:6px;margin-top:5px}
+.fixed-notice{font-size:11px;color:var(--text3);padding:3px 0}
+
+.err{background:var(--red-bg);color:var(--red);padding:10px 13px;
+  border-radius:var(--r);font-size:13px;margin-bottom:10px;display:none;
+  border-left:4px solid var(--red)}
+.loading{text-align:center;padding:40px 20px;color:var(--text3)}
+.loading-spin{display:inline-block;width:28px;height:28px;
+  border:3px solid var(--border);border-top-color:var(--blue);
+  border-radius:50%;animation:spin .8s linear infinite;margin-bottom:12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.submit-btn{width:100%;padding:14px;background:var(--blue);color:#fff;border:none;
+  border-radius:var(--r-lg);font-size:15px;font-weight:700;cursor:pointer;
+  font-family:inherit;transition:.15s;margin-top:10px}
+.submit-btn:hover{background:var(--blue-dark)}
+.submit-btn:active{transform:scale(.98)}
+.submit-btn:disabled{background:var(--border);color:var(--text3);cursor:not-allowed;transform:none}
+
+.success{display:none;text-align:center;padding:48px 20px}
+.success-icon{font-size:64px;margin-bottom:16px}
+.success-title{font-size:22px;font-weight:700;margin-bottom:8px}
+.success-sub{font-size:14px;color:var(--text2);margin-bottom:4px}
+.incentive-badge{display:inline-block;background:var(--purple-bg);color:var(--purple);
+  border:1.5px solid #c4b5fd;border-radius:var(--r-lg);
+  padding:12px 24px;font-size:16px;font-weight:700;margin:14px 0 22px}
+.btn-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.again-btn{padding:11px 26px;border-radius:var(--r);
+  font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;
+  background:var(--surface);border:1.5px solid var(--border);color:var(--text);transition:.15s}
+.again-btn:hover{border-color:#aaa}
+</style>
+</head>
+<body>
+
+<!-- トップバー -->
+<div class="topbar">
+  <span class="topbar-logo">エー・ファクトリー</span>
+  <span class="topbar-sub">案件登録</span>
+  <div class="topbar-spacer"></div>
+  <span class="topbar-date" id="hdate"></span>
+  <button class="dash-btn" onclick="location.href='dashboard.html'">← ダッシュボード</button>
+</div>
+
+<div class="wrap">
+  <div class="loading" id="loading">
+    <div class="loading-spin"></div>
+    <div>マスタデータを読み込み中...</div>
+  </div>
+
+  <div id="form-area" style="display:none">
+    <div class="err" id="err"></div>
+
+    <div class="form-grid">
+
+      <!-- 左カラム：案件情報 -->
+      <div>
+        <div class="card">
+          <div class="sec">案件情報</div>
+
+          <div class="fg">
+            <label class="fl">担当者<span class="req">*</span></label>
+            <div class="person-banner" id="person-banner" onclick="togglePersonSelect()" style="display:none">
+              <span class="person-banner-name" id="person-banner-name"></span>
+              <span class="person-banner-change">変更する</span>
+            </div>
+            <div class="person-select-wrap" id="person-select-wrap">
+              <select class="fsel" id="person" onchange="onPersonChange()">
+                <option value="">選択してください</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="fg">
+            <label class="fl">会社名<span class="req">*</span></label>
+            <div class="suggest-wrap">
+              <input class="fi" type="text" id="companyName"
+                placeholder="会社名を入力（既存顧客はリストから選択）"
+                autocomplete="off" oninput="onCompanyInput(this.value)">
+              <div class="suggest-list" id="suggest-list"></div>
+            </div>
+            <input type="hidden" id="customerId">
+            <div id="customer-badge" style="font-size:11px;color:var(--green);margin-top:4px;display:none">
+              ✓ 顧客ID: <span id="customer-id-display"></span>
+            </div>
+          </div>
+
+          <div class="fg">
+            <label class="fl">商材<span class="req">*</span></label>
+            <div class="product-chips" id="product-chips"></div>
+            <span class="product-other-label">その他の商材</span>
+            <select class="fsel" id="productName" onchange="onProductChange()">
+              <option value="">── 商材を選ぶ ──</option>
+            </select>
+          </div>
+
+          <div class="fg" style="margin-bottom:0">
+            <label class="fl">確度ランク<span class="req">*</span></label>
+            <div class="rank-row">
+              <div class="rank-btn" data-v="売上" onclick="selRank(this)" title="売上：入金月確定">¥</div>
+              <div class="rank-btn" data-v="決定" onclick="selRank(this)" title="決定：契約書締結">決</div>
+              <div class="rank-btn" data-v="A"    onclick="selRank(this)" title="A：合意形成済み">A</div>
+              <div class="rank-btn" data-v="B"    onclick="selRank(this)" title="B：予算確保済み">B</div>
+              <div class="rank-btn sel" data-v="C" onclick="selRank(this)" title="C：啓蒙活動中">C</div>
+            </div>
+            <input type="hidden" id="rankLabel" value="C">
+          </div>
+        </div>
+      </div><!-- /左カラム -->
+
+      <!-- 右カラム：金額・スケジュール・メモ -->
+      <div>
+
+        <!-- 金額情報 -->
+        <div class="card">
+          <div class="sec">金額情報</div>
+          <div id="fixed-notice" class="fixed-notice" style="margin-bottom:8px;display:none">
+            商材マスタの金額を使用します（変更可）
+          </div>
+          <div id="quote-notice" class="quote-notice" style="margin-bottom:8px;display:none">
+            この商材は都度見積もりです。実際の金額を入力してください。
+          </div>
+
+          <!-- 数式行: [売上] − [費用] × [コース数] × [件数] × [月数] -->
+          <div class="calc-row">
+            <div class="calc-field">
+              <label class="fl">売上（単価）<span class="req" id="sales-req" style="display:none">*</span></label>
+              <input class="fi" type="number" id="sales" min="0" inputmode="numeric"
+                placeholder="0" oninput="calcAmount()">
+            </div>
+            <span class="calc-op">−</span>
+            <div class="calc-field">
+              <label class="fl">費用（単価）</label>
+              <input class="fi" type="number" id="cost" min="0" inputmode="numeric"
+                placeholder="0" oninput="calcAmount()">
+            </div>
+            <span class="calc-op">×</span>
+            <div class="calc-field fn">
+              <label class="fl">コース数</label>
+              <input class="fi" type="number" id="courses" min="1" inputmode="numeric"
+                placeholder="1" value="1" oninput="calcAmount()">
+            </div>
+            <span class="calc-op">×</span>
+            <div class="calc-field fn">
+              <label class="fl">件数</label>
+              <input class="fi" type="number" id="qty" min="1" inputmode="numeric"
+                placeholder="1" value="1" oninput="calcAmount()">
+            </div>
+            <span class="calc-op">×</span>
+            <div class="calc-field fn">
+              <label class="fl">月数</label>
+              <input class="fi" type="number" id="months" min="1" max="24" inputmode="numeric"
+                placeholder="1" value="1" oninput="calcAmount()">
+            </div>
+          </div>
+
+          <!-- 計算結果 -->
+          <div class="amount-card" id="amount-card">
+            <div class="amount-items">
+              <div class="amount-item">
+                <span class="amount-label">粗利（月次）</span>
+                <span class="amount-value" id="disp-gp">—</span>
+              </div>
+              <div class="amount-item">
+                <span class="amount-label">売上（合計）</span>
+                <span class="amount-value" id="disp-total-sales">—</span>
+              </div>
+              <div class="amount-item">
+                <span class="amount-label">総粗利</span>
+                <span class="amount-value highlight" id="disp-total-gp">—</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- スケジュール＋メモ 横並び -->
+          <div class="lower-grid">
+            <div>
+              <div class="sec" style="margin-top:4px">スケジュール</div>
+              <div class="fg" style="margin-bottom:0">
+                <label class="fl">売上予定月<span class="req">*</span></label>
+                <input class="fi" type="month" id="expectedMonth">
+              </div>
+            </div>
+            <div>
+              <div class="sec" style="margin-top:4px">メモ</div>
+              <div class="fg" style="margin-bottom:0">
+                <label class="fl">次のアクション・備考</label>
+                <textarea class="fta" id="memo"
+                  placeholder="例: 5/10 商談予定。先方担当は山田部長。提案書を事前送付する。"></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button class="submit-btn" id="sbtn" onclick="submit()">案件を登録する</button>
+
+      </div><!-- /右カラム -->
+    </div><!-- /form-grid -->
+  </div><!-- /form-area -->
+
+  <!-- 完了画面 -->
+  <div class="success" id="success">
+    <div class="success-icon">🎉</div>
+    <div class="success-title">案件登録完了！</div>
+    <div class="success-sub" id="s-company"></div>
+    <div class="success-sub" id="s-product"></div>
+    <div class="incentive-badge" id="s-incentive" style="display:none"></div>
+    <div class="btn-row">
+      <button class="again-btn" onclick="reset()">続けて登録する</button>
+      <button class="again-btn" onclick="location.href='dashboard.html'" style="background:var(--blue-bg);border-color:#bfdbfe;color:var(--blue)">ダッシュボードへ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbx_nr1WPGOgYcOUwlSEeOlwfYlr_njjZdHRaKLdVvw7LP-0Wjf9wLKi5bGvf6FW86bX/exec';
+const MASTER_CACHE_KEY = 'af_master_v1';
+const MASTER_CACHE_TTL = 5 * 60 * 1000; // 5分
+
+let masterData   = null;
+let selectedRank = 'C';
+let customerList = [];
+
+// ============================================================
+// 初期化
+// ============================================================
+async function init() {
+  const d = new Date();
+  document.getElementById('hdate').textContent =
+    d.toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+  const next = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+  document.getElementById('expectedMonth').value =
+    next.getFullYear() + '-' + String(next.getMonth() + 1).padStart(2,'0');
+
+  await loadMaster();
+}
+
+async function loadMaster() {
+  // キャッシュから即時表示
+  const cached = loadMasterCache();
+  if(cached){
+    applyMasterData(cached);
+    document.getElementById('loading').style.display   = 'none';
+    document.getElementById('form-area').style.display = 'block';
+    // バックグラウンドで最新データを取得
+    fetchMasterData().then(fresh=>{ if(fresh) applyMasterData(fresh); }).catch(()=>{});
+    return;
+  }
+  // キャッシュなし → 通常ロード
+  try{
+    const data = await fetchMasterData();
+    if(!data) throw new Error('マスタ取得失敗');
+    applyMasterData(data);
+    document.getElementById('loading').style.display   = 'none';
+    document.getElementById('form-area').style.display = 'block';
+  }catch(e){
+    document.getElementById('loading').innerHTML =
+      '<div style="color:var(--red);padding:20px">マスタデータの読み込みに失敗しました。<br>' +
+      '<small>' + e.message + '</small><br><br>' +
+      '<button onclick="loadMaster()" style="padding:8px 16px;background:var(--blue);' +
+      'color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit">再試行</button></div>';
+  }
+}
+
+function loadMasterCache(){
+  try{
+    const raw=localStorage.getItem(MASTER_CACHE_KEY);
+    if(!raw) return null;
+    const c=JSON.parse(raw);
+    if(Date.now()-c.timestamp>MASTER_CACHE_TTL) return null;
+    return c.data;
+  }catch(e){ return null; }
+}
+
+async function fetchMasterData(){
+  try{
+    const res=await fetch(GAS_URL+'?mode=master');
+    const data=await res.json();
+    if(!data.success) return null;
+    localStorage.setItem(MASTER_CACHE_KEY, JSON.stringify({timestamp:Date.now(), data}));
+    return data;
+  }catch(e){ return null; }
+}
+
+function applyMasterData(data){
+  masterData = data;
+  buildPersonOptions(data.personDetails || []);
+  buildProductOptions(data.productDetails || []);
+  customerList = (data.customers || []).map(c => ({
+    code:    c['顧客コード'] || c.code    || '',
+    company: c['企業名']     || c.company || '',
+    person:  c['AFC営業担当']|| c.person  || ''
+  })).filter(c => c.company);
+  restoreLastPerson();
+}
+
+function buildPersonOptions(details) {
+  const sel = document.getElementById('person');
+  sel.innerHTML = '<option value="">選択してください</option>';
+  details.filter(p => p.status === '在籍中').forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.name; opt.textContent = p.name;
+    sel.appendChild(opt);
+  });
+}
+
+function buildProductOptions(details) {
+  // よく使う → 直販 固定価格商材をチップとして上部表示
+  const frequent = details.filter(p =>
+    p.name.includes('_直販') && p.priceType === '固定' && p.unitPrice > 0
+  );
+  const chips = document.getElementById('product-chips');
+  chips.innerHTML = frequent.map(p =>
+    `<div class="product-chip" data-v="${esc(p.name)}" onclick="selProductChip(this,'${esc(p.name)}')">${esc(p.name.replace('_直販',''))}</div>`
+  ).join('');
+
+  // その他 → カテゴリ別グループセレクト（直販は除く）
+  const rest = details.filter(p => !frequent.includes(p));
+  const groups = {};
+  rest.forEach(p => {
+    let g = 'その他';
+    if (p.name.includes('_代理店'))              g = '代理店商材';
+    else if (p.dealType === '助成金・補助金')     g = '補助金・助成金';
+    if (!groups[g]) groups[g] = [];
+    groups[g].push(p);
+  });
+  const sel = document.getElementById('productName');
+  sel.innerHTML = '<option value="">── 商材を選ぶ ──</option>';
+  Object.entries(groups).forEach(([label, items]) => {
+    const og = document.createElement('optgroup');
+    og.label = label;
+    items.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.name;
+      opt.textContent = p.name + (p.priceType === '都度見積もり' ? ' ★' : '');
+      og.appendChild(opt);
+    });
+    sel.appendChild(og);
+  });
+}
+
+function selProductChip(el, name) {
+  document.querySelectorAll('.product-chip').forEach(c => c.classList.remove('sel'));
+  el.classList.add('sel');
+  document.getElementById('productName').value = '';
+  applyProduct(name);
+}
+
+// ============================================================
+// 担当者：前回選択者をバナー表示
+// ============================================================
+function restoreLastPerson() {
+  // URLパラメータに person があればそれを使う
+  const params = new URLSearchParams(location.search);
+  const urlPerson = params.get('person');
+  if (urlPerson) {
+    const sel = document.getElementById('person');
+    for (let i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === urlPerson) {
+        sel.value = urlPerson;
+        localStorage.setItem('deal_last_person', urlPerson);
+        showPersonBanner(urlPerson);
+        return;
+      }
+    }
+  }
+  // URLパラメータなし → 前回のlocalStorageから復元
+  const lp = localStorage.getItem('deal_last_person');
+  if (lp) {
+    const sel = document.getElementById('person');
+    let found = false;
+    for (let i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === lp) { sel.value = lp; found = true; break; }
+    }
+    if (found) {
+      showPersonBanner(lp);
+      return;
+    }
+  }
+  // 前回なし or 見つからない → セレクトを直接表示
+  showPersonSelect();
+}
+
+function showPersonBanner(name) {
+  document.getElementById('person-banner-name').textContent = name;
+  document.getElementById('person-banner').style.display    = 'flex';
+  document.getElementById('person-select-wrap').style.display = 'none';
+}
+
+function showPersonSelect() {
+  document.getElementById('person-banner').style.display      = 'none';
+  document.getElementById('person-select-wrap').style.display = 'block';
+}
+
+function togglePersonSelect() {
+  const wrap = document.getElementById('person-select-wrap');
+  const open = wrap.style.display === 'block';
+  wrap.style.display = open ? 'none' : 'block';
+}
+
+function onPersonChange() {
+  const name = document.getElementById('person').value;
+  if (!name) return;
+  localStorage.setItem('deal_last_person', name);
+  showPersonBanner(name);
+}
+
+// 送信時に担当者を確定取得するヘルパー
+function getSelectedPerson() {
+  const banner = document.getElementById('person-banner');
+  if (banner.style.display !== 'none') {
+    return document.getElementById('person-banner-name').textContent.trim();
+  }
+  return document.getElementById('person').value;
+}
+
+// ============================================================
+// 商材選択：金額自動入力
+// ============================================================
+function onProductChange() {
+  const name = document.getElementById('productName').value;
+  if (!name) return;
+  document.querySelectorAll('.product-chip').forEach(c => c.classList.remove('sel'));
+  applyProduct(name);
+}
+
+function applyProduct(name) {
+  if (!name || !masterData) return;
+  const p = masterData.productDetails.find(d => d.name === name);
+  if (!p) return;
+
+  const isQuote = p.priceType === '都度見積もり';
+  document.getElementById('quote-notice').style.display = isQuote ? 'block' : 'none';
+  document.getElementById('fixed-notice').style.display = isQuote ? 'none' : 'block';
+  document.getElementById('sales-req').style.display    = isQuote ? 'inline' : 'none';
+
+  document.getElementById('sales').value  = isQuote ? '' : (p.unitPrice || '');
+  document.getElementById('cost').value   = isQuote ? '' : (p.cost || '');
+  document.getElementById('months').value = p.months || 1;
+
+  calcAmount();
+}
+
+// ============================================================
+// 金額・インセンティブ計算
+// ============================================================
+function calcAmount() {
+  const unitSales = parseInt(document.getElementById('sales').value)   || 0;
+  const unitCost  = parseInt(document.getElementById('cost').value)    || 0;
+  const courses   = parseInt(document.getElementById('courses').value) || 1;
+  const qty       = parseInt(document.getElementById('qty').value)     || 1;
+  let   months    = parseInt(document.getElementById('months').value)  || 1;
+
+  if (months > 24) { months = 24; document.getElementById('months').value = 24; }
+
+  const hasVal = (unitSales > 0 || unitCost > 0);
+  document.getElementById('amount-card').style.display = hasVal ? 'block' : 'none';
+  if (!hasVal) return;
+
+  const monthlyGp    = (unitSales - unitCost) * courses * qty;
+  const totalSales   = unitSales * courses * qty * months;
+  const totalGp      = monthlyGp * months;
+
+  document.getElementById('disp-gp').textContent         = '¥' + monthlyGp.toLocaleString();
+  document.getElementById('disp-total-sales').textContent = '¥' + totalSales.toLocaleString();
+  document.getElementById('disp-total-gp').textContent    = '¥' + totalGp.toLocaleString();
+}
+
+// ============================================================
+// 確度ランク選択
+// ============================================================
+function selRank(el) {
+  document.querySelectorAll('.rank-btn').forEach(c => c.classList.remove('sel'));
+  el.classList.add('sel');
+  selectedRank = el.dataset.v;
+  document.getElementById('rankLabel').value = selectedRank;
+}
+
+// ============================================================
+// 会社名サジェスト
+// ============================================================
+function onCompanyInput(val) {
+  document.getElementById('customerId').value = '';
+  document.getElementById('customer-badge').style.display = 'none';
+
+  const list = document.getElementById('suggest-list');
+  if (!val || val.length < 1) { list.style.display = 'none'; return; }
+
+  const norm = val.replace(/[\s　]/g,'').toLowerCase();
+  const matches = customerList.filter(c =>
+    c.company.replace(/[\s　]/g,'').toLowerCase().includes(norm)
+  ).slice(0, 8);
+
+  if (matches.length === 0) { list.style.display = 'none'; return; }
+
+  list.innerHTML = matches.map(c =>
+    `<div class="suggest-item" onclick="selectCustomer('${esc(c.company)}','${esc(c.code)}')">
+      ${esc(c.company)}
+      ${c.code ? '<span class="s-code">顧客ID: ' + esc(c.code) +
+        (c.person ? ' / 担当: ' + esc(c.person) : '') + '</span>' : ''}
+    </div>`
+  ).join('');
+  list.style.display = 'block';
+}
+
+function selectCustomer(company, code) {
+  document.getElementById('companyName').value = company;
+  document.getElementById('customerId').value  = code;
+  document.getElementById('suggest-list').style.display = 'none';
+  if (code) {
+    document.getElementById('customer-id-display').textContent = code;
+    document.getElementById('customer-badge').style.display = 'block';
+  }
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.suggest-wrap'))
+    document.getElementById('suggest-list').style.display = 'none';
+});
+
+// 選択中の商材名を取得（チップ優先、次にセレクト）
+function getSelectedProduct() {
+  const chip = document.querySelector('.product-chip.sel');
+  if (chip) return chip.dataset.v;
+  return document.getElementById('productName').value;
+}
+
+// ============================================================
+// バリデーション
+// ============================================================
+function validate() {
+  const person      = getSelectedPerson();
+  const companyName = document.getElementById('companyName').value.trim();
+  const productName = getSelectedProduct();
+  const expMonth    = document.getElementById('expectedMonth').value;
+  const sales       = document.getElementById('sales').value;
+
+  if (!person)      return '担当者を選択してください';
+  if (!companyName) return '会社名を入力してください';
+  if (!productName) return '商材を選択してください';
+  if (!expMonth)    return '売上予定月を入力してください';
+
+  if (masterData) {
+    const p = masterData.productDetails.find(d => d.name === productName);
+    if (p && p.priceType === '都度見積もり' && !sales)
+      return 'この商材は売上予定額の入力が必須です';
+  }
+  return null;
+}
+
+// ============================================================
+// 送信
+// ============================================================
+async function submit() {
+  const errMsg = validate();
+  if (errMsg) { showErr(errMsg); return; }
+  hideErr();
+
+  const btn = document.getElementById('sbtn');
+  btn.disabled = true; btn.textContent = '登録中...';
+
+  const person      = getSelectedPerson();
+  const productName = getSelectedProduct();
+  const unitSales   = parseInt(document.getElementById('sales').value)   || 0;
+  const unitCost    = parseInt(document.getElementById('cost').value)    || 0;
+  const courses     = parseInt(document.getElementById('courses').value) || 1;
+  const qty         = parseInt(document.getElementById('qty').value)     || 1;
+  const months      = Math.min(parseInt(document.getElementById('months').value) || 1, 24);
+
+  const payload = {
+    action:        'addDeal',
+    person,
+    companyName:   document.getElementById('companyName').value.trim(),
+    customerId:    document.getElementById('customerId').value,
+    productName,
+    rankLabel:     document.getElementById('rankLabel').value,
+    unitSales, unitCost, courses, qty, months,
+    expectedMonth: document.getElementById('expectedMonth').value,
+    memo:          document.getElementById('memo').value.trim()
+  };
+
+  try {
+    await fetch(GAS_URL, {
+      method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+
+    localStorage.setItem('deal_last_person', person);
+
+    // インセンティブ表示用再計算
+    const gp = (unitSales - unitCost) * courses * qty; // 月次粗利
+    const p  = masterData ? masterData.productDetails.find(d => d.name === productName) : null;
+    const iType   = p ? p.incentiveType   : '10%単発';
+    const iTarget = p ? p.incentiveTarget : '○';
+    let incentive = 0;
+    if (iTarget === '○') {
+      switch (iType) {
+        case '0.1%':    incentive = Math.floor(gp * 0.001); break;
+        case '10%単発': incentive = Math.floor(gp * 0.1); break;
+        case '10%継続': incentive = Math.floor(gp * months * 0.1); break;
+        case '1ヶ月分': incentive = Math.floor(gp); break;
+      }
+    }
+
+    showSuccess(payload.companyName, productName, incentive);
+  } catch(e) {
+    showErr('登録に失敗しました。ネットワークを確認してください。');
+    btn.disabled = false; btn.textContent = '案件を登録する';
+  }
+}
+
+function showSuccess(company, product, incentive) {
+  document.getElementById('form-area').style.display = 'none';
+  document.getElementById('success').style.display   = 'block';
+  document.getElementById('s-company').textContent   = company;
+  document.getElementById('s-product').textContent   = product;
+  if (incentive > 0) {
+    document.getElementById('s-incentive').textContent =
+      'インセンティブ予定: ¥' + incentive.toLocaleString();
+    document.getElementById('s-incentive').style.display = 'inline-block';
+  }
+}
+
+// ============================================================
+// リセット
+// ============================================================
+function reset() {
+  document.getElementById('success').style.display   = 'none';
+  document.getElementById('form-area').style.display = 'block';
+  document.getElementById('companyName').value = '';
+  document.getElementById('customerId').value  = '';
+  document.getElementById('customer-badge').style.display = 'none';
+  document.getElementById('productName').value = '';
+  document.querySelectorAll('.product-chip').forEach(c => c.classList.remove('sel'));
+  document.getElementById('sales').value   = '';
+  document.getElementById('cost').value    = '';
+  document.getElementById('courses').value = '1';
+  document.getElementById('qty').value     = '1';
+  document.getElementById('months').value  = '1';
+  document.getElementById('memo').value   = '';
+  document.getElementById('s-incentive').style.display  = 'none';
+  document.getElementById('sbtn').disabled    = false;
+  document.getElementById('sbtn').textContent = '案件を登録する';
+  document.getElementById('quote-notice').style.display = 'none';
+  document.getElementById('fixed-notice').style.display = 'none';
+  document.getElementById('amount-card').style.display  = 'none';
+
+  // 確度ランクをCに戻す
+  document.querySelectorAll('.rank-btn').forEach(c => {
+    c.classList.toggle('sel', c.dataset.v === 'C');
+  });
+  selectedRank = 'C';
+  document.getElementById('rankLabel').value = 'C';
+
+  restoreLastPerson();
+}
+
+function showErr(msg) {
+  const e = document.getElementById('err');
+  e.textContent = msg; e.style.display = 'block';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function hideErr() {
+  document.getElementById('err').style.display = 'none';
+}
+
+init();
+</script>
+</body>
+</html>

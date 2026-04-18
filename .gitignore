@@ -1,0 +1,11 @@
+# GASバックエンド（GASエディタで管理するため除外）
+gas_v3.js
+
+# 旧バージョン（不要ファイル）
+sales_manager_v3.html
+customer_db.html
+
+# その他
+*.log
+.DS_Store
+Thumbs.db

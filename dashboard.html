@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>個人ダッシュボード - エー・ファクトリー</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#2563eb;--blue-bg:#eff6ff;
+  --green:#16a34a;--green-bg:#f0fdf4;
+  --red:#dc2626;--red-bg:#fef2f2;
+  --amber:#d97706;--amber-bg:#fffbeb;
+  --purple:#7c3aed;--purple-bg:#f5f3ff;
+  --gray:#6b7280;--gray-bg:#f9fafb;
+  --navy:#1e3a5f;
+  --text:#111827;--text2:#4b5563;--text3:#9ca3af;
+  --border:#e5e7eb;--bg:#f3f4f6;--surface:#fff;
+  --r:8px;--r-lg:12px;--sidebar:220px
+}
+body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
+  background:var(--bg);color:var(--text);font-size:14px;min-height:100vh}
+
+/* ─── トップバー ─── */
+.topbar{background:var(--navy);color:#fff;height:52px;
+  display:flex;align-items:center;padding:0 24px;gap:16px;
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.topbar-logo{font-size:13px;font-weight:800;letter-spacing:.04em;white-space:nowrap}
+.topbar-sub{font-size:11px;opacity:.5;margin-left:4px}
+.topbar-spacer{flex:1}
+.topbar-fy{font-size:11px;background:rgba(255,255,255,.12);padding:3px 10px;border-radius:20px}
+.demo-btn{padding:5px 14px;border-radius:20px;border:1.5px solid rgba(255,255,255,.3);
+  background:rgba(255,255,255,.1);color:#fff;font-size:11px;font-weight:700;
+  cursor:pointer;font-family:inherit;transition:.15s}
+.demo-btn:hover{background:rgba(255,255,255,.2)}
+.demo-btn.on{background:rgba(251,191,36,.3);border-color:rgba(251,191,36,.7);color:#fbbf24}
+
+/* ─── サイドバー ─── */
+.sidebar{width:var(--sidebar);background:var(--surface);
+  border-right:1px solid var(--border);
+  position:fixed;top:52px;left:0;bottom:0;overflow-y:auto;padding:20px 0}
+.sidebar-section{padding:0 14px;margin-bottom:20px}
+.sidebar-label{font-size:10px;font-weight:700;color:var(--text3);
+  letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;padding:0 6px}
+.person-card{display:flex;align-items:center;gap:10px;
+  padding:9px 10px;border-radius:var(--r);cursor:pointer;
+  transition:.12s;margin-bottom:2px;border:1.5px solid transparent}
+.person-card:hover{background:var(--blue-bg)}
+.person-card.active{background:var(--blue-bg);border-color:#bfdbfe}
+.person-avatar{width:32px;height:32px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:12px;color:#fff;flex-shrink:0}
+.person-info{min-width:0}
+.person-name{font-size:13px;font-weight:600;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.person-role{font-size:10px;color:var(--text3)}
+.sidebar-divider{height:1px;background:var(--border);margin:12px 14px}
+.sidebar-nav-item{display:flex;align-items:center;gap:8px;
+  padding:8px 20px;font-size:13px;color:var(--text2);cursor:pointer;transition:.12s}
+.sidebar-nav-item:hover{background:var(--bg);color:var(--text)}
+
+/* ─── メインコンテンツ ─── */
+.main{margin-left:var(--sidebar);margin-top:52px;padding:24px;min-height:calc(100vh - 52px)}
+
+/* ─── ページヘッダー ─── */
+.page-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:18px}
+.page-title{font-size:22px;font-weight:800}
+.page-meta{font-size:12px;color:var(--text3)}
+
+/* ─── カード ─── */
+.card{background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-lg);padding:18px 20px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.card-title{font-size:15px;font-weight:800}
+.card-hint{font-size:11px;color:var(--text3)}
+
+/* ─── パイプラインサマリー（最上段 6枚） ─── */
+.pipeline-summary{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px}
+.ps-card{background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-lg);padding:14px 16px;border-top:4px solid var(--border)}
+.ps-label{font-size:10px;color:var(--text3);font-weight:600;margin-bottom:6px;letter-spacing:.02em}
+.ps-value{font-size:20px;font-weight:800;line-height:1.15}
+
+/* ─── アラート ─── */
+.alert{padding:11px 16px;border-radius:var(--r);font-size:13px;
+  margin-bottom:14px;border-left:4px solid}
+.alert-ok{background:var(--green-bg);border-color:var(--green);color:#14532d}
+.alert-warn{background:var(--amber-bg);border-color:var(--amber);color:#92400e}
+.alert-danger{background:var(--red-bg);border-color:var(--red);color:#7f1d1d}
+
+/* ─── 月別推移タイムライン ─── */
+.timeline-card{background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-lg);padding:18px 0 0;margin-bottom:16px;overflow:hidden}
+.timeline-card-header{padding:0 20px 14px}
+.timeline-scroll{overflow-x:auto}
+.tl-tbl{border-collapse:collapse;font-size:12px;width:100%;table-layout:fixed}
+.tl-tbl colgroup .col-co{width:130px}
+.tl-tbl colgroup .col-rank{width:44px}
+.tl-tbl colgroup .col-name{width:130px}
+.tl-tbl colgroup .col-month{width:88px}
+.tl-tbl thead th{background:var(--bg);color:var(--text3);font-weight:700;font-size:10px;
+  padding:7px 8px;text-align:right;border-bottom:2px solid var(--border);
+  border-right:1px solid var(--border);white-space:nowrap}
+.tl-tbl thead th.th-co{text-align:left;position:sticky;left:0;z-index:2;
+  background:var(--bg);padding:7px 10px;min-width:130px}
+.tl-tbl thead th.th-rank{text-align:center;position:sticky;left:130px;z-index:2;
+  background:var(--bg);border-right:none}
+.tl-tbl thead th.th-name{text-align:left;position:sticky;left:174px;z-index:2;
+  background:var(--bg);border-right:2px solid var(--border);padding:7px 8px}
+.tl-tbl thead th.th-cur{background:#e0f2fe;color:#0369a1}
+.tl-tbl tbody td{padding:6px 8px;text-align:right;border-bottom:1px solid #f0f0f0;
+  border-right:1px solid #f5f5f5;white-space:nowrap;vertical-align:middle;font-size:12px}
+.tl-tbl tbody td.td-co{text-align:left;position:sticky;left:0;z-index:1;
+  background:var(--surface);padding:6px 10px;font-weight:600;font-size:12px}
+.tl-tbl tbody td.td-rank{text-align:center;position:sticky;left:130px;z-index:1;
+  background:var(--surface);border-right:none;padding:6px 4px}
+.tl-tbl tbody td.td-name{text-align:left;position:sticky;left:174px;z-index:1;
+  background:var(--surface);border-right:2px solid var(--border);
+  padding:6px 8px;font-size:11px;color:var(--text2)}
+.tl-tbl tbody tr:hover td{background:#fafafa!important}
+.tl-tbl tbody td.td-cur{background:#f0f9ff!important}
+.tl-tbl tfoot td{background:var(--bg);font-weight:700;font-size:11px;
+  padding:7px 8px;text-align:right;border-top:2px solid var(--border);
+  border-right:1px solid var(--border)}
+.tl-tbl tfoot td.td-co{text-align:left;position:sticky;left:0;
+  background:var(--bg);padding:7px 10px}
+.tl-tbl tfoot td.td-rank{position:sticky;left:130px;background:var(--bg);border-right:none}
+.tl-tbl tfoot td.td-name{position:sticky;left:174px;
+  background:var(--bg);border-right:2px solid var(--border);padding:7px 8px}
+.tl-rank-badge{display:inline-flex;align-items:center;justify-content:center;
+  width:22px;height:22px;border-radius:50%;font-size:10px;font-weight:800;
+  color:#fff;flex-shrink:0;vertical-align:middle;margin-right:6px}
+.tl-company{vertical-align:middle;font-weight:600;font-size:12px}
+.tl-amt{font-weight:700;font-size:11px}
+.tl-empty{color:var(--border);font-size:10px;text-align:center}
+.tl-total-row td{color:var(--text2)}
+.no-deals-msg{padding:24px;text-align:center;color:var(--text3);font-size:13px}
+
+/* タイムライン ランクヘッダー行 */
+.tl-rank-row td{cursor:pointer;user-select:none;padding:8px 12px;
+  border-top:2px solid var(--border);border-bottom:1px solid var(--border)}
+.tl-rank-row:hover td{filter:brightness(.97)}
+.tl-rank-row td.td-deal{display:flex;align-items:center;gap:8px}
+.tl-rank-row-label{font-weight:700;font-size:13px}
+.tl-rank-row-desc{font-size:11px;color:var(--text3);flex:1}
+.tl-rank-row-cnt{font-size:11px;color:var(--text3)}
+.tl-rank-row-arr{font-size:10px;color:var(--text3);transition:transform .2s;flex-shrink:0}
+.tl-rank-row-arr.open{transform:rotate(90deg)}
+.tl-rank-row td:not(.td-deal){font-weight:700;font-size:11px}
+.tl-deal-row td{transition:background .1s}
+
+/* ─── 下段3カラム ─── */
+.bottom-grid{display:grid;grid-template-columns:280px 1fr;gap:14px;margin-bottom:16px}
+
+/* ─── KPIテーブル ─── */
+.kpi-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.kpi-tbl th{background:var(--bg);color:var(--text3);font-weight:700;font-size:10px;
+  padding:8px 16px;text-align:center;border-bottom:2px solid var(--border);
+  letter-spacing:.04em}
+.kpi-tbl th:first-child{text-align:left;padding-left:0;min-width:80px}
+.kpi-tbl td{padding:12px 16px;text-align:center;border-bottom:1px solid var(--border)}
+.kpi-tbl td:first-child{text-align:left;padding-left:0;
+  font-weight:600;color:var(--text2);font-size:13px}
+.kpi-tbl tr:last-child td{border-bottom:none}
+.kpi-tbl .row-actual{font-size:24px;font-weight:800}
+.kpi-tbl .row-target{font-size:14px;color:var(--text2)}
+.kpi-rate{font-size:10px;color:var(--text3);font-weight:400;margin-left:3px}
+
+
+/* ─── 年間進捗 ─── */
+.prog-wrap{margin-bottom:14px}
+.prog-header{display:flex;justify-content:space-between;
+  font-size:12px;color:var(--text3);margin-bottom:6px}
+.prog-header b{color:var(--text);font-weight:700}
+.prog-bg{background:#e5e7eb;border-radius:999px;height:16px;position:relative;overflow:hidden}
+.prog-actual{background:var(--blue);height:100%;
+  border-radius:999px 0 0 999px;position:absolute;left:0;top:0;transition:width .6s}
+.prog-yomi{background:#bfdbfe;height:100%;position:absolute;top:0;transition:width .6s}
+.prog-pct-label{position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  font-size:10px;font-weight:700;color:#fff;mix-blend-mode:difference;pointer-events:none}
+.prog-metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.prog-metric{background:var(--bg);border-radius:var(--r);padding:10px 12px;text-align:center}
+.prog-metric-label{font-size:10px;color:var(--text3);margin-bottom:3px}
+.prog-metric-val{font-size:18px;font-weight:800}
+.prog-metric-unit{font-size:10px;color:var(--text3);margin-top:2px}
+.monthly-prog{margin-top:4px}
+.monthly-prog-divider{height:1px;background:var(--border);margin:12px 0 10px}
+.monthly-prog-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
+.monthly-prog-title{font-size:12px;font-weight:700;color:var(--text2)}
+.monthly-prog-pct{font-size:15px;font-weight:800;color:var(--blue)}
+
+/* ─── 目標設定モーダル ─── */
+.goal-modal-box{width:min(1100px,96vw)}
+.goal-table{width:100%;border-collapse:collapse;margin-top:4px}
+.goal-table th{font-size:11px;color:var(--text3);font-weight:700;letter-spacing:.04em;
+  padding:8px 12px;text-align:center;border-bottom:2px solid var(--border);
+  background:var(--bg);white-space:nowrap}
+.goal-table th:first-child{text-align:left}
+.goal-table td{padding:8px 10px;border-bottom:1px solid var(--border);
+  text-align:center;vertical-align:middle}
+.goal-table td:first-child{text-align:left;font-weight:600;font-size:14px}
+.goal-table tbody tr:last-child td{border-bottom:none}
+.goal-input{width:88px;padding:6px 8px;border:1.5px solid var(--border);
+  border-radius:6px;font-size:14px;text-align:right;font-family:inherit;
+  -webkit-appearance:none;transition:.15s}
+.goal-input:focus{outline:none;border-color:var(--blue);
+  box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.goal-hint{font-size:10px;color:var(--text3);margin-top:2px}
+.goal-modal-note{font-size:12px;color:var(--text2);padding:0 20px 14px;
+  border-bottom:1px solid var(--border);margin-bottom:4px}
+.goal-btn{padding:5px 14px;border-radius:20px;
+  border:1.5px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);
+  color:#fff;font-size:11px;font-weight:700;cursor:pointer;
+  font-family:inherit;transition:.15s;white-space:nowrap}
+.goal-btn:hover{background:rgba(255,255,255,.25)}
+
+/* ─── 案件編集モーダル ─── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);
+  display:none;align-items:center;justify-content:center;z-index:300}
+.modal-overlay.open{display:flex}
+.modal-box{background:var(--surface);border-radius:var(--r-lg);
+  width:480px;max-width:calc(100vw - 32px);max-height:90vh;overflow-y:auto;
+  box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;
+  padding:18px 20px 14px;border-bottom:1px solid var(--border)}
+.modal-title{font-size:16px;font-weight:800}
+.modal-close{width:30px;height:30px;border-radius:50%;border:none;background:var(--bg);
+  cursor:pointer;font-size:16px;color:var(--text2);display:flex;align-items:center;
+  justify-content:center;font-family:inherit;transition:.12s}
+.modal-close:hover{background:var(--border)}
+.modal-body{padding:20px}
+.modal-info{background:var(--bg);border-radius:var(--r);padding:12px 14px;
+  margin-bottom:18px;font-size:13px}
+.modal-info-row{display:flex;gap:8px;margin-bottom:4px}
+.modal-info-row:last-child{margin-bottom:0}
+.modal-info-label{color:var(--text3);font-size:11px;width:56px;flex-shrink:0;padding-top:1px}
+.modal-info-val{font-weight:600;color:var(--text)}
+.mfg{margin-bottom:14px}
+.mfg:last-child{margin-bottom:0}
+.mfl{font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px}
+.mfi,.mfsel,.mfta{width:100%;padding:10px 12px;border:1.5px solid var(--border);
+  border-radius:var(--r);font-size:14px;font-family:inherit;
+  background:var(--surface);color:var(--text);-webkit-appearance:none;transition:.15s}
+.mfi:focus,.mfsel:focus,.mfta:focus{outline:none;border-color:var(--blue);
+  box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.mfsel{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239ca3af' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+.mfta{resize:vertical;min-height:64px}
+.modal-footer{display:flex;gap:10px;padding:14px 20px;border-top:1px solid var(--border)}
+.modal-btn{flex:1;padding:11px;border-radius:var(--r);border:none;
+  font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s}
+.modal-btn-cancel{background:var(--bg);color:var(--text2)}
+.modal-btn-cancel:hover{background:var(--border)}
+.modal-btn-save{background:var(--blue);color:#fff}
+.modal-btn-save:hover{background:#1d4ed8}
+.modal-btn-save:disabled{background:var(--text3);cursor:not-allowed}
+
+/* ─── ローディング ─── */
+.loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.85);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:200;gap:12px}
+.spin{width:36px;height:36px;border:3px solid var(--border);
+  border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:14px;color:var(--text3)}
+</style>
+</head>
+<body>
+
+<!-- ローディング -->
+<div class="loading-overlay" id="loading">
+  <div class="spin"></div>
+  <div class="loading-text">データを読み込み中...</div>
+</div>
+
+<!-- トップバー -->
+<div class="topbar">
+  <span class="topbar-logo">エー・ファクトリー</span>
+  <span class="topbar-sub">営業管理システム</span>
+  <div class="topbar-spacer"></div>
+  <a href="daily_report.html" target="_blank" class="goal-btn" style="text-decoration:none">📝 実績報告</a>
+  <button class="goal-btn" onclick="openGoalModal()">⚙ 目標設定</button>
+  <button class="demo-btn" id="demo-btn" onclick="toggleDemo()">DEMO</button>
+  <span class="topbar-fy" id="fy-badge">FY2025</span>
+</div>
+
+<!-- サイドバー -->
+<div class="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-label">担当者</div>
+    <div id="person-list"></div>
+  </div>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">メニュー</div>
+    <div class="sidebar-nav-item" onclick="location.href='deal_form.html'">＋ 案件登録</div>
+    <div class="sidebar-nav-item" onclick="window.open('daily_report.html','_blank')">📝 実績報告</div>
+  </div>
+</div>
+
+<!-- メインコンテンツ -->
+<div class="main" id="main" style="display:none">
+
+  <!-- ページヘッダー -->
+  <div class="page-header">
+    <div>
+      <div class="page-title" id="page-title">— さんのダッシュボード</div>
+      <div class="page-meta" id="page-meta"></div>
+    </div>
+  </div>
+
+  <!-- アラート -->
+  <div id="alert-area"></div>
+
+
+  <!-- 月別推移タイムライン -->
+  <div class="timeline-card">
+    <div class="timeline-card-header">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span style="font-size:15px;font-weight:800;flex-shrink:0">月別推移</span>
+        <div id="mg-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+        <span style="font-size:11px;color:var(--text3);margin-left:auto" id="timeline-hint"></span>
+      </div>
+    </div>
+    <div class="timeline-scroll">
+      <table class="tl-tbl" id="tl-tbl">
+        <colgroup>
+          <col class="col-co"><col class="col-rank"><col class="col-name">
+          <col class="col-month"><col class="col-month"><col class="col-month">
+          <col class="col-month"><col class="col-month"><col class="col-month">
+          <col class="col-month"><col class="col-month"><col class="col-month">
+          <col class="col-month"><col class="col-month"><col class="col-month">
+        </colgroup>
+        <thead id="tl-thead"></thead>
+        <tbody id="tl-tbody"></tbody>
+        <tfoot id="tl-tfoot"></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- 下段3カラム -->
+  <div class="bottom-grid">
+
+    <!-- KPI -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">KPI（今期累計）</span>
+      </div>
+      <div id="kpi-table-wrap"></div>
+    </div>
+
+    <!-- 年間進捗 -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">年間進捗</span>
+        <span class="card-hint" id="elapsed-hint"></span>
+      </div>
+      <div class="prog-wrap">
+        <div class="prog-header">
+          <span>実績 <b id="ph-actual">0</b> 万円</span>
+          <span id="ph-pct" style="font-size:16px;font-weight:800;color:var(--blue)">0%</span>
+          <span>目標 <b id="ph-target">—</b> 万円</span>
+        </div>
+        <div class="prog-bg">
+          <div class="prog-actual" id="bar-actual" style="width:0%"></div>
+          <div class="prog-yomi"   id="bar-yomi"   style="width:0%;left:0%"></div>
+          <div class="prog-pct-label" id="bar-label"></div>
+        </div>
+      </div>
+      <div class="prog-metrics">
+        <div class="prog-metric">
+          <div class="prog-metric-label">残り目標</div>
+          <div class="prog-metric-val" style="color:var(--red)" id="kv-remain">—</div>
+          <div class="prog-metric-unit">万円</div>
+        </div>
+        <div class="prog-metric">
+          <div class="prog-metric-label">着地見込</div>
+          <div class="prog-metric-val" style="color:var(--purple)" id="kv-forecast">—</div>
+          <div class="prog-metric-unit">万円</div>
+        </div>
+        <div class="prog-metric" style="grid-column:1/-1">
+          <div class="prog-metric-label">フォアキャスト</div>
+          <div class="prog-metric-val" style="color:var(--amber)" id="kv-forecast-pct">—</div>
+          <div class="prog-metric-unit">%達成見込</div>
+        </div>
+      </div>
+      <!-- 今月実績 vs 今月目標 -->
+      <div class="monthly-prog" id="monthly-prog-wrap" style="display:none">
+        <div class="monthly-prog-divider"></div>
+        <div class="monthly-prog-header">
+          <span class="monthly-prog-title">今月の粗利</span>
+          <span class="monthly-prog-pct" id="kv-month-pct">—</span>
+        </div>
+        <div class="prog-bg" style="margin-top:6px">
+          <div class="prog-actual" id="bar-month-actual" style="width:0%"></div>
+          <div class="prog-pct-label" id="bar-month-label"></div>
+        </div>
+        <div class="prog-metrics" style="margin-top:8px">
+          <div class="prog-metric">
+            <div class="prog-metric-label">今月実績</div>
+            <div class="prog-metric-val" id="kv-month-actual">—</div>
+            <div class="prog-metric-unit">万円</div>
+          </div>
+          <div class="prog-metric">
+            <div class="prog-metric-label">今月目標</div>
+            <div class="prog-metric-val" id="kv-month-target">—</div>
+            <div class="prog-metric-unit">万円</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /bottom-grid -->
+
+</div><!-- /main -->
+
+<!-- 案件編集モーダル -->
+<div class="modal-overlay" id="deal-modal" onclick="if(event.target===this)closeDealModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">案件編集</span>
+      <button class="modal-close" onclick="closeDealModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-info">
+        <div class="modal-info-row">
+          <span class="modal-info-label">会社名</span>
+          <span class="modal-info-val" id="dm-company"></span>
+        </div>
+        <div class="modal-info-row">
+          <span class="modal-info-label">商材</span>
+          <span class="modal-info-val" id="dm-product"></span>
+        </div>
+        <div class="modal-info-row">
+          <span class="modal-info-label">担当者</span>
+          <span class="modal-info-val" id="dm-person"></span>
+        </div>
+      </div>
+      <div class="mfg">
+        <label class="mfl">確度ランク</label>
+        <select class="mfsel" id="dm-rank">
+          <option value="売上">売上（入金月確定）</option>
+          <option value="決定">決定（契約書締結）</option>
+          <option value="A">A（合意形成済）</option>
+          <option value="B">B（予算確保済）</option>
+          <option value="C">C（啓蒙活動中）</option>
+          <option value="失注">失注</option>
+        </select>
+      </div>
+      <div class="mfg">
+        <label class="mfl">売上予定月</label>
+        <select class="mfsel" id="dm-month"></select>
+      </div>
+      <div class="mfg">
+        <label class="mfl">粗利（合計/円）</label>
+        <input class="mfi" type="number" id="dm-amount" min="0" step="1000" placeholder="例: 200000">
+      </div>
+      <div class="mfg">
+        <label class="mfl">メモ</label>
+        <textarea class="mfta" id="dm-memo" placeholder="備考など"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn modal-btn-cancel" onclick="closeDealModal()">キャンセル</button>
+      <button class="modal-btn modal-btn-save" id="dm-save" onclick="saveDealModal()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 目標設定モーダル -->
+<div class="modal-overlay" id="goal-modal" onclick="if(event.target===this)closeGoalModal()">
+  <div class="modal-box goal-modal-box">
+    <div class="modal-header">
+      <div class="modal-title">⚙ 目標設定 <span id="gm-fy" style="color:var(--text3);font-size:14px"></span></div>
+    </div>
+    <div class="modal-body">
+      <p class="goal-modal-note">担当者ごとに年間粗利目標とKPI目標を設定します。</p>
+      <table class="goal-table">
+        <thead>
+          <tr>
+            <th>担当者</th>
+            <th>年間粗利目標<br><span class="goal-hint">（万円）</span></th>
+            <th>月間粗利目標<br><span class="goal-hint">（万円）</span></th>
+            <th>月間面談目標<br><span class="goal-hint">有効面談（件）</span></th>
+            <th>月間架電目標<br><span class="goal-hint">テレアポ（件）</span></th>
+          </tr>
+        </thead>
+        <tbody id="goal-tbody"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn modal-btn-cancel" onclick="closeGoalModal()">キャンセル</button>
+      <button class="modal-btn modal-btn-save" id="gm-save" onclick="saveGoalModal()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// 設定
+// ============================================================
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbx_nr1WPGOgYcOUwlSEeOlwfYlr_njjZdHRaKLdVvw7LP-0Wjf9wLKi5bGvf6FW86bX/exec';
+const CACHE_KEY = 'af_dashboard_v1';
+const CACHE_TTL = 5 * 60 * 1000; // 5分
+
+const PERSON_COLORS=['#2563eb','#16a34a','#dc2626','#d97706','#7c3aed','#0891b2','#be185d'];
+
+const RANKS=[
+  {v:'売上',label:'総粗利',desc:'確定',av:'確',cls:'r-uriage',col:'#7c3aed'},
+  {v:'決定',label:'決定',desc:'契約書締結',av:'決',cls:'r-kettei',col:'#dc2626'},
+  {v:'A',   label:'A',  desc:'合意形成済',av:'A', cls:'r-a',    col:'#d97706'},
+  {v:'B',   label:'B',  desc:'予算確保済',av:'B', cls:'r-b',    col:'#2563eb'},
+  {v:'C',   label:'C',  desc:'啓蒙活動中',av:'C', cls:'r-c',    col:'#6b7280'},
+  {v:'失注',label:'失注',desc:'商談終了',  av:'×',cls:'r-lost', col:'#9ca3af'},
+];
+const RANK_COLOR={'売上':'#7c3aed','決定':'#dc2626','A':'#d97706','B':'#2563eb','C':'#6b7280','失注':'#9ca3af'};
+
+const PS_CONFIG=[
+  {key:'粗利', label:'粗利（確定）',color:'#16a34a',border:'#bbf7d0'},
+  {key:'決定', label:'決定',        color:'#dc2626',border:'#fca5a5'},
+  {key:'A',    label:'見込A',       color:'#d97706',border:'#fcd34d'},
+  {key:'B',    label:'見込B',       color:'#2563eb',border:'#93c5fd'},
+  {key:'C',    label:'見込C',       color:'#6b7280',border:'#d1d5db'},
+  {key:'失注', label:'失注',        color:'#9ca3af',border:'#e5e7eb'},
+];
+
+function getCurrentFY(d){d=d||new Date();return d.getMonth()>=7?d.getFullYear():d.getFullYear()-1}
+function getFYMonths(fy){const a=[];for(let m=8;m<=12;m++)a.push({year:fy,month:m});for(let m=1;m<=7;m++)a.push({year:fy+1,month:m});return a}
+function yyyyMM(y,m){return y+'-'+String(m).padStart(2,'0')}
+function toMan(yen){return Math.round(yen/10000)}
+function fmt(v){return v==null||isNaN(v)?'—':Number(v).toLocaleString()}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function fmtYen(v){return v==null||isNaN(v)||v===0?'':Number(v).toLocaleString()}
+function fmtMan(yen){
+  const v=toMan(yen);
+  if(Math.abs(yen)>=100000000){
+    const oku=Math.floor(Math.abs(yen)/100000000);
+    const man=Math.round((Math.abs(yen)%100000000)/10000);
+    return (yen<0?'-':'')+oku+'億'+(man>0?man+'万':'')+'円';
+  }
+  return fmt(v)+'万円';
+}
+
+const today=new Date();
+const todayYM=yyyyMM(today.getFullYear(),today.getMonth()+1);
+const currentFY=getCurrentFY();
+const fyMonths=getFYMonths(currentFY);
+
+// 月グループ定義（FY月配列のindex）
+const MG_DEFS=[
+  {id:'mg1',label:'8〜11月',indices:[0,1,2,3]},
+  {id:'mg2',label:'12〜3月',indices:[4,5,6,7]},
+  {id:'mg3',label:'4〜7月', indices:[8,9,10,11]},
+];
+const currentMGId=MG_DEFS.find(mg=>mg.indices.some(i=>yyyyMM(fyMonths[i].year,fyMonths[i].month)===todayYM))?.id||'mg3';
+// 全月が過去のグループはデフォルト折りたたみ
+const mgOpenState=Object.fromEntries(MG_DEFS.map(mg=>[
+  mg.id,!mg.indices.every(i=>yyyyMM(fyMonths[i].year,fyMonths[i].month)<todayYM)
+]));
+
+// ============================================================
+// 状態
+// ============================================================
+let masterData=null,goalsData=null,actualData=[],dealsData=[];
+let currentPerson=null;
+let isDemoMode=false,realActual=[],realDeals=[],realGoals=null;
+let personColorMap={};
+
+// ============================================================
+// 初期化
+// ============================================================
+async function init(){
+  document.getElementById('fy-badge').textContent='FY'+currentFY;
+
+  // キャッシュから即時表示
+  const cached = loadDashboardCache();
+  if(cached){
+    applyDashboardData(cached);
+    document.getElementById('loading').style.display='none';
+    document.getElementById('main').style.display='block';
+    const last=localStorage.getItem('dashboard_person');
+    const first=(masterData?.personDetails||[]).filter(p=>p.status==='在籍中')[0];
+    const target=last||(first?first.name:'');
+    if(target) selectPerson(target);
+    // バックグラウンドで最新データを取得
+    fetchDashboardData().then(fresh=>{
+      if(!fresh) return;
+      applyDashboardData(fresh);
+      if(currentPerson) render(currentPerson);
+    }).catch(()=>{});
+    return;
+  }
+
+  // キャッシュなし → 通常ロード
+  try{
+    const fresh = await fetchDashboardData();
+    if(!fresh) throw new Error('データ取得失敗');
+    applyDashboardData(fresh);
+    document.getElementById('loading').style.display='none';
+    document.getElementById('main').style.display='block';
+    const last=localStorage.getItem('dashboard_person');
+    const first=(masterData?.personDetails||[]).filter(p=>p.status==='在籍中')[0];
+    const target=last||(first?first.name:'');
+    if(target) selectPerson(target);
+  }catch(e){
+    document.getElementById('loading').innerHTML=
+      '<div style="color:var(--red);text-align:center;padding:20px">読み込み失敗: '+e.message+'<br><br>'+
+      '<button onclick="init()" style="padding:8px 18px;background:var(--blue);color:#fff;'+
+      'border:none;border-radius:6px;cursor:pointer;font-family:inherit">再試行</button></div>';
+  }
+}
+
+function loadDashboardCache(){
+  try{
+    const raw=localStorage.getItem(CACHE_KEY);
+    if(!raw) return null;
+    const c=JSON.parse(raw);
+    if(Date.now()-c.timestamp>CACHE_TTL) return null;
+    return c;
+  }catch(e){ return null; }
+}
+
+async function fetchDashboardData(){
+  try{
+    const res=await fetch(GAS_URL+'?mode=all');
+    const d=await res.json();
+    if(!d.success) return null;
+    const cache={
+      timestamp: Date.now(),
+      master: d.master,
+      goals:  d.goals,
+      actual: d.actual,
+      deals:  d.deals,
+    };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    return cache;
+  }catch(e){ return null; }
+}
+
+function applyDashboardData(cache){
+  if(cache.master&&cache.master.success){
+    masterData=cache.master;
+    const pd=cache.master.personDetails||[];
+    pd.forEach((p,i)=>{personColorMap[p.name]=PERSON_COLORS[i%PERSON_COLORS.length]});
+    buildSidebar(pd);
+  }
+  if(cache.goals&&cache.goals.success)   goalsData=cache.goals.goals;
+  if(cache.actual&&cache.actual.success) actualData=cache.actual.data||[];
+  if(cache.deals&&cache.deals.success)   dealsData=cache.deals.deals||[];
+}
+
+// ============================================================
+// サイドバー
+// ============================================================
+function buildSidebar(details){
+  const list=document.getElementById('person-list');
+  list.innerHTML='';
+
+  // チーム全体カード
+  const teamDiv=document.createElement('div');
+  teamDiv.className='person-card';
+  teamDiv.id='pc-__all__';
+  teamDiv.innerHTML=`<div class="person-avatar" style="background:var(--navy)">全</div>
+    <div class="person-info">
+      <div class="person-name">チーム全体</div>
+      <div class="person-role">全担当者合計</div>
+    </div>`;
+  teamDiv.onclick=()=>selectPerson('__all__');
+  list.appendChild(teamDiv);
+
+  const sep=document.createElement('div');
+  sep.style.cssText='height:1px;background:var(--border);margin:8px 6px';
+  list.appendChild(sep);
+
+  details.filter(p=>p.status==='在籍中').forEach(p=>{
+    const col=personColorMap[p.name]||'#6b7280';
+    const div=document.createElement('div');
+    div.className='person-card';
+    div.id='pc-'+p.name;
+    div.innerHTML=`<div class="person-avatar" style="background:${col}">${p.name.charAt(0)}</div>
+      <div class="person-info">
+        <div class="person-name">${esc(p.name)}</div>
+        <div class="person-role">${esc(p.role)}</div>
+      </div>`;
+    div.onclick=()=>selectPerson(p.name);
+    list.appendChild(div);
+  });
+}
+
+function selectPerson(name){
+  document.querySelectorAll('.person-card').forEach(c=>c.classList.remove('active'));
+  const card=document.getElementById('pc-'+name);
+  if(card) card.classList.add('active');
+  currentPerson=name;
+  localStorage.setItem('dashboard_person',name);
+  render(name);
+}
+
+// ============================================================
+// メインレンダリング
+// ============================================================
+function render(person){
+  const isTeam=person==='__all__';
+  const col=isTeam?'var(--navy)':(personColorMap[person]||'var(--blue)');
+
+  // 目標
+  let annualTarget=0,personGoal=null;
+  if(isTeam){
+    annualTarget=(goalsData?.persons||[]).reduce((s,p)=>s+Math.round(p.salesTarget||0),0);
+  }else{
+    personGoal=(goalsData?.persons||[]).find(p=>p.name===person);
+    annualTarget=personGoal?Math.round(personGoal.salesTarget||0):0;
+  }
+
+  document.getElementById('page-title').textContent=isTeam?'チーム全体のダッシュボード':person+' さんのダッシュボード';
+  document.getElementById('page-meta').textContent=
+    'FY'+currentFY+' | 年間目標: '+(annualTarget>0?fmt(annualTarget)+'万円':'未設定')+
+    ' | 更新: '+today.toLocaleDateString('ja-JP');
+
+  // FY実績
+  const personActual=actualData.filter(r=>{
+    if(!isTeam&&r['担当者']!==person)return false;
+    const ym=String(r['日付']).slice(0,7);
+    return fyMonths.some(m=>yyyyMM(m.year,m.month)===ym);
+  });
+  const actualByMonth={};
+  fyMonths.forEach(m=>{actualByMonth[yyyyMM(m.year,m.month)]=0});
+  personActual.forEach(r=>{
+    const ym=String(r['日付']).slice(0,7);
+    if(actualByMonth[ym]!==undefined) actualByMonth[ym]+=Number(r['売上(万円)'])||0;
+  });
+  const actualTotal=Object.values(actualByMonth).reduce((s,v)=>s+v,0);
+
+  // 全案件（FY）
+  const personDeals=dealsData.filter(d=>{
+    if(!isTeam&&d['担当者']!==person)return false;
+    const ym=String(d['売上予定月']||'').slice(0,7);
+    return fyMonths.some(m=>yyyyMM(m.year,m.month)===ym);
+  });
+
+  // ヨミ合計（粗利ベース）
+  const yomiDeals=personDeals.filter(d=>['売上','決定','A','B'].includes(d['確度ランク']));
+  const yomiTotal=toMan(yomiDeals.reduce((s,d)=>s+(Number(d['粗利'])||0),0));
+  const forecast=actualTotal+yomiTotal;
+
+  // ランク別集計（粗利ベース）
+  const byRankTotal={粗利:actualTotal,決定:0,A:0,B:0,C:0,失注:0};
+  personDeals.forEach(d=>{
+    const rank=d['確度ランク'];
+    if(byRankTotal[rank]!==undefined) byRankTotal[rank]+=toMan(Number(d['粗利'])||0);
+  });
+
+  // KPI集計（有効面談件数=ヒアリング列、自アポ=自分でアポ列、テレアポ=テレアポ経由列、紹介=紹介会社列）
+  const kpiKeys=['ヒアリング','自分でアポ','テレアポ経由','紹介会社'];
+  const kpiSums={};
+  kpiKeys.forEach(k=>{kpiSums[k]=0});
+  personActual.forEach(r=>{kpiKeys.forEach(k=>{kpiSums[k]+=Number(r[k])||0})});
+  kpiSums['有効面談件数']=kpiSums['ヒアリング']||0;
+  kpiSums['自アポ']     =kpiSums['自分でアポ']||0;
+  kpiSums['テレアポ']   =kpiSums['テレアポ経由']||0;
+  kpiSums['紹介']       =kpiSums['紹介会社']||0;
+  // 後方互換（旧キー）
+  kpiSums['面談件数']=kpiSums['有効面談件数'];
+  kpiSums['架電件数']=kpiSums['テレアポ'];
+
+  // KPI目標（チーム全体は全員合計）
+  let kpiGoal=personGoal;
+  if(isTeam){
+    const allP=goalsData?.persons||[];
+    const tm=allP.reduce((s,p)=>s+((p.kpi||{}).meeting||0),0);
+    const tc=allP.reduce((s,p)=>s+((p.kpi||{}).call||0),0);
+    kpiGoal={kpi:{meeting:tm,call:tc}};
+  }
+
+  // 今月目標・今月実績
+  let monthlyTarget=0;
+  if(isTeam){
+    monthlyTarget=(goalsData?.persons||[]).reduce((s,p)=>s+Math.round(p.monthlyTarget||0),0);
+  }else{
+    monthlyTarget=personGoal?Math.round(personGoal.monthlyTarget||0):0;
+  }
+  const thisMonthActual=Math.round(actualByMonth[todayYM]||0);
+
+  renderAlert(annualTarget,actualTotal,yomiTotal);
+  renderTimeline(personDeals,actualByMonth,person,isTeam);
+  renderKPITable(kpiSums,kpiGoal);
+  renderProgress(annualTarget,actualTotal,yomiTotal,forecast,col,monthlyTarget,thisMonthActual);
+}
+
+// ============================================================
+// パイプラインサマリー
+// ============================================================
+function renderPipelineSummary(byRankTotal){
+  document.getElementById('pipeline-summary').innerHTML=PS_CONFIG.map(cfg=>`
+    <div class="ps-card" style="border-top-color:${cfg.border}">
+      <div class="ps-label">${cfg.label}</div>
+      <div class="ps-value" style="color:${cfg.color}">${fmtMan((cfg.key==='粗利'?byRankTotal[cfg.key]*10000:(byRankTotal[cfg.key]||0)*10000))}</div>
+    </div>`).join('');
+}
+
+// ============================================================
+// アラート
+// ============================================================
+function renderAlert(target,actual,yomi){
+  const area=document.getElementById('alert-area');
+  area.innerHTML='';
+  if(target<=0)return;
+  const forecast=actual+yomi;
+  const pct=Math.round(actual/target*100);
+  const fcPct=Math.round(forecast/target*100);
+  const fyStart=new Date(currentFY,7,1);
+  const elapsed=Math.max(1,(today.getFullYear()-fyStart.getFullYear())*12+(today.getMonth()-fyStart.getMonth())+1);
+  const expPct=Math.round(elapsed/12*100);
+  let msg='',cls='';
+  if(pct>=100){msg='🎉 年間目標達成！ 累計 '+fmt(actual)+'万円（'+pct+'%）';cls='alert-ok';}
+  else if(fcPct>=100){msg='✅ ヨミ含む着地見込 '+fmt(forecast)+'万円（'+fcPct+'%）— 目標達成圏内';cls='alert-ok';}
+  else if(pct<expPct-20){msg='⚠️ 進捗遅れ。期待値 '+expPct+'% に対し実績 '+pct+'%。残り目標 '+fmt(target-actual)+'万円';cls='alert-danger';}
+  else if(pct<expPct-5){msg='📌 進捗がやや遅れています。実績 '+pct+'%（期待値 '+expPct+'%）';cls='alert-warn';}
+  else return;
+  area.innerHTML=`<div class="alert ${cls}">${msg}</div>`;
+}
+
+// ============================================================
+// 月別推移タイムライン
+// ============================================================
+function renderTimeline(deals,actualByMonth,person,isTeam){
+  const activeDeals=deals;
+  const activeCount=deals.filter(d=>d['確度ランク']!=='失注').length;
+  document.getElementById('timeline-hint').textContent=activeCount+'件（失注除く）';
+
+  // mg helper
+  const ymToMG={};
+  fyMonths.forEach((m,i)=>{
+    const mg=MG_DEFS.find(g=>g.indices.includes(i));
+    if(mg) ymToMG[yyyyMM(m.year,m.month)]=mg.id;
+  });
+  const mgs=ym=>{const s=mgOpenState[ymToMG[ym]];return s?'':'display:none'};
+
+  // ヘッダー
+  const thead=document.getElementById('tl-thead');
+  const monthHeaders=fyMonths.map(m=>{
+    const ym=yyyyMM(m.year,m.month);
+    const isCur=ym===todayYM;
+    const mgId=ymToMG[ym];
+    return `<th class="${isCur?'th-cur':''}" data-mg="${mgId}" style="${mgs(ym)}">${m.month}月${isCur?'◀':''}</th>`;
+  }).join('');
+  thead.innerHTML=`<tr>
+    <th class="th-co">会社名</th>
+    <th class="th-rank">見込</th>
+    <th class="th-name">案件名</th>
+    ${monthHeaders}
+  </tr>`;
+
+  // ランク順でグループ化
+  const rankOrder={'売上':0,'決定':1,'A':2,'B':3,'C':4};
+  const byRank={};
+  RANKS.forEach(r=>{byRank[r.v]=[]});
+  activeDeals.forEach(d=>{
+    const r=d['確度ランク']||'C';
+    if(byRank[r]) byRank[r].push(d);
+  });
+  RANKS.forEach(r=>{
+    byRank[r.v].sort((a,b)=>(Number(b['粗利'])||0)-(Number(a['粗利'])||0));
+  });
+
+  // 月別合計（全案件）
+  const monthTotals={};
+  fyMonths.forEach(m=>{monthTotals[yyyyMM(m.year,m.month)]=0});
+
+  // 各案件の月別粗利を事前計算（粗利合計÷月数で月別分配）
+  const dealCellAmts=new Map();
+  activeDeals.forEach(d=>{
+    const expYM=String(d['売上予定月']||'');
+    if(!expYM)return;
+    const [ey,em]=expYM.split('-').map(Number);
+    const months=Math.max(1,Number(d['月数'])||1);
+    const monthlyAmt=(Number(d['粗利'])||0)/months;
+    const cellAmts={};
+    const isLost=d['確度ランク']==='失注';
+    for(let i=0;i<months;i++){
+      const d2=new Date(ey,em-1+i,1);
+      const cym=yyyyMM(d2.getFullYear(),d2.getMonth()+1);
+      if(monthTotals[cym]!==undefined){
+        cellAmts[cym]=(cellAmts[cym]||0)+monthlyAmt;
+        if(!isLost) monthTotals[cym]+=monthlyAmt; // 失注は合計に含めない
+      }
+    }
+    dealCellAmts.set(d,cellAmts);
+  });
+
+  // 売上ランク案件を粗利（確定）に合算
+  const augActual={...actualByMonth};
+  activeDeals.filter(d=>d['確度ランク']==='売上').forEach(d=>{
+    const ca=dealCellAmts.get(d)||{};
+    Object.entries(ca).forEach(([ym,v])=>{
+      if(augActual[ym]!==undefined) augActual[ym]+=v/10000; // 円→万円
+    });
+  });
+
+  const tbody=document.getElementById('tl-tbody');
+  tbody.innerHTML='';
+
+  // 実績行（常時表示）
+  const actualCells=fyMonths.map(m=>{
+    const ym=yyyyMM(m.year,m.month);
+    const isCur=ym===todayYM;
+    const mgId=ymToMG[ym];
+    const v=Math.round(augActual[ym]||0); // 万円
+    return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}${v>0?';background:#f0fdf4':''}">
+      ${v>0?`<span class="tl-amt" style="color:#16a34a">${fmt(v)}万</span>`:''}
+    </td>`;
+  }).join('');
+  const actualRow=document.createElement('tr');
+  actualRow.innerHTML=`
+    <td class="td-co" style="color:#16a34a">粗利（確定）</td>
+    <td class="td-rank"><span class="tl-rank-badge" style="background:#16a34a;width:18px;height:18px;font-size:9px">✓</span></td>
+    <td class="td-name" style="color:var(--text3)">確定実績</td>
+    ${actualCells}`;
+  tbody.appendChild(actualRow);
+
+  // ランク別グループ（売上は粗利確定行に合算済みなので除外）
+  RANKS.filter(r=>r.v!=='売上').forEach(rank=>{
+    const list=byRank[rank.v]||[];
+    if(list.length===0)return;
+
+    const color=rank.col;
+    const groupId='tl-group-'+rank.v;
+    const arrId='tl-arr-'+rank.v;
+    const defaultOpen=['売上','決定','A'].includes(rank.v);
+
+    // ランクの月別合計
+    const rankMonthTotals={};
+    fyMonths.forEach(m=>{rankMonthTotals[yyyyMM(m.year,m.month)]=0});
+    list.forEach(d=>{
+      const cellAmts=dealCellAmts.get(d)||{};
+      Object.entries(cellAmts).forEach(([ym,v])=>{
+        if(rankMonthTotals[ym]!==undefined) rankMonthTotals[ym]+=v;
+      });
+    });
+
+    // ランクヘッダー行
+    const rankTotalAmt=toMan(list.reduce((s,d)=>s+(Number(d['粗利'])||0),0));
+    const rankCells=fyMonths.map(m=>{
+      const ym=yyyyMM(m.year,m.month);
+      const isCur=ym===todayYM;
+      const mgId=ymToMG[ym];
+      const v=Math.round(rankMonthTotals[ym]||0); // yen
+      return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)};background:${color}18">
+        ${v>0?`<span style="color:${color};font-weight:700">${fmtYen(v)}</span>`:''}
+      </td>`;
+    }).join('');
+
+    const headerRow=document.createElement('tr');
+    headerRow.className='tl-rank-row';
+    headerRow.onclick=()=>toggleTimelineRank(groupId,arrId);
+    headerRow.innerHTML=`
+      <td class="td-co" style="background:${color}10;cursor:pointer" colspan="3">
+        <span class="tl-rank-badge" style="background:${color}">${rank.av}</span>
+        <span class="tl-rank-row-label" style="color:${color}">${rank.label}</span>
+        <span class="tl-rank-row-desc">${rank.desc}</span>
+        <span class="tl-rank-row-cnt">${list.length}件 / ${fmt(rankTotalAmt)}万円</span>
+        <span class="tl-rank-row-arr ${defaultOpen?'open':''}" id="${arrId}">▶</span>
+      </td>${rankCells}`;
+    tbody.appendChild(headerRow);
+
+    // 案件行（グループ）
+    list.forEach(d=>{
+      const cellAmts=dealCellAmts.get(d)||{};
+      const cells=fyMonths.map(m=>{
+        const ym=yyyyMM(m.year,m.month);
+        const isCur=ym===todayYM;
+        const mgId=ymToMG[ym];
+        const v=Math.round(cellAmts[ym]||0); // yen
+        return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}${v>0?';background:'+color+'0d':''}">
+          ${v>0?`<span class="tl-amt" style="color:${color}">${fmtYen(v)}</span>`:''}
+        </td>`;
+      }).join('');
+
+      const tr=document.createElement('tr');
+      tr.className='tl-deal-row';
+      tr.dataset.group=groupId;
+      tr.style.display=defaultOpen?'':'none';
+      tr.style.cursor='pointer';
+      tr.title='クリックで編集';
+      tr.onclick=()=>openDealModal(d);
+      tr.innerHTML=`
+        <td class="td-co">${esc(d['会社名']||'—')}${isTeam?`<div style="font-size:10px;color:var(--text3);font-weight:400">${esc(d['担当者']||'')}</div>`:''}</td>
+        <td class="td-rank"><span class="tl-rank-badge" style="background:${color};width:18px;height:18px;font-size:9px">${rank.av}</span></td>
+        <td class="td-name">${esc(d['商材名']||'—')}</td>
+        ${cells}`;
+      tbody.appendChild(tr);
+    });
+  });
+
+  document.getElementById('tl-tfoot').innerHTML='';
+  renderMGBtns();
+}
+
+// ============================================================
+// 案件編集モーダル
+// ============================================================
+let editingDeal=null;
+
+function openDealModal(deal){
+  editingDeal=deal;
+  document.getElementById('dm-company').textContent=deal['会社名']||'—';
+  document.getElementById('dm-product').textContent=deal['商材名']||'—';
+  document.getElementById('dm-person').textContent=deal['担当者']||'—';
+  document.getElementById('dm-rank').value=deal['確度ランク']||'C';
+  document.getElementById('dm-amount').value=deal['粗利']||'';
+  document.getElementById('dm-memo').value=deal['メモ']||'';
+
+  // 売上予定月の選択肢（FY前後3ヶ月）
+  const sel=document.getElementById('dm-month');
+  sel.innerHTML='';
+  const months=[];
+  for(let i=-3;i<=14;i++){
+    const d=new Date(currentFY,7+i,1);
+    months.push(yyyyMM(d.getFullYear(),d.getMonth()+1));
+  }
+  months.forEach(ym=>{
+    const [y,m]=ym.split('-');
+    const opt=document.createElement('option');
+    opt.value=ym;
+    opt.textContent=y+'年'+Number(m)+'月';
+    sel.appendChild(opt);
+  });
+  sel.value=(String(deal['売上予定月']||'')).slice(0,7); // 日付型で返った場合も'yyyy-MM'に正規化
+
+  document.getElementById('deal-modal').classList.add('open');
+}
+
+function closeDealModal(){
+  document.getElementById('deal-modal').classList.remove('open');
+  editingDeal=null;
+}
+
+async function saveDealModal(){
+  if(!editingDeal)return;
+  const btn=document.getElementById('dm-save');
+  btn.disabled=true;btn.textContent='保存中...';
+
+  const rank=document.getElementById('dm-rank').value;
+  const month=document.getElementById('dm-month').value;
+  const amount=Number(document.getElementById('dm-amount').value)||0;
+  const memo=document.getElementById('dm-memo').value;
+
+  // メモリ更新（即時反映）
+  editingDeal['確度ランク']=rank;
+  editingDeal['売上予定月']=month;
+  editingDeal['粗利']=amount;
+  editingDeal['メモ']=memo;
+
+  // GAS更新（デモ以外）
+  if(!isDemoMode&&editingDeal['案件ID']){
+    try{
+      await fetch(GAS_URL,{
+        method:'POST',mode:'no-cors',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          action:'updateDeal',
+          id:editingDeal['案件ID'],
+          rankLabel:rank,
+          expectedMonth:month,
+          grossProfit:amount,
+          memo
+        }),
+      });
+    }catch(e){console.warn('GAS update failed:',e)}
+  }
+
+  btn.disabled=false;btn.textContent='保存';
+  closeDealModal();
+  if(currentPerson)render(currentPerson);
+}
+
+// ============================================================
+// 目標設定モーダル
+// ============================================================
+function openGoalModal(){
+  const persons=(masterData?.personDetails||[]).filter(p=>p.status==='在籍中');
+  document.getElementById('gm-fy').textContent='FY'+currentFY;
+
+  const tbody=document.getElementById('goal-tbody');
+  tbody.innerHTML=persons.map(p=>{
+    const pg=(goalsData?.persons||[]).find(g=>g.name===p.name)||{};
+    const st=pg.salesTarget!=null?pg.salesTarget:'';
+    const mgt=pg.monthlyTarget!=null?pg.monthlyTarget:'';
+    const mt=(pg.kpi||{}).meeting!=null?(pg.kpi||{}).meeting:'';
+    const ct=(pg.kpi||{}).call!=null?(pg.kpi||{}).call:'';
+    return `<tr>
+      <td>${esc(p.name)}</td>
+      <td><input class="goal-input" type="number" min="0" step="10"
+        data-person="${esc(p.name)}" data-field="sales"
+        value="${st}" placeholder="0"></td>
+      <td><input class="goal-input" type="number" min="0" step="10"
+        data-person="${esc(p.name)}" data-field="monthlyTarget"
+        value="${mgt}" placeholder="0"></td>
+      <td><input class="goal-input" type="number" min="0"
+        data-person="${esc(p.name)}" data-field="meeting"
+        value="${mt}" placeholder="0"></td>
+      <td><input class="goal-input" type="number" min="0"
+        data-person="${esc(p.name)}" data-field="call"
+        value="${ct}" placeholder="0"></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('goal-modal').classList.add('open');
+  // 最初のフィールドにフォーカス
+  setTimeout(()=>tbody.querySelector('input')?.focus(),50);
+}
+
+function closeGoalModal(){
+  document.getElementById('goal-modal').classList.remove('open');
+}
+
+async function saveGoalModal(){
+  const btn=document.getElementById('gm-save');
+  btn.disabled=true; btn.textContent='保存中...';
+
+  // テーブルから値を収集
+  const personMap={};
+  document.querySelectorAll('#goal-tbody input').forEach(inp=>{
+    const person=inp.dataset.person;
+    const field=inp.dataset.field;
+    if(!personMap[person]) personMap[person]={name:person,kpi:{}};
+    const val=inp.value===''?0:(parseInt(inp.value)||0);
+    if(field==='sales')         personMap[person].salesTarget=val;
+    if(field==='monthlyTarget') personMap[person].monthlyTarget=val;
+    if(field==='meeting')       personMap[person].kpi.meeting=val;
+    if(field==='call')          personMap[person].kpi.call=val;
+  });
+  const goals={persons:Object.values(personMap)};
+
+  // メモリ更新（即時反映）
+  goalsData=goals;
+
+  // GAS保存
+  if(!isDemoMode){
+    try{
+      await fetch(GAS_URL,{
+        method:'POST',mode:'no-cors',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'saveGoals',goals}),
+      });
+    }catch(e){console.warn('Goal save failed:',e)}
+  }
+
+  btn.disabled=false; btn.textContent='保存';
+  closeGoalModal();
+  if(currentPerson) render(currentPerson);
+}
+
+function toggleMG(mgId){
+  mgOpenState[mgId]=!mgOpenState[mgId];
+  const isOpen=mgOpenState[mgId];
+  document.querySelectorAll(`[data-mg="${mgId}"]`).forEach(el=>{
+    el.style.display=isOpen?'':'none';
+  });
+  renderMGBtns();
+}
+
+function renderMGBtns(){
+  const c=document.getElementById('mg-btns');
+  if(!c)return;
+  c.innerHTML=MG_DEFS.map(mg=>{
+    const isOpen=mgOpenState[mg.id];
+    const isCur=mg.id===currentMGId;
+    const borderCol=isCur?'var(--blue)':'var(--border)';
+    const bg=isOpen&&isCur?'var(--blue-bg)':isOpen?'var(--bg)':'transparent';
+    const color=isCur?'var(--blue)':'var(--text2)';
+    return `<button onclick="toggleMG('${mg.id}')" style="padding:4px 10px;border-radius:20px;
+      border:1.5px solid ${borderCol};background:${bg};color:${color};
+      font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;transition:.12s">
+      ${isOpen?'▼':'▶'} ${mg.label}${isCur?' ◀今':''}
+    </button>`;
+  }).join('');
+}
+
+function toggleTimelineRank(groupId,arrId){
+  const arr=document.getElementById(arrId);
+  const rows=document.querySelectorAll(`tr[data-group="${groupId}"]`);
+  const isOpen=arr.classList.contains('open');
+  arr.classList.toggle('open',!isOpen);
+  rows.forEach(r=>{r.style.display=isOpen?'none':'';});
+}
+
+
+// ============================================================
+// KPIテーブル
+// ============================================================
+function renderKPITable(sums,personGoal){
+  const kpiDef=[
+    {label:'有効面談件数',key:'有効面談件数',gk:'meeting'},
+    {label:'自アポ',      key:'自アポ',      gk:null},
+    {label:'テレアポ',    key:'テレアポ',    gk:'call'},
+    {label:'紹介',        key:'紹介',        gk:null},
+  ];
+  const rows=kpiDef.map(k=>{
+    const tgt=personGoal&&k.gk?((personGoal.kpi||{})[k.gk]||0):0;
+    const val=sums[k.key]||0;
+    const pct=tgt>0?Math.round(val/tgt*100):null;
+    return `<tr>
+      <td>${k.label}</td>
+      <td class="row-target">${tgt>0?fmt(tgt):'—'}</td>
+      <td class="row-actual">${fmt(val)}${pct!=null?`<span class="kpi-rate">(${pct}%)</span>`:''}
+      </td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('kpi-table-wrap').innerHTML=`
+    <table class="kpi-tbl">
+      <thead><tr><th></th><th>月間目標</th><th>実績</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// ============================================================
+// 年間進捗
+// ============================================================
+function renderProgress(target,actual,yomi,forecast,col,monthlyTarget,thisMonthActual){
+  document.getElementById('ph-actual').textContent=fmt(actual);
+  document.getElementById('ph-target').textContent=target>0?fmt(target):'未設定';
+
+  if(target>0){
+    const pct=Math.round(actual/target*100);
+    const actualW=Math.min(pct,100);
+    const yomiW=Math.min(Math.round(yomi/target*100),100-actualW);
+    document.getElementById('ph-pct').textContent=pct+'%';
+    document.getElementById('ph-pct').style.color=pct>=100?'var(--green)':pct>=80?'var(--blue)':'var(--amber)';
+    document.getElementById('bar-actual').style.width=actualW+'%';
+    document.getElementById('bar-actual').style.background=col;
+    document.getElementById('bar-yomi').style.width=yomiW+'%';
+    document.getElementById('bar-yomi').style.left=actualW+'%';
+    document.getElementById('bar-label').textContent=pct+'%';
+    const remain=Math.max(target-actual,0);
+    document.getElementById('kv-remain').textContent=fmt(remain);
+    document.getElementById('kv-remain').style.color=remain===0?'var(--green)':'var(--red)';
+    document.getElementById('kv-forecast').textContent=fmt(forecast);
+    const fcPct=Math.round(forecast/target*100);
+    document.getElementById('kv-forecast-pct').textContent=fcPct;
+    document.getElementById('kv-forecast-pct').style.color=fcPct>=100?'var(--green)':fcPct>=80?'var(--blue)':'var(--amber)';
+    const fyStart=new Date(currentFY,7,1);
+    const elapsed=Math.max(1,(today.getFullYear()-fyStart.getFullYear())*12+(today.getMonth()-fyStart.getMonth())+1);
+    document.getElementById('elapsed-hint').textContent='経過 '+elapsed+'/12ヶ月';
+  }else{
+    ['ph-pct','kv-remain','kv-forecast-pct'].forEach(id=>document.getElementById(id).textContent='—');
+    document.getElementById('kv-forecast').textContent=fmt(forecast);
+    document.getElementById('elapsed-hint').textContent='目標未設定';
+  }
+
+  // 今月粗利セクション
+  const wrap=document.getElementById('monthly-prog-wrap');
+  if(monthlyTarget>0){
+    wrap.style.display='';
+    const mPct=Math.round((thisMonthActual/monthlyTarget)*100);
+    const mW=Math.min(mPct,100);
+    document.getElementById('kv-month-pct').textContent=mPct+'%';
+    document.getElementById('kv-month-pct').style.color=mPct>=100?'var(--green)':mPct>=80?'var(--blue)':'var(--amber)';
+    document.getElementById('bar-month-actual').style.width=mW+'%';
+    document.getElementById('bar-month-actual').style.background=col;
+    document.getElementById('bar-month-label').textContent=mPct+'%';
+    document.getElementById('kv-month-actual').textContent=fmt(thisMonthActual);
+    document.getElementById('kv-month-actual').style.color=mPct>=100?'var(--green)':mPct>=80?'var(--blue)':'var(--text)';
+    document.getElementById('kv-month-target').textContent=fmt(monthlyTarget);
+  }else{
+    wrap.style.display='none';
+  }
+}
+
+// ============================================================
+// デモモード
+// ============================================================
+function toggleDemo(){
+  isDemoMode=!isDemoMode;
+  const btn=document.getElementById('demo-btn');
+  btn.textContent=isDemoMode?'DEMO ON':'DEMO';
+  btn.classList.toggle('on',isDemoMode);
+  if(isDemoMode){
+    realActual=actualData;realDeals=dealsData;realGoals=goalsData;
+    const demo=generateDemoData();
+    actualData=demo.actual;dealsData=demo.deals;
+    goalsData=injectDemoGoals(goalsData,demo.targets,demo.kpiTargets);
+  }else{
+    actualData=realActual;dealsData=realDeals;goalsData=realGoals;
+  }
+  if(currentPerson)render(currentPerson);
+}
+
+function injectDemoGoals(base,targets,kpiTargets){
+  const cloned=base?JSON.parse(JSON.stringify(base)):{};
+  if(!cloned.persons)cloned.persons=[];
+  Object.entries(targets).forEach(([name,val])=>{
+    let p=cloned.persons.find(p=>p.name===name);
+    if(!p){p={name,salesTarget:0,kpi:{}};cloned.persons.push(p);}
+    p.salesTarget=val;
+    p.monthlyTarget=Math.round(val/12);
+    if(kpiTargets&&kpiTargets[name])p.kpi=Object.assign(p.kpi||{},kpiTargets[name]);
+  });
+  return cloned;
+}
+
+function generateDemoData(){
+  const products=[
+    {name:'リスキリング研修_直販',sales:200000,cost:0,months:1},
+    {name:'リスキリング研修_代理店',sales:200000,cost:150000,months:1},
+    {name:'HubCast_直販',sales:35000,cost:13000,months:12},
+    {name:'HubCast_代理店',sales:35000,cost:27000,months:12},
+    {name:'IT導入補助金',sales:1000000,cost:0,months:1},
+    {name:'社長紹介_直販',sales:600000,cost:0,months:1},
+    {name:'社長紹介_代理店',sales:600000,cost:200000,months:1},
+    {name:'健康診断事務代理',sales:150000,cost:80000,months:1},
+    {name:'保健師電話健康相談',sales:120000,cost:60000,months:1},
+    {name:'社労士案件',sales:300000,cost:100000,months:1},
+  ];
+  const persons=['鈴木純平','坂井竜世','佐々木憩','濱田雄一','田中準子','綾戸涼太','湯川悦英'];
+  const ranks=['売上','決定','A','A','B','B','B','C','C','C','失注'];
+  const targets={'鈴木純平':5000,'坂井竜世':3000,'佐々木憩':2000,'濱田雄一':2000,'田中準子':1500,'綾戸涼太':1000,'湯川悦英':800};
+  const kpiTargets={
+    '鈴木純平':{meeting:80,call:50},'坂井竜世':{meeting:60,call:30},
+    '佐々木憩':{meeting:50,call:25},'濱田雄一':{meeting:50,call:25},
+    '田中準子':{meeting:40,call:20},'綾戸涼太':{meeting:30,call:15},
+    '湯川悦英':{meeting:20,call:10},
+  };
+  const corpList=[
+    'アルファシステム','ベータコーポレーション','ガンマテクノロジー','デルタソリューション','イプシロン商事',
+    'ゼータネットワーク','エータデジタル','テータコンサルト','イオタサービス','カッパホールディングス',
+    'ラムダパートナーズ','ミューエンジニアリング','ニューメディア','クサイコネクト','オミクロンIT',
+    'パイシステム','ローテクノロジー','シグマオフィス','タウプロダクト','ウプシロングループ',
+    '東京システム開発','大阪テクノロジー','名古屋商事','横浜産業','札幌開発センター',
+    '福岡ソリューション','グローバルテック','スマートワーク','デジタルフォース','クリエイトネクスト',
+    'フューチャーリンク','インフィニティジャパン','ネクストステージ','プレミアコンサルト',
+    'サンライズパートナーズ','ブルーオーシャン','レッドドラゴン工業','グリーンエナジー',
+    'シルバーブリッジ','ゴールデンゲート','クリスタルビジョン','ダイヤモンドHD',
+    'エメラルドグループ','サファイアコーポレーション','ルビーインターナショナル',
+    'オパールジャパン','トパーズネットワーク','アメジストシステム','ガーネットサービス',
+    'ジルコンテクノロジー','アクアビジネス','テラソリューション','コスモエンタープライズ',
+    'ソーラーイノベーション','ウィンドパワー','アースコネクト','スカイネットワーク',
+    'オーシャンビュー','マウンテンピーク','リバーサイドIT','フォレストグリーン',
+    'サンセットメディア','ムーンライトエンジニアリング','スターゲイザーソフト',
+    'コメットデータ','ネビュラシステム','ギャラクシーIT','ユニバースコンサル',
+    'コスモスホールディングス','ノバテックジャパン','スペースシップデジタル',
+    'アストロソリューション','オービットシステム','ミッドナイトウェブ',
+    'ドーンブレイカー','トワイライトネットワーク','ハーバーライト',
+    'ビーコンシステム','ライトハウステクノロジー','ブライトスターIT',
+    'クリアビジョン','シャープエッジ','ソフトウェーブ','ディープブルー',
+    'ハイウェイIT','クラウドジャンプ','データブリッジ','インサイトコア',
+    'パルスシステム','エコーネット','ウェーブライダー','タイダルフォース',
+    'カレントコネクト','ストリームライン','フローシステム','リップルテック',
+    'バブルソフト','スプラッシュデジタル','ウェーブシステム','オーシャンデータ',
+    'コーラルネットワーク','ティダルコネクト',
+  ];
+
+  const rand=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+  const pick=arr=>arr[rand(0,arr.length-1)];
+  const pastMonths=fyMonths.filter(m=>yyyyMM(m.year,m.month)<todayYM);
+
+  const actual=[];
+  persons.forEach(person=>{
+    const monthlyTargetMan=targets[person]/12;
+    const kt=kpiTargets[person]||{meeting:30,call:15};
+    pastMonths.forEach(m=>{
+      const entries=rand(6,14);
+      const totalSales=monthlyTargetMan*(0.6+Math.random()*0.8);
+      const perEntry=totalSales/entries;
+      actual.push({
+        '日付':`${m.year}-${String(m.month).padStart(2,'0')}-01`,
+        '担当者':person,
+        'テレアポ経由':Math.round(kt.call/12*(0.8+Math.random()*0.8)),
+        'ヒアリング':Math.round(kt.meeting/12*0.6*(0.8+Math.random()*0.5)),
+        '提案':Math.round(kt.meeting/12*0.4*(0.8+Math.random()*0.5)),
+        'クロージング':rand(0,2),
+        '自分でアポ':rand(0,3),'紹介会社':rand(0,1),'代理店紹介':rand(0,1),'ビジェント':rand(0,2),'代理店開拓':rand(0,1),
+        '売上(万円)':Math.round(totalSales*(0.8+Math.random()*0.4)),
+      });
+    });
+  });
+
+  const deals=[];
+  corpList.slice(0,100).forEach((company,idx)=>{
+    const person=persons[idx%persons.length];
+    const product=products[idx%products.length];
+    const rank=ranks[idx%ranks.length];
+    const mOffset=rank==='失注'?rand(-3,-1):rand(0,5);
+    const expDate=new Date(today.getFullYear(),today.getMonth()+mOffset,1);
+    const expMonth=yyyyMM(expDate.getFullYear(),expDate.getMonth()+1);
+    const qty=rand(1,3);
+    const totalSalesAmt=product.sales*qty*product.months;
+    const totalGP=(product.sales-product.cost)*qty*product.months;
+    deals.push({
+      '案件ID':'DEMO-'+String(idx).padStart(3,'0'),
+      '登録日':'2025-09-01','担当者':person,
+      '顧客ID':'AF-D'+String(idx).padStart(4,'0'),
+      '会社名':company,'商材名':product.name,
+      '確度ランク':rank,
+      '売上（単価）':product.sales,'費用（単価）':product.cost,
+      'コース数':1,'件数':qty,'月数':product.months,
+      '売上予定額':totalSalesAmt,'費用（合計）':product.cost*qty*product.months,
+      '粗利':totalGP,'インセンティブ':0,
+      '売上予定月':expMonth,
+      '入金ステータス':rank==='売上'?'入金済み':'未入金',
+      '入金確認日':'','メモ':'','引継担当者':'','引継日':'',
+    });
+  });
+
+  return{actual,deals,targets,kpiTargets};
+}
+
+init();
+</script>
+</body>
+</html>
