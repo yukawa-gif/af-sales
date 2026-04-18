@@ -279,6 +279,8 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
   <span class="topbar-logo">エー・ファクトリー</span>
   <span class="topbar-sub">営業管理システム</span>
   <div class="topbar-spacer"></div>
+  <span id="last-updated" style="font-size:10px;opacity:.45;white-space:nowrap"></span>
+  <button class="goal-btn" id="refresh-btn" onclick="manualRefresh()" title="最新データに更新" style="font-size:13px;padding:4px 10px">🔄</button>
   <a href="daily_report.html" target="_blank" class="goal-btn" style="text-decoration:none">📝 実績報告</a>
   <button class="goal-btn" onclick="openGoalModal()">⚙ 目標設定</button>
   <button class="demo-btn" id="demo-btn" onclick="toggleDemo()">DEMO</button>
@@ -502,7 +504,7 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
 // ============================================================
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbx_nr1WPGOgYcOUwlSEeOlwfYlr_njjZdHRaKLdVvw7LP-0Wjf9wLKi5bGvf6FW86bX/exec';
 const CACHE_KEY = 'af_dashboard_v1';
-const CACHE_TTL = 5 * 60 * 1000; // 5分
+const CACHE_TTL = 30 * 60 * 1000; // 30分（バックグラウンド更新するので長めでOK）
 
 const PERSON_COLORS=['#2563eb','#16a34a','#dc2626','#d97706','#7c3aed','#0891b2','#be185d'];
 
@@ -573,8 +575,8 @@ let personColorMap={};
 async function init(){
   document.getElementById('fy-badge').textContent='FY'+currentFY;
 
-  // キャッシュから即時表示
-  const cached = loadDashboardCache();
+  // キャッシュがあれば（期限切れでも）即時表示
+  const cached = loadDashboardCacheAny();
   if(cached){
     applyDashboardData(cached);
     document.getElementById('loading').style.display='none';
@@ -583,16 +585,18 @@ async function init(){
     const first=(masterData?.personDetails||[]).filter(p=>p.status==='在籍中')[0];
     const target=last||(first?first.name:'');
     if(target) selectPerson(target);
-    // バックグラウンドで最新データを取得
+    updateLastUpdated(cached.timestamp);
+    // 常にバックグラウンドで最新データを取得
     fetchDashboardData().then(fresh=>{
       if(!fresh) return;
       applyDashboardData(fresh);
       if(currentPerson) render(currentPerson);
+      updateLastUpdated(Date.now());
     }).catch(()=>{});
     return;
   }
 
-  // キャッシュなし → 通常ロード
+  // キャッシュなし（初回）→ ローディング表示して取得
   try{
     const fresh = await fetchDashboardData();
     if(!fresh) throw new Error('データ取得失敗');
@@ -603,12 +607,44 @@ async function init(){
     const first=(masterData?.personDetails||[]).filter(p=>p.status==='在籍中')[0];
     const target=last||(first?first.name:'');
     if(target) selectPerson(target);
+    updateLastUpdated(Date.now());
   }catch(e){
     document.getElementById('loading').innerHTML=
       '<div style="color:var(--red);text-align:center;padding:20px">読み込み失敗: '+e.message+'<br><br>'+
       '<button onclick="init()" style="padding:8px 18px;background:var(--blue);color:#fff;'+
       'border:none;border-radius:6px;cursor:pointer;font-family:inherit">再試行</button></div>';
   }
+}
+
+// キャッシュを期限関係なく取得（即時表示用）
+function loadDashboardCacheAny(){
+  try{
+    const raw=localStorage.getItem(CACHE_KEY);
+    if(!raw) return null;
+    return JSON.parse(raw);
+  }catch(e){ return null; }
+}
+
+// 最終更新時刻を表示
+function updateLastUpdated(ts){
+  const el=document.getElementById('last-updated');
+  if(!el) return;
+  const min=Math.round((Date.now()-ts)/60000);
+  if(min<1) el.textContent='たった今更新';
+  else el.textContent=min+'分前に更新';
+}
+
+// 手動リフレッシュ
+async function manualRefresh(){
+  const btn=document.getElementById('refresh-btn');
+  if(btn){btn.textContent='🔄';btn.disabled=true;}
+  const fresh=await fetchDashboardData();
+  if(fresh){
+    applyDashboardData(fresh);
+    if(currentPerson) render(currentPerson);
+    updateLastUpdated(Date.now());
+  }
+  if(btn){btn.textContent='🔄';btn.disabled=false;}
 }
 
 function loadDashboardCache(){
@@ -620,6 +656,7 @@ function loadDashboardCache(){
     return c;
   }catch(e){ return null; }
 }
+
 
 async function fetchDashboardData(){
   try{
