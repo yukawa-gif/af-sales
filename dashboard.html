@@ -346,8 +346,9 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
 
     <!-- KPI -->
     <div class="card">
-      <div class="card-header">
-        <span class="card-title">KPI（今期累計）</span>
+      <div class="card-header" style="flex-direction:column;align-items:flex-start;gap:10px">
+        <span class="card-title">KPI</span>
+        <div id="kpi-period-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
       </div>
       <div id="kpi-table-wrap"></div>
     </div>
@@ -568,6 +569,7 @@ let masterData=null,goalsData=null,actualData=[],dealsData=[];
 let currentPerson=null;
 let isDemoMode=false,realActual=[],realDeals=[],realGoals=null;
 let personColorMap={};
+let kpiPeriod='month'; // 'today'|'week'|'month'|'fy'
 
 // ============================================================
 // 初期化
@@ -788,11 +790,12 @@ function render(person){
     if(byRankTotal[rank]!==undefined) byRankTotal[rank]+=toMan(Number(d['粗利'])||0);
   });
 
-  // KPI集計（有効面談件数=ヒアリング列、自アポ=自分でアポ列、テレアポ=テレアポ経由列、紹介=紹介会社列）
+  // KPI集計（期間フィルタ適用）
+  const kpiActual=filterActualByPeriod(personActual, kpiPeriod);
   const kpiKeys=['ヒアリング','自分でアポ','テレアポ経由','紹介会社'];
   const kpiSums={};
   kpiKeys.forEach(k=>{kpiSums[k]=0});
-  personActual.forEach(r=>{kpiKeys.forEach(k=>{kpiSums[k]+=Number(r[k])||0})});
+  kpiActual.forEach(r=>{kpiKeys.forEach(k=>{kpiSums[k]+=Number(r[k])||0})});
   kpiSums['有効面談件数']=kpiSums['ヒアリング']||0;
   kpiSums['自アポ']     =kpiSums['自分でアポ']||0;
   kpiSums['テレアポ']   =kpiSums['テレアポ経由']||0;
@@ -1225,9 +1228,65 @@ function toggleTimelineRank(groupId,arrId){
 
 
 // ============================================================
+// KPI期間フィルタ
+// ============================================================
+function getKPIPeriodDates(){
+  const todayStr=yyyyMM(today.getFullYear(),today.getMonth()+1)+'-'+String(today.getDate()).padStart(2,'0');
+  // 今週（月曜始まり）
+  const dow=today.getDay(); // 0=日
+  const diffMon=dow===0?-6:1-dow;
+  const mon=new Date(today); mon.setDate(today.getDate()+diffMon);
+  const sun=new Date(mon);   sun.setDate(mon.getDate()+6);
+  const weekStart=yyyyMM(mon.getFullYear(),mon.getMonth()+1)+'-'+String(mon.getDate()).padStart(2,'0');
+  const weekEnd  =yyyyMM(sun.getFullYear(),sun.getMonth()+1)+'-'+String(sun.getDate()).padStart(2,'0');
+  return {todayStr,weekStart,weekEnd};
+}
+
+function filterActualByPeriod(records, period){
+  const {todayStr,weekStart,weekEnd}=getKPIPeriodDates();
+  return records.filter(r=>{
+    const d=String(r['日付']).slice(0,10);
+    if(period==='today') return d===todayStr;
+    if(period==='week')  return d>=weekStart&&d<=weekEnd;
+    if(period==='month') return d.slice(0,7)===todayYM;
+    return true; // 'fy' = すべて（render側でFYフィルタ済み）
+  });
+}
+
+function renderKPIPeriodBtns(){
+  const defs=[
+    {id:'today',label:'今日'},
+    {id:'week', label:'今週'},
+    {id:'month',label:'今月'},
+    {id:'fy',   label:'今期'},
+  ];
+  const c=document.getElementById('kpi-period-btns');
+  if(!c)return;
+  c.innerHTML=defs.map(d=>{
+    const active=kpiPeriod===d.id;
+    return `<button onclick="setKPIPeriod('${d.id}')" style="
+      padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;
+      cursor:pointer;font-family:inherit;border:1.5px solid ${active?'var(--blue)':'var(--border)'};
+      background:${active?'var(--blue-bg)':'transparent'};
+      color:${active?'var(--blue)':'var(--text2)'};transition:.12s">${d.label}</button>`;
+  }).join('');
+}
+
+function setKPIPeriod(period){
+  kpiPeriod=period;
+  renderKPIPeriodBtns();
+  if(currentPerson) render(currentPerson);
+}
+
+// ============================================================
 // KPIテーブル
 // ============================================================
 function renderKPITable(sums,personGoal){
+  renderKPIPeriodBtns();
+
+  const periodLabel={'today':'今日','week':'今週','month':'今月','fy':'今期累計'};
+  const showTarget=kpiPeriod==='month'||kpiPeriod==='fy';
+
   const kpiDef=[
     {label:'有効面談件数',key:'有効面談件数',gk:'meeting'},
     {label:'自アポ',      key:'自アポ',      gk:null},
@@ -1235,12 +1294,12 @@ function renderKPITable(sums,personGoal){
     {label:'紹介',        key:'紹介',        gk:null},
   ];
   const rows=kpiDef.map(k=>{
-    const tgt=personGoal&&k.gk?((personGoal.kpi||{})[k.gk]||0):0;
+    const tgt=showTarget&&personGoal&&k.gk?((personGoal.kpi||{})[k.gk]||0):0;
     const val=sums[k.key]||0;
     const pct=tgt>0?Math.round(val/tgt*100):null;
     return `<tr>
       <td>${k.label}</td>
-      <td class="row-target">${tgt>0?fmt(tgt):'—'}</td>
+      ${showTarget?`<td class="row-target">${tgt>0?fmt(tgt):'—'}</td>`:''}
       <td class="row-actual">${fmt(val)}${pct!=null?`<span class="kpi-rate">(${pct}%)</span>`:''}
       </td>
     </tr>`;
@@ -1248,7 +1307,11 @@ function renderKPITable(sums,personGoal){
 
   document.getElementById('kpi-table-wrap').innerHTML=`
     <table class="kpi-tbl">
-      <thead><tr><th></th><th>月間目標</th><th>実績</th></tr></thead>
+      <thead><tr>
+        <th></th>
+        ${showTarget?'<th>月間目標</th>':''}
+        <th>${periodLabel[kpiPeriod]||'実績'}</th>
+      </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
 }
