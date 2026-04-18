@@ -584,8 +584,7 @@ async function init(){
     document.getElementById('loading').style.display='none';
     document.getElementById('main').style.display='block';
     const last=localStorage.getItem('dashboard_person');
-    const first=(masterData?.personDetails||[]).filter(p=>p.status==='在籍中')[0];
-    const target=last||(first?first.name:'');
+    const target=last||'__all__';
     if(target) selectPerson(target);
     updateLastUpdated(cached.timestamp);
     // 常にバックグラウンドで最新データを取得
@@ -606,8 +605,7 @@ async function init(){
     document.getElementById('loading').style.display='none';
     document.getElementById('main').style.display='block';
     const last=localStorage.getItem('dashboard_person');
-    const first=(masterData?.personDetails||[]).filter(p=>p.status==='在籍中')[0];
-    const target=last||(first?first.name:'');
+    const target=last||'__all__';
     if(target) selectPerson(target);
     updateLastUpdated(Date.now());
   }catch(e){
