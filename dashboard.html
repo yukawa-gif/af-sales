@@ -1198,7 +1198,7 @@ async function saveDealModal(){
 // 目標設定モーダル
 // ============================================================
 function openGoalModal(){
-  const persons=(masterData?.personDetails||[]).filter(p=>p.status==='在籍中'&&String(p.code||'').toLowerCase().startsWith('af'));
+  const persons=(masterData?.personDetails||[]).filter(p=>p.status==='在籍中'&&String(p.code||'').toLowerCase().startsWith('af')&&p.role!=='P');
   document.getElementById('gm-fy').textContent='FY'+currentFY;
 
   const tbody=document.getElementById('goal-tbody');
