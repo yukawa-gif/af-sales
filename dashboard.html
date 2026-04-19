@@ -1112,7 +1112,23 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
     });
   });
 
-  document.getElementById('tl-tfoot').innerHTML='';
+  // ヨミ合計行（失注除く全ランクの月別合計）
+  const yomiCells=fyMonths.map(m=>{
+    const ym=yyyyMM(m.year,m.month);
+    const isCur=ym===todayYM;
+    const mgId=ymToMG[ym];
+    const v=Math.round(monthTotals[ym]||0); // yen
+    const vm=Math.round(v/10000);
+    return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}${vm>0?';background:#eff6ff':''}">
+      ${vm>0?`<span class="tl-amt" style="color:#2563eb;font-weight:800">${fmt(vm)}万</span>`:''}
+    </td>`;
+  }).join('');
+  document.getElementById('tl-tfoot').innerHTML=`<tr style="border-top:2px solid var(--border)">
+    <td class="td-co" style="color:#2563eb;font-weight:700">ヨミ合計</td>
+    <td class="td-rank"><span class="tl-rank-badge" style="background:#2563eb;width:18px;height:18px;font-size:9px">∑</span></td>
+    <td class="td-name" style="color:var(--text3);font-size:11px">失注除く</td>
+    ${yomiCells}
+  </tr>`;
   renderMGBtns();
 }
 
