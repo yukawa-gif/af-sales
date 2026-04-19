@@ -474,7 +474,7 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
     <div id="ai-error" class="ai-error" style="display:none"></div>
     <div class="ai-footer">
       <span class="ai-footer-note" id="ai-footer-note"></span>
-      <button class="ai-key-reset" id="ai-key-reset" onclick="resetAPIKey()" style="display:none">APIキーをリセット</button>
+      <button class="ai-key-reset" id="ai-key-reset" onclick="resetAPIKey()">🔑 APIキーを変更</button>
     </div>
   </div>
 
@@ -1572,7 +1572,7 @@ function generateDemoData(){
 // ============================================================
 // AIアドバイス（Gemini）
 // ============================================================
-const GEMINI_API_URL='https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+const GEMINI_API_URL='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 const AI_KEY_STORAGE='af_gemini_key';
 
 function getAPIKey(){ return localStorage.getItem(AI_KEY_STORAGE)||''; }
@@ -1588,9 +1588,11 @@ function saveAPIKey(){
 
 function resetAPIKey(){
   localStorage.removeItem(AI_KEY_STORAGE);
-  document.getElementById('ai-key-reset').style.display='none';
   document.getElementById('ai-footer-note').textContent='';
   document.getElementById('ai-body').innerHTML='<div class="ai-placeholder">「AIに聞く」ボタンを押すと分析します。</div>';
+  document.getElementById('ai-key-area').style.display='block';
+  document.getElementById('ai-key-input').value='';
+  document.getElementById('ai-error').style.display='none';
 }
 
 function showAIError(msg){
