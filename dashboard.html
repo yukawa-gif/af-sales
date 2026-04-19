@@ -154,6 +154,40 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
 /* ─── 下段3カラム ─── */
 .bottom-grid{display:grid;grid-template-columns:380px 1fr;gap:14px;margin-bottom:16px}
 
+/* ─── AIアドバイスカード ─── */
+.ai-card{background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);
+  border-radius:var(--r-lg);padding:20px 24px;margin-bottom:16px;color:#fff}
+.ai-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.ai-card-title{font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px}
+.ai-badge{background:rgba(255,255,255,.15);font-size:10px;font-weight:700;
+  padding:2px 8px;border-radius:20px;letter-spacing:.04em}
+.ai-btn{padding:6px 16px;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);
+  color:#fff;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;
+  font-family:inherit;transition:.15s;white-space:nowrap}
+.ai-btn:hover{background:rgba(255,255,255,.28)}
+.ai-btn:disabled{opacity:.5;cursor:not-allowed}
+.ai-body{font-size:13px;line-height:1.8;color:rgba(255,255,255,.92);
+  min-height:48px;white-space:pre-wrap}
+.ai-placeholder{color:rgba(255,255,255,.45);font-size:13px;font-style:italic}
+.ai-loading{display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.7);font-size:13px}
+.ai-spin{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);
+  border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0}
+.ai-key-row{display:flex;gap:8px;margin-top:12px}
+.ai-key-input{flex:1;padding:7px 10px;border-radius:6px;border:1.5px solid rgba(255,255,255,.3);
+  background:rgba(255,255,255,.1);color:#fff;font-size:12px;font-family:inherit}
+.ai-key-input::placeholder{color:rgba(255,255,255,.4)}
+.ai-key-input:focus{outline:none;border-color:rgba(255,255,255,.7)}
+.ai-key-save{padding:7px 14px;background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.35);
+  color:#fff;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
+.ai-key-save:hover{background:rgba(255,255,255,.35)}
+.ai-error{color:#fca5a5;font-size:12px;margin-top:8px}
+.ai-footer{display:flex;justify-content:space-between;align-items:center;
+  margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.15)}
+.ai-footer-note{font-size:10px;color:rgba(255,255,255,.4)}
+.ai-key-reset{font-size:10px;color:rgba(255,255,255,.4);cursor:pointer;
+  background:none;border:none;font-family:inherit;padding:0}
+.ai-key-reset:hover{color:rgba(255,255,255,.7);text-decoration:underline}
+
 /* ─── KPIテーブル ─── */
 .kpi-tbl{width:100%;border-collapse:collapse;font-size:13px}
 .kpi-tbl th{background:var(--bg);color:var(--text3);font-weight:700;font-size:10px;
@@ -415,6 +449,34 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
     </div>
 
   </div><!-- /bottom-grid -->
+
+  <!-- AIアドバイスカード -->
+  <div class="ai-card">
+    <div class="ai-card-header">
+      <div class="ai-card-title">
+        ✨ 今月の営業活動へのAIアドバイス
+        <span class="ai-badge">Gemini</span>
+      </div>
+      <button class="ai-btn" id="ai-fetch-btn" onclick="fetchAIAdvice()">AIに聞く</button>
+    </div>
+    <div id="ai-body">
+      <div class="ai-placeholder">「AIに聞く」ボタンを押すと、現在の営業データを分析してアドバイスを生成します。</div>
+    </div>
+    <div id="ai-key-area" style="display:none">
+      <div style="color:rgba(255,255,255,.8);font-size:12px;margin-bottom:6px">
+        Gemini APIキーを入力してください（<a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#93c5fd">Google AI Studio</a>で無料取得）
+      </div>
+      <div class="ai-key-row">
+        <input class="ai-key-input" id="ai-key-input" type="password" placeholder="AIzaSy...">
+        <button class="ai-key-save" onclick="saveAPIKey()">保存して取得</button>
+      </div>
+    </div>
+    <div id="ai-error" class="ai-error" style="display:none"></div>
+    <div class="ai-footer">
+      <span class="ai-footer-note" id="ai-footer-note"></span>
+      <button class="ai-key-reset" id="ai-key-reset" onclick="resetAPIKey()" style="display:none">APIキーをリセット</button>
+    </div>
+  </div>
 
 </div><!-- /main -->
 
@@ -1505,6 +1567,140 @@ function generateDemoData(){
   });
 
   return{actual,deals,targets,kpiTargets};
+}
+
+// ============================================================
+// AIアドバイス（Gemini）
+// ============================================================
+const GEMINI_API_URL='https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+const AI_KEY_STORAGE='af_gemini_key';
+
+function getAPIKey(){ return localStorage.getItem(AI_KEY_STORAGE)||''; }
+
+function saveAPIKey(){
+  const key=document.getElementById('ai-key-input').value.trim();
+  if(!key){ showAIError('APIキーを入力してください'); return; }
+  localStorage.setItem(AI_KEY_STORAGE,key);
+  document.getElementById('ai-key-area').style.display='none';
+  document.getElementById('ai-error').style.display='none';
+  fetchAIAdvice();
+}
+
+function resetAPIKey(){
+  localStorage.removeItem(AI_KEY_STORAGE);
+  document.getElementById('ai-key-reset').style.display='none';
+  document.getElementById('ai-footer-note').textContent='';
+  document.getElementById('ai-body').innerHTML='<div class="ai-placeholder">「AIに聞く」ボタンを押すと分析します。</div>';
+}
+
+function showAIError(msg){
+  const el=document.getElementById('ai-error');
+  el.textContent=msg; el.style.display='block';
+}
+
+function buildAIPrompt(person,isTeam){
+  const isT=isTeam;
+  const fyStart=new Date(currentFY,7,1);
+  const elapsed=Math.max(1,(today.getFullYear()-fyStart.getFullYear())*12+(today.getMonth()-fyStart.getMonth())+1);
+
+  // 対象実績
+  const personActual=actualData.filter(r=>{
+    if(!isT&&r['担当者']!==person)return false;
+    const ym=String(r['日付']).slice(0,7);
+    return fyMonths.some(m=>yyyyMM(m.year,m.month)===ym);
+  });
+  const thisMonthActual=personActual.filter(r=>String(r['日付']).slice(0,7)===todayYM);
+
+  // 月別粗利
+  const actualByMonth={};
+  fyMonths.forEach(m=>{actualByMonth[yyyyMM(m.year,m.month)]=0});
+  personActual.forEach(r=>{const ym=String(r['日付']).slice(0,7);if(actualByMonth[ym]!==undefined)actualByMonth[ym]+=Number(r['売上(万円)'])||0;});
+  const actualTotal=Object.values(actualByMonth).reduce((s,v)=>s+v,0);
+
+  // 目標
+  let annualTarget=0,monthlyTarget=0;
+  if(isT){
+    annualTarget=(goalsData?.persons||[]).reduce((s,p)=>s+Math.round(p.salesTarget||0),0);
+    monthlyTarget=(goalsData?.persons||[]).reduce((s,p)=>s+Math.round(p.monthlyTarget||0),0);
+  }else{
+    const pg=(goalsData?.persons||[]).find(p=>p.name===person)||{};
+    annualTarget=Math.round(pg.salesTarget||0);
+    monthlyTarget=Math.round(pg.monthlyTarget||0);
+  }
+
+  // KPI（今月）
+  const kpiSums={meeting:0,self:0,tel:0,ref:0};
+  thisMonthActual.forEach(r=>{
+    kpiSums.meeting+=Number(r['ヒアリング'])||0;
+    kpiSums.self   +=Number(r['自分でアポ'])||0;
+    kpiSums.tel    +=Number(r['テレアポ経由'])||0;
+    kpiSums.ref    +=Number(r['紹介会社'])||0;
+  });
+
+  // アクティブ案件
+  const activeDeals=dealsData.filter(d=>{
+    if(!isT&&d['担当者']!==person)return false;
+    return !['失注'].includes(d['確度ランク']);
+  });
+  const yomiTotal=activeDeals.filter(d=>['決定','A','B'].includes(d['確度ランク']))
+    .reduce((s,d)=>s+toMan(Number(d['粗利'])||0),0);
+
+  const thisMonthActualGrossProfit=Math.round(actualByMonth[todayYM]||0);
+
+  return `あなたはプロの営業マネジャーです。以下の営業データを分析し、今月の改善アドバイスを日本語で3〜4点、箇条書きで具体的に提示してください。数字を必ず使ってください。
+
+【対象】${isT?'チーム全体':'担当者: '+person}
+【期間】FY${currentFY}（8月〜翌7月）経過${elapsed}ヶ月
+
+【今期累計粗利】${fmt(actualTotal)}万円 ／ 年間目標 ${annualTarget>0?fmt(annualTarget)+'万円':'未設定'}
+【今月粗利実績】${fmt(thisMonthActualGrossProfit)}万円 ／ 月間目標 ${monthlyTarget>0?fmt(monthlyTarget)+'万円':'未設定'}
+【今月KPI】有効面談${kpiSums.meeting}件、自アポ${kpiSums.self}件、テレアポ${kpiSums.tel}件、紹介${kpiSums.ref}件
+【アクティブ案件】${activeDeals.length}件 ／ ヨミ合計 ${fmt(yomiTotal)}万円
+【確度内訳】決定:${activeDeals.filter(d=>d['確度ランク']==='決定').length}件 A:${activeDeals.filter(d=>d['確度ランク']==='A').length}件 B:${activeDeals.filter(d=>d['確度ランク']==='B').length}件 C:${activeDeals.filter(d=>d['確度ランク']==='C').length}件
+
+アドバイスは実践的かつ前向きなトーンで。`;
+}
+
+async function fetchAIAdvice(){
+  const apiKey=getAPIKey();
+  if(!apiKey){
+    document.getElementById('ai-key-area').style.display='block';
+    document.getElementById('ai-key-reset').style.display='none';
+    return;
+  }
+
+  const btn=document.getElementById('ai-fetch-btn');
+  btn.disabled=true; btn.textContent='分析中...';
+  document.getElementById('ai-error').style.display='none';
+  document.getElementById('ai-body').innerHTML='<div class="ai-loading"><div class="ai-spin"></div>Geminiが分析中です...</div>';
+
+  try{
+    const prompt=buildAIPrompt(currentPerson,currentPerson==='__all__');
+    const res=await fetch(GEMINI_API_URL+'?key='+apiKey,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({contents:[{parts:[{text:prompt}]}],
+        generationConfig:{temperature:0.7,maxOutputTokens:1024}})
+    });
+    if(!res.ok){
+      const err=await res.json().catch(()=>({}));
+      throw new Error(err?.error?.message||'APIエラー ('+res.status+')');
+    }
+    const data=await res.json();
+    const text=data?.candidates?.[0]?.content?.parts?.[0]?.text||'応答がありません';
+    document.getElementById('ai-body').innerHTML=`<div class="ai-body">${esc(text).replace(/\n/g,'<br>')}</div>`;
+    document.getElementById('ai-footer-note').textContent='生成: '+new Date().toLocaleTimeString('ja-JP');
+    document.getElementById('ai-key-reset').style.display='block';
+  }catch(e){
+    document.getElementById('ai-body').innerHTML='<div class="ai-placeholder">データを取得できませんでした。</div>';
+    showAIError('エラー: '+e.message);
+    if(e.message.includes('API_KEY')||e.message.includes('401')){
+      localStorage.removeItem(AI_KEY_STORAGE);
+      document.getElementById('ai-key-area').style.display='block';
+    }
+  }finally{
+    btn.disabled=false; btn.textContent='AIに聞く';
+  }
 }
 
 init();
