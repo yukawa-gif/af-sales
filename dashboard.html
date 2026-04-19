@@ -238,23 +238,24 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
 .monthly-prog-pct{font-size:15px;font-weight:800;color:var(--blue)}
 
 /* ─── 目標設定モーダル ─── */
-.goal-modal-box{width:min(1100px,96vw)}
-.goal-table{width:100%;border-collapse:collapse;margin-top:4px}
+.goal-modal-box{width:min(820px,96vw);max-height:none;overflow:visible}
+.goal-table{width:100%;border-collapse:collapse;margin-top:4px;table-layout:fixed}
 .goal-table th{font-size:11px;color:var(--text3);font-weight:700;letter-spacing:.04em;
-  padding:8px 12px;text-align:center;border-bottom:2px solid var(--border);
+  padding:6px 8px;text-align:center;border-bottom:2px solid var(--border);
   background:var(--bg);white-space:nowrap}
-.goal-table th:first-child{text-align:left}
-.goal-table td{padding:8px 10px;border-bottom:1px solid var(--border);
+.goal-table th:first-child{text-align:left;width:100px}
+.goal-table td{padding:6px 8px;border-bottom:1px solid var(--border);
   text-align:center;vertical-align:middle}
-.goal-table td:first-child{text-align:left;font-weight:600;font-size:14px}
+.goal-table td:first-child{text-align:left;font-weight:600;font-size:13px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .goal-table tbody tr:last-child td{border-bottom:none}
-.goal-input{width:88px;padding:6px 8px;border:1.5px solid var(--border);
-  border-radius:6px;font-size:14px;text-align:right;font-family:inherit;
-  -webkit-appearance:none;transition:.15s}
+.goal-input{width:100%;max-width:120px;padding:5px 6px;border:1.5px solid var(--border);
+  border-radius:6px;font-size:13px;text-align:right;font-family:inherit;
+  -webkit-appearance:none;transition:.15s;box-sizing:border-box}
 .goal-input:focus{outline:none;border-color:var(--blue);
   box-shadow:0 0 0 3px rgba(37,99,235,.1)}
 .goal-hint{font-size:10px;color:var(--text3);margin-top:2px}
-.goal-modal-note{font-size:12px;color:var(--text2);padding:0 20px 14px;
+.goal-modal-note{font-size:12px;color:var(--text2);padding:0 20px 10px;
   border-bottom:1px solid var(--border);margin-bottom:4px}
 .goal-btn{padding:5px 14px;border-radius:20px;
   border:1.5px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);
@@ -562,10 +563,10 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
         <thead>
           <tr>
             <th>担当者</th>
-            <th>年間粗利目標<br><span class="goal-hint">（万円）</span></th>
-            <th>月間粗利目標<br><span class="goal-hint">（万円）</span></th>
-            <th>月間面談目標<br><span class="goal-hint">有効面談（件）</span></th>
-            <th>月間架電目標<br><span class="goal-hint">テレアポ（件）</span></th>
+            <th>年間粗利目標<span class="goal-hint">（万円）</span></th>
+            <th>月間粗利目標<span class="goal-hint">（万円）</span></th>
+            <th>面談目標<span class="goal-hint">（件）</span></th>
+            <th>架電目標<span class="goal-hint">（件）</span></th>
           </tr>
         </thead>
         <tbody id="goal-tbody"></tbody>
