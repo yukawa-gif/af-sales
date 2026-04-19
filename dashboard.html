@@ -221,36 +221,35 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
   display:none;align-items:center;justify-content:center;z-index:300}
 .modal-overlay.open{display:flex}
 .modal-box{background:var(--surface);border-radius:var(--r-lg);
-  width:480px;max-width:calc(100vw - 32px);max-height:90vh;overflow-y:auto;
+  width:460px;max-width:calc(100vw - 32px);max-height:96vh;overflow-y:auto;
   box-shadow:0 20px 60px rgba(0,0,0,.25)}
 .modal-header{display:flex;align-items:center;justify-content:space-between;
-  padding:18px 20px 14px;border-bottom:1px solid var(--border)}
-.modal-title{font-size:16px;font-weight:800}
-.modal-close{width:30px;height:30px;border-radius:50%;border:none;background:var(--bg);
-  cursor:pointer;font-size:16px;color:var(--text2);display:flex;align-items:center;
+  padding:12px 16px 10px;border-bottom:1px solid var(--border)}
+.modal-title{font-size:15px;font-weight:800}
+.modal-close{width:28px;height:28px;border-radius:50%;border:none;background:var(--bg);
+  cursor:pointer;font-size:14px;color:var(--text2);display:flex;align-items:center;
   justify-content:center;font-family:inherit;transition:.12s}
 .modal-close:hover{background:var(--border)}
-.modal-body{padding:20px}
-.modal-info{background:var(--bg);border-radius:var(--r);padding:12px 14px;
-  margin-bottom:18px;font-size:13px}
-.modal-info-row{display:flex;gap:8px;margin-bottom:4px}
-.modal-info-row:last-child{margin-bottom:0}
-.modal-info-label{color:var(--text3);font-size:11px;width:56px;flex-shrink:0;padding-top:1px}
-.modal-info-val{font-weight:600;color:var(--text)}
-.mfg{margin-bottom:14px}
+.modal-body{padding:12px 16px}
+.modal-info{background:var(--bg);border-radius:var(--r);padding:8px 12px;
+  margin-bottom:10px;font-size:12px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px}
+.modal-info-row{display:flex;flex-direction:column;gap:2px}
+.modal-info-label{color:var(--text3);font-size:10px;font-weight:600}
+.modal-info-val{font-weight:600;color:var(--text);font-size:12px}
+.mfg{margin-bottom:10px}
 .mfg:last-child{margin-bottom:0}
-.mfl{font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px}
-.mfi,.mfsel,.mfta{width:100%;padding:10px 12px;border:1.5px solid var(--border);
-  border-radius:var(--r);font-size:14px;font-family:inherit;
+.mfl{font-size:11px;font-weight:600;color:var(--text2);display:block;margin-bottom:4px}
+.mfi,.mfsel,.mfta{width:100%;padding:7px 10px;border:1.5px solid var(--border);
+  border-radius:var(--r);font-size:13px;font-family:inherit;
   background:var(--surface);color:var(--text);-webkit-appearance:none;transition:.15s}
 .mfi:focus,.mfsel:focus,.mfta:focus{outline:none;border-color:var(--blue);
   box-shadow:0 0 0 3px rgba(37,99,235,.1)}
 .mfsel{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239ca3af' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
-.mfta{resize:vertical;min-height:64px}
-.modal-footer{display:flex;gap:10px;padding:14px 20px;border-top:1px solid var(--border)}
-.modal-btn{flex:1;padding:11px;border-radius:var(--r);border:none;
-  font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s}
+  background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+.mfta{resize:none;height:56px}
+.modal-footer{display:flex;gap:8px;padding:10px 16px;border-top:1px solid var(--border)}
+.modal-btn{flex:1;padding:9px;border-radius:var(--r);border:none;
+  font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s}
 .modal-btn-cancel{background:var(--bg);color:var(--text2)}
 .modal-btn-cancel:hover{background:var(--border)}
 .modal-btn-save{background:var(--blue);color:#fff}
@@ -441,20 +440,22 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
           <span class="modal-info-val" id="dm-person"></span>
         </div>
       </div>
-      <div class="mfg">
-        <label class="mfl">確度ランク</label>
-        <select class="mfsel" id="dm-rank">
-          <option value="売上">売上（入金月確定）</option>
-          <option value="決定">決定（契約書締結）</option>
-          <option value="A">A（合意形成済）</option>
-          <option value="B">B（予算確保済）</option>
-          <option value="C">C（啓蒙活動中）</option>
-          <option value="失注">失注</option>
-        </select>
-      </div>
-      <div class="mfg">
-        <label class="mfl">売上予定月</label>
-        <select class="mfsel" id="dm-month"></select>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="mfg">
+          <label class="mfl">確度ランク</label>
+          <select class="mfsel" id="dm-rank">
+            <option value="売上">粗利確定（入金済）</option>
+            <option value="決定">決定（契約書締結）</option>
+            <option value="A">A（合意形成済）</option>
+            <option value="B">B（予算確保済）</option>
+            <option value="C">C（啓蒙活動中）</option>
+            <option value="失注">失注</option>
+          </select>
+        </div>
+        <div class="mfg">
+          <label class="mfl">粗利予定月</label>
+          <select class="mfsel" id="dm-month"></select>
+        </div>
       </div>
       <div class="mfg">
         <label class="mfl">粗利（合計/円）</label>
