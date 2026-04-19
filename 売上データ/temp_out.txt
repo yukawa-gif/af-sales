@@ -1,0 +1,63 @@
+col1: 入力日
+col2: 担当者
+col3: 決定確度
+col4: 企業名
+col5: 内容
+col6: 次回連絡日／決定月
+col7: 次の行動
+col8: 見込
+col9: 売上
+col10: 費用
+col11: 利益
+col12: 見込
+col13: 売上
+col14: 費用
+col15: 利益
+col16: 見込
+col17: 売上
+col18: 費用
+col19: 利益
+col20: 見込
+col21: 売上
+col22: 費用
+col23: 利益
+col24: 見込
+col25: 売上
+col26: 費用
+col27: 利益
+col28: 見込
+col29: 売上
+col30: 費用
+col31: 利益
+col32: 見込
+col33: 売上
+col34: 費用
+col35: 利益
+col36: 見込
+col37: 売上
+col38: 費用
+col39: 利益
+col40: 見込
+col41: 売上
+col42: 費用
+col43: 利益
+col44: 見込
+col45: 売上
+col46: 費用
+col47: 利益
+col48: 見込
+col49: 売上
+col50: 費用
+col51: 利益
+col52: 見込
+col53: 売上
+col54: 費用
+col55: 利益
+
+--- Data rows ---
+row14: [datetime.datetime(2022, 8, 5, 0, 0), '坂井', '失注', 'INASUNバル', 'IT導入', datetime.datetime(2026, 1, 1, 0, 0), '6/2までにの確定申告書もらえる予定。', None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]
+row15: [datetime.datetime(2022, 9, 22, 0, 0), '坂井', '失注', '株式会社URARAN', 'IT導入', datetime.datetime(2023, 12, 21, 0, 0), '10月決算\u3000決算後の売上高から判断する', None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]
+row16: [datetime.datetime(2022, 10, 24, 0, 0), '坂井', '売上', 'ブリストジョナス', '社労士顧問', None, '7名', None, 33000.0, None, 33000, None, None, None, 0, None, None, None, 0, None, 32175.0, None, 32175, None, None, None, 0, None, None, None, 0, None, None, None, 0, None, None, None, 0, None, None, None, 0, None, None, None, 0, None, None, None, 0, None, None, None, 0]
+row17: [datetime.datetime(2022, 10, 24, 0, 0), '坂井', '売上', 'ブリストジョナス', 'キャリアアップ', 'アプローチする', None, None, 33000.0, None, 33000, None, None, None, 0, None, 128700.0, None, 128700, None, None, None, 0, None, None, None, 0, None, None, None, 0, None, None, None, 0, None, None, None, 0, None, None, None, 0, None, None, None, 0, None, None, None, 0, None, None, None, 0]
+row18: [datetime.datetime(2022, 11, 2, 0, 0), '坂井', '失注', '株式会社ヒロセ', '助成金顧問', datetime.datetime(2026, 1, 1, 0, 0), 'キャリアアップと同時期に（坂井）', None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None]
+row19: [datetime.datetime(2022, 11, 2, 0, 0), '坂井', '決定', '株式会社ヒロセ', 'キャリアアップ', 'アプローチする', '23年5月で6ヵ月経過が1名（坂井）', None, None, None, 0, None, None, None, 0, None, None, None, 0, None, None, None, 0, None, None, None, 0, None, None, None, 0, None, None, None, 0, None, None, None, 0, None, None, None, 0, 44000.0, None, None, 0, None, None, None, 0, None, None, None, 0]

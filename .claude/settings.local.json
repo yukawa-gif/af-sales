@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__c1fc4002-5f49-5f9d-a4e5-93c4ef5d6a75__google_drive_fetch",
+      "WebFetch(domain:script.google.com)",
+      "WebFetch(domain:script.googleusercontent.com)",
+      "Bash(grep -E \"[A-Za-z]{2,}\")",
+      "Bash(grep -n \">[A-Z][a-z]*\\\\s\\\\+[A-Z][a-z]*<\\\\|>[A-Z][a-z]*\\\\s*$\" \"C:\\\\develop\\\\af-sales\\\\sales_manager_v3.html\")",
+      "Bash(grep -v \"^[0-9]*:$\")",
+      "Bash(grep -v \"^>$\")",
+      "Bash(grep -v \"^[0-9]*:[[:space:]]*$\")",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "mcp__Claude_in_Chrome__navigate",
+      "mcp__Claude_in_Chrome__get_page_text",
+      "mcp__Claude_in_Chrome__javascript_tool",
+      "mcp__Claude_in_Chrome__computer",
+      "Read(//c/Users/湯川悦英/Downloads/**)",
+      "Bash(python3 -c ':*)",
+      "Bash(pip install:*)",
+      "Bash(python -c ':*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(git --version)",
+      "Bash(gh --version)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git remote:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(python -c ' *)",
+      "Bash(python -c \"import pandas; print\\('pandas available'\\)\")",
+      "Bash(python -c \"import openpyxl; print\\('openpyxl available'\\)\")",
+      "Bash(python \"C:/develop/af-sales/convert_sakai_xlsx.py\")",
+      "Bash(python3 -c ' *)",
+      "Bash(python3)",
+      "Read(//c/Users/湯川悦英/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/52671251-697b-4bee-959c-1d8a5b4acf1b/da0b2e37-28d0-4553-a5b5-78ee54985030/skills/xlsx/**)",
+      "Bash(python -)",
+      "Bash(python convert_sales.py)",
+      "Bash(python3 -c \"import sys; print\\(sys.getdefaultencoding\\(\\)\\); import locale; print\\(locale.getpreferredencoding\\(\\)\\)\")",
+      "Bash(python3 -c \"import sys; data=sys.stdin.read\\(\\); print\\(repr\\(data[:500]\\)\\)\")"
+    ]
+  }
+}
