@@ -1191,7 +1191,7 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
     const color=rank.col;
     const groupId='tl-group-'+rank.v;
     const arrId='tl-arr-'+rank.v;
-    const defaultOpen=['売上','決定','A'].includes(rank.v);
+    const defaultOpen=false;
 
     // ランクの月別合計
     const rankMonthTotals={};
