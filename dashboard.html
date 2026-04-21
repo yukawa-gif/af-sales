@@ -90,6 +90,24 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
 .alert-warn{background:var(--amber-bg);border-color:var(--amber);color:#92400e}
 .alert-danger{background:var(--red-bg);border-color:var(--red);color:#7f1d1d}
 
+/* ─── 担当者別詳細パネル ─── */
+.detail-card{background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-lg);padding:18px 20px;margin-bottom:16px}
+.detail-card-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.detail-filter-btns{display:flex;gap:6px;flex-wrap:wrap}
+.detail-filter-btn{padding:3px 10px;border-radius:20px;border:1.5px solid var(--border);
+  background:transparent;font-size:11px;cursor:pointer;transition:.15s}
+.detail-filter-btn.active{color:#fff;border-color:transparent}
+.detail-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.detail-tbl th{background:#f8fafc;border-bottom:2px solid var(--border);
+  padding:7px 10px;text-align:left;font-weight:700;color:var(--text2);white-space:nowrap}
+.detail-tbl td{border-bottom:1px solid var(--border);padding:7px 10px;
+  vertical-align:middle;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.detail-tbl tr:hover td{background:#f0f9ff;cursor:pointer}
+.detail-tbl .td-rank-badge{display:inline-block;padding:2px 8px;border-radius:10px;
+  font-size:10px;font-weight:700;color:#fff}
+.detail-count{font-size:11px;color:var(--text3);margin-left:auto}
+
 /* ─── 月別推移タイムライン ─── */
 .timeline-card{background:var(--surface);border:1px solid var(--border);
   border-radius:var(--r-lg);padding:18px 0 0;margin-bottom:16px;overflow:hidden}
@@ -385,6 +403,30 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
         <thead id="tl-thead"></thead>
         <tbody id="tl-tbody"></tbody>
         <tfoot id="tl-tfoot"></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- 担当者別詳細パネル -->
+  <div class="detail-card" id="detail-panel" style="display:none">
+    <div class="detail-card-header">
+      <span style="font-size:15px;font-weight:800;flex-shrink:0">案件一覧</span>
+      <div class="detail-filter-btns" id="detail-filter-btns"></div>
+      <span class="detail-count" id="detail-count"></span>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="detail-tbl">
+        <thead>
+          <tr>
+            <th style="width:180px">会社名</th>
+            <th style="width:130px">商材名</th>
+            <th style="width:80px">確度</th>
+            <th style="width:90px">売上予定月</th>
+            <th style="width:110px;text-align:right">粗利</th>
+            <th>メモ</th>
+          </tr>
+        </thead>
+        <tbody id="detail-tbody"></tbody>
       </table>
     </div>
   </div>
@@ -908,9 +950,106 @@ function render(person){
 
   renderAlert(annualTarget,actualTotal,yomiTotal);
   renderTimeline(personDeals,actualByMonth,person,isTeam);
+  renderPersonDetail(personDeals,isTeam);
   renderKPITable(kpiSums,kpiGoal);
   renderProgress(annualTarget,actualTotal,yomiTotal,forecast,col,monthlyTarget,thisMonthActual);
   renderIncentiveCard(person,isTeam);
+}
+
+// ============================================================
+// 担当者別詳細パネル
+// ============================================================
+let detailFilterRank='ALL';
+
+function renderPersonDetail(personDeals, isTeam){
+  const panel=document.getElementById('detail-panel');
+  if(isTeam){panel.style.display='none';return;}
+  panel.style.display='';
+
+  // ランク別件数
+  const rankCounts={ALL:0};
+  RANKS.forEach(r=>rankCounts[r.v]=0);
+  personDeals.forEach(d=>{
+    rankCounts['ALL']++;
+    if(rankCounts[d['確度ランク']]!==undefined) rankCounts[d['確度ランク']]++;
+  });
+
+  // フィルタボタン
+  const filterDiv=document.getElementById('detail-filter-btns');
+  const allFilters=[{v:'ALL',label:'すべて',color:'#475569'},...RANKS];
+  filterDiv.innerHTML=allFilters.map(r=>{
+    const cnt=rankCounts[r.v]||0;
+    if(r.v!=='ALL'&&cnt===0)return '';
+    const active=detailFilterRank===r.v;
+    const bg=active?(r.color||'#475569'):'transparent';
+    const col=active?'#fff':(r.color||'#475569');
+    const border=r.color||'#475569';
+    return `<button class="detail-filter-btn${active?' active':''}"
+      style="color:${col};background:${bg};border-color:${border}"
+      onclick="setDetailFilter('${r.v}')">${r.label} ${cnt}</button>`;
+  }).join('');
+
+  // テーブル描画
+  renderDetailTable(personDeals);
+}
+
+function setDetailFilter(rank){
+  detailFilterRank=rank;
+  const personDeals=dealsData.filter(d=>{
+    if(d['担当者']!==currentPerson)return false;
+    const ym=String(d['売上予定月']||'').slice(0,7);
+    return fyMonths.some(m=>yyyyMM(m.year,m.month)===ym);
+  });
+  // フィルタボタン再描画
+  const allFilters=[{v:'ALL',label:'すべて',color:'#475569'},...RANKS];
+  document.getElementById('detail-filter-btns').querySelectorAll('button').forEach((btn,i)=>{
+    const r=allFilters[i];
+    if(!r)return;
+    const active=detailFilterRank===r.v;
+    const bg=active?(r.color||'#475569'):'transparent';
+    btn.style.background=bg;
+    btn.style.color=active?'#fff':(r.color||'#475569');
+    btn.classList.toggle('active',active);
+  });
+  renderDetailTable(personDeals);
+}
+
+function renderDetailTable(personDeals){
+  const filtered=detailFilterRank==='ALL'
+    ? personDeals
+    : personDeals.filter(d=>d['確度ランク']===detailFilterRank);
+
+  // 売上予定月→粗利の降順ソート
+  const sorted=[...filtered].sort((a,b)=>{
+    const ma=String(a['売上予定月']||'');
+    const mb=String(b['売上予定月']||'');
+    if(ma!==mb)return ma<mb?-1:1;
+    return (Number(b['粗利'])||0)-(Number(a['粗利'])||0);
+  });
+
+  document.getElementById('detail-count').textContent=sorted.length+'件';
+
+  const tbody=document.getElementById('detail-tbody');
+  if(sorted.length===0){
+    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">該当する案件がありません</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML=sorted.map(d=>{
+    const rank=d['確度ランク']||'';
+    const rankCfg=RANKS.find(r=>r.v===rank)||{color:'#9ca3af'};
+    const gp=Number(d['粗利'])||0;
+    const gpStr=gp===0?'—':(gp<0?'<span style="color:#dc2626">▲'+Math.abs(gp).toLocaleString()+'</span>':gp.toLocaleString());
+    return `<tr onclick="openDealModal(${JSON.stringify(d).replace(/"/g,'&quot;')})">
+      <td title="${esc(d['会社名']||'')}">${esc(d['会社名']||'—')}</td>
+      <td title="${esc(d['商材名']||'')}">${esc(d['商材名']||'—')}</td>
+      <td><span class="detail-tbl-rank" style="display:inline-block;padding:2px 8px;border-radius:10px;
+        font-size:10px;font-weight:700;color:#fff;background:${rankCfg.color}">${esc(rank)}</span></td>
+      <td>${esc(String(d['売上予定月']||'').slice(0,7))}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${gpStr}</td>
+      <td style="color:var(--text3);font-size:11px" title="${esc(d['メモ']||'')}">${esc(d['メモ']||'')}</td>
+    </tr>`;
+  }).join('');
 }
 
 // ============================================================
