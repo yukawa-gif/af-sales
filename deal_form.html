@@ -405,7 +405,7 @@ async function fetchMasterData(){
     const res=await fetch(GAS_URL+'?mode=master');
     const data=await res.json();
     if(!data.success) return null;
-    localStorage.setItem(MASTER_CACHE_KEY, JSON.stringify({timestamp:Date.now(), data}));
+    try{ localStorage.setItem(MASTER_CACHE_KEY, JSON.stringify({timestamp:Date.now(), data})); }catch(e){}
     return data;
   }catch(e){ return null; }
 }
