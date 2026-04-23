@@ -433,34 +433,36 @@ function buildPersonOptions(details) {
 }
 
 function buildProductOptions(details) {
-  // よく使う → 直販 固定価格商材をチップとして上部表示
+  // よく使う → ストック固定価格商材をチップとして上部表示（上位8件）
   const frequent = details.filter(p =>
-    p.name.includes('_直販') && p.priceType === '固定' && p.unitPrice > 0
-  );
+    p.kind === 'ストック' && p.priceType === '固定' && p.unitPrice > 0
+  ).slice(0, 8);
   const chips = document.getElementById('product-chips');
   chips.innerHTML = frequent.map(p =>
-    `<div class="product-chip" data-v="${esc(p.name)}" onclick="selProductChip(this,'${esc(p.name)}')">${esc(p.name.replace('_直販',''))}</div>`
+    `<div class="product-chip" data-v="${esc(p.name)}" onclick="selProductChip(this,'${esc(p.name)}')">${esc(p.name)}</div>`
   ).join('');
 
-  // その他 → カテゴリ別グループセレクト（直販は除く）
-  const rest = details.filter(p => !frequent.includes(p));
-  const groups = {};
-  rest.forEach(p => {
-    let g = 'その他';
-    if (p.name.includes('_代理店'))              g = '代理店商材';
-    else if (p.dealType === '助成金・補助金')     g = '補助金・助成金';
-    if (!groups[g]) groups[g] = [];
-    groups[g].push(p);
+  // グループ：ストック（継続）/ スポット（固定）/ スポット（都度見積もり）
+  const groups = { 'ストック（継続契約）': [], 'スポット（固定価格）': [], 'スポット（都度見積もり）': [] };
+  details.forEach(p => {
+    if (p.kind === 'ストック') {
+      groups['ストック（継続契約）'].push(p);
+    } else if (p.priceType === '都度見積もり') {
+      groups['スポット（都度見積もり）'].push(p);
+    } else {
+      groups['スポット（固定価格）'].push(p);
+    }
   });
   const sel = document.getElementById('productName');
   sel.innerHTML = '<option value="">── 商材を選ぶ ──</option>';
   Object.entries(groups).forEach(([label, items]) => {
+    if (items.length === 0) return;
     const og = document.createElement('optgroup');
     og.label = label;
     items.forEach(p => {
       const opt = document.createElement('option');
       opt.value = p.name;
-      opt.textContent = p.name + (p.priceType === '都度見積もり' ? ' ★' : '');
+      opt.textContent = p.name;
       og.appendChild(opt);
     });
     sel.appendChild(og);
@@ -724,17 +726,8 @@ async function submit() {
     // インセンティブ表示用再計算
     const gp = (unitSales - unitCost) * courses * qty; // 月次粗利
     const p  = masterData ? masterData.productDetails.find(d => d.name === productName) : null;
-    const iType   = p ? p.incentiveType   : '10%単発';
-    const iTarget = p ? p.incentiveTarget : '○';
-    let incentive = 0;
-    if (iTarget === '○') {
-      switch (iType) {
-        case '0.1%':    incentive = Math.floor(gp * 0.001); break;
-        case '10%単発': incentive = Math.floor(gp * 0.1); break;
-        case '10%継続': incentive = Math.floor(gp * months * 0.1); break;
-        case '1ヶ月分': incentive = Math.floor(gp); break;
-      }
-    }
+    const incentiveRate = p ? (p.incentiveRate || 0) : 0;
+    const incentive = Math.floor(gp * months * incentiveRate);
 
     showSuccess(payload.companyName, productName, incentive);
   } catch(e) {
