@@ -37,7 +37,9 @@
       "Bash(python -)",
       "Bash(python convert_sales.py)",
       "Bash(python3 -c \"import sys; print\\(sys.getdefaultencoding\\(\\)\\); import locale; print\\(locale.getpreferredencoding\\(\\)\\)\")",
-      "Bash(python3 -c \"import sys; data=sys.stdin.read\\(\\); print\\(repr\\(data[:500]\\)\\)\")"
+      "Bash(python3 -c \"import sys; data=sys.stdin.read\\(\\); print\\(repr\\(data[:500]\\)\\)\")",
+      "Bash(git pull *)",
+      "Bash(claude --version)"
     ]
   }
 }
