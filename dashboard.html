@@ -1620,25 +1620,41 @@ function renderIncentiveCard(person, isTeam){
 
   document.getElementById('incentive-month-lbl').textContent=label+'（翌月）の支払い予定';
 
-  const rows=(dealsData||[]).filter(d=>{
-    if(!isTeam&&d['担当者']!==person) return false;
-    if(d['確度ランク']==='失注') return false;
-    const ym=String(d['売上予定月']||'').slice(0,7);
-    return ym===nextYM && Number(d['インセンティブ'])>0;
+  const rows=[];
+  (dealsData||[]).forEach(d=>{
+    if(!isTeam&&d['担当者']!==person) return;
+    if(d['確度ランク']==='失注') return;
+    const totalIncentive=Number(d['インセンティブ'])||0;
+    if(totalIncentive<=0) return;
+    const startYM=String(d['売上予定月']||'').slice(0,7);
+    if(!startYM) return;
+    const months=Math.max(1,Number(d['月数'])||1);
+    if(months<=1){
+      // スポット：売上予定月のみ
+      if(startYM===nextYM) rows.push({d, amt: totalIncentive});
+    }else{
+      // ストック：契約期間中の翌月なら毎月支払い
+      const start=new Date(startYM+'-01');
+      const end=new Date(start.getFullYear(),start.getMonth()+months,1);
+      const next=new Date(nextYM+'-01');
+      if(next>=start&&next<end){
+        rows.push({d, amt: Math.floor(totalIncentive/months)});
+      }
+    }
   });
 
   const listEl=document.getElementById('incentive-list');
   const totalEl=document.getElementById('incentive-total');
-  const total=rows.reduce((s,d)=>s+Number(d['インセンティブ']),0);
+  const total=rows.reduce((s,r)=>s+r.amt,0);
 
   if(rows.length===0){
     listEl.innerHTML='<div class="incentive-empty">翌月の支払い予定はありません</div>';
   }else{
-    listEl.innerHTML=rows.map(d=>`
+    listEl.innerHTML=rows.map(({d,amt})=>`
       <div class="incentive-row">
         <span class="incentive-co">${esc(d['会社名']||'')}</span>
         <span class="incentive-prod">${esc(d['商材名']||'')}</span>
-        <span class="incentive-amt">${fmt(Math.round(Number(d['インセンティブ'])/10000))}万</span>
+        <span class="incentive-amt">${fmt(Math.round(amt/10000))}万</span>
       </div>`).join('');
   }
   totalEl.textContent=fmt(Math.round(total/10000));
