@@ -322,6 +322,12 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
 .modal-btn-save:hover{background:#1d4ed8}
 .modal-btn-save:disabled{background:var(--text3);cursor:not-allowed}
 
+/* ─── タスクボタン ─── */
+.task-btn{font-size:10px;font-weight:700;padding:3px 6px;border-radius:6px;
+  border:1px solid var(--border);background:var(--bg);color:var(--text2);cursor:pointer;
+  white-space:nowrap}
+.task-btn:hover{background:#eff6ff;border-color:var(--blue);color:var(--blue)}
+
 /* ─── ローディング ─── */
 .loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.85);
   display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -424,6 +430,7 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
             <th style="width:90px">売上予定月</th>
             <th style="width:110px;text-align:right">粗利</th>
             <th>メモ</th>
+            <th style="width:52px"></th>
           </tr>
         </thead>
         <tbody id="detail-tbody"></tbody>
@@ -623,6 +630,34 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
     <div class="modal-footer">
       <button class="modal-btn modal-btn-cancel" onclick="closeGoalModal()">キャンセル</button>
       <button class="modal-btn modal-btn-save" id="gm-save" onclick="saveGoalModal()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- タスク登録モーダル -->
+<div class="modal-overlay" id="task-modal" onclick="if(event.target===this)closeTaskModal()">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-header">
+      <span class="modal-title">Googleタスクに追加</span>
+      <button class="modal-close" onclick="closeTaskModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="mfg">
+        <label class="mfl">タイトル</label>
+        <input class="mfi" type="text" id="task-title" placeholder="例: ○○社 フォロー連絡">
+      </div>
+      <div class="mfg">
+        <label class="mfl">期日</label>
+        <input class="mfi" type="date" id="task-due">
+      </div>
+      <div class="mfg">
+        <label class="mfl">メモ</label>
+        <textarea class="mfta" id="task-notes" placeholder="詳細・備考など" rows="3"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn modal-btn-cancel" onclick="closeTaskModal()">キャンセル</button>
+      <button class="modal-btn modal-btn-save" id="task-save" onclick="saveTask()">登録する</button>
     </div>
   </div>
 </div>
@@ -1031,7 +1066,7 @@ function renderDetailTable(personDeals){
 
   const tbody=document.getElementById('detail-tbody');
   if(sorted.length===0){
-    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">該当する案件がありません</td></tr>';
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">該当する案件がありません</td></tr>';
     return;
   }
 
@@ -1048,6 +1083,9 @@ function renderDetailTable(personDeals){
       <td>${esc(String(d['売上予定月']||'').slice(0,7))}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums">${gpStr}</td>
       <td style="color:var(--text3);font-size:11px" title="${esc(d['メモ']||'')}">${esc(d['メモ']||'')}</td>
+      <td onclick="event.stopPropagation()" style="text-align:center;padding:4px">
+        <button class="task-btn" onclick="openTaskModal(${JSON.stringify(d).replace(/"/g,'&quot;')})" title="Googleタスクに追加">+T</button>
+      </td>
     </tr>`;
   }).join('');
 }
@@ -1314,6 +1352,47 @@ function openDealModal(deal){
 function closeDealModal(){
   document.getElementById('deal-modal').classList.remove('open');
   editingDeal=null;
+}
+
+// ============================================================
+// タスク登録モーダル
+// ============================================================
+function openTaskModal(deal){
+  document.getElementById('task-title').value=
+    (deal['会社名']||'')+(deal['商材名']?' '+deal['商材名']:'')+'　フォロー';
+  document.getElementById('task-due').value='';
+  document.getElementById('task-notes').value=deal['メモ']||'';
+  document.getElementById('task-save').disabled=false;
+  document.getElementById('task-save').textContent='登録する';
+  document.getElementById('task-modal').classList.add('open');
+}
+
+function closeTaskModal(){
+  document.getElementById('task-modal').classList.remove('open');
+}
+
+async function saveTask(){
+  const btn=document.getElementById('task-save');
+  const title=document.getElementById('task-title').value.trim();
+  if(!title)return;
+  btn.disabled=true; btn.textContent='登録中…';
+  const payload={
+    action:'addTask',
+    title,
+    dueDate:document.getElementById('task-due').value||null,
+    notes:document.getElementById('task-notes').value||''
+  };
+  try{
+    await fetch(GAS_URL,{
+      method:'POST',mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    });
+    closeTaskModal();
+  }catch(e){
+    btn.disabled=false; btn.textContent='登録する';
+    console.warn('Task save failed:',e);
+  }
 }
 
 async function saveDealModal(){
