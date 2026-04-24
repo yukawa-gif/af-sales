@@ -415,14 +415,15 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
 
   <!-- 担当者別詳細パネル -->
   <div class="detail-card" id="detail-panel" style="display:none">
-    <div class="detail-card-header">
+    <div class="detail-card-header" onclick="toggleDetailPanel()" style="cursor:pointer;user-select:none">
       <span style="font-size:15px;font-weight:800;flex-shrink:0">案件一覧</span>
-      <div class="detail-filter-btns" id="detail-filter-btns"></div>
+      <div class="detail-filter-btns" id="detail-filter-btns" onclick="event.stopPropagation()"></div>
       <span class="detail-count" id="detail-count"></span>
+      <span id="detail-toggle-icon" style="margin-left:8px;font-size:12px;color:var(--text3);flex-shrink:0">▲</span>
     </div>
-    <div style="overflow-x:auto">
+    <div id="detail-table-wrap" style="overflow-x:auto">
       <table class="detail-tbl">
-        <thead>
+        <thead id="detail-thead-row">
           <tr>
             <th style="width:180px">会社名</th>
             <th style="width:130px">商材名</th>
@@ -1352,6 +1353,16 @@ function openDealModal(deal){
 function closeDealModal(){
   document.getElementById('deal-modal').classList.remove('open');
   editingDeal=null;
+}
+
+// ============================================================
+// 案件一覧 開閉
+// ============================================================
+let detailPanelOpen = true;
+function toggleDetailPanel() {
+  detailPanelOpen = !detailPanelOpen;
+  document.getElementById('detail-table-wrap').style.display = detailPanelOpen ? '' : 'none';
+  document.getElementById('detail-toggle-icon').textContent = detailPanelOpen ? '▲' : '▼';
 }
 
 // ============================================================
