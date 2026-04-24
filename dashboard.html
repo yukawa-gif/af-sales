@@ -322,11 +322,16 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
 .modal-btn-save:hover{background:#1d4ed8}
 .modal-btn-save:disabled{background:var(--text3);cursor:not-allowed}
 
-/* ─── タスクボタン ─── */
+/* ─── タスク・メールボタン ─── */
 .task-btn{font-size:10px;font-weight:700;padding:3px 6px;border-radius:6px;
   border:1px solid var(--border);background:var(--bg);color:var(--text2);cursor:pointer;
   white-space:nowrap}
 .task-btn:hover{background:#eff6ff;border-color:var(--blue);color:var(--blue)}
+.mail-btn{font-size:10px;font-weight:700;padding:3px 6px;border-radius:6px;
+  border:1px solid #fbbf24;background:#fffbeb;color:#b45309;cursor:pointer;
+  white-space:nowrap;margin-left:4px}
+.mail-btn:hover{background:#fef3c7;border-color:#f59e0b}
+.row-stale td{background:#fffbeb !important}
 
 /* ─── ローディング ─── */
 .loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.85);
@@ -659,6 +664,30 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
     <div class="modal-footer">
       <button class="modal-btn modal-btn-cancel" onclick="closeTaskModal()">キャンセル</button>
       <button class="modal-btn modal-btn-save" id="task-save" onclick="saveTask()">登録する</button>
+    </div>
+  </div>
+</div>
+
+<!-- フォローアップメール下書きモーダル -->
+<div class="modal-overlay" id="mail-modal" onclick="if(event.target===this)closeMailModal()">
+  <div class="modal-box" style="max-width:560px">
+    <div class="modal-header">
+      <span class="modal-title">フォローアップメール下書き</span>
+      <button class="modal-close" onclick="closeMailModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="mail-loading" style="text-align:center;padding:24px;color:var(--text2)">Geminiが下書き中...</div>
+      <div id="mail-form" style="display:none">
+        <div class="mfg"><label class="mfl">宛先</label><input class="mfi" id="mail-to" type="email" placeholder="example@company.com"></div>
+        <div class="mfg"><label class="mfl">件名</label><input class="mfi" id="mail-subject" type="text"></div>
+        <div class="mfg"><label class="mfl">本文</label><textarea class="mfta" id="mail-body" rows="10"></textarea></div>
+        <div id="mail-doc-note" style="font-size:11px;color:var(--text3);margin-top:4px"></div>
+      </div>
+      <div id="mail-error" style="color:var(--red);padding:8px;display:none"></div>
+    </div>
+    <div class="modal-footer" id="mail-footer" style="display:none">
+      <button class="modal-btn modal-btn-cancel" onclick="closeMailModal()">キャンセル</button>
+      <button class="modal-btn modal-btn-save" onclick="openGmail()">Gmailで開く</button>
     </div>
   </div>
 </div>
@@ -1076,7 +1105,8 @@ function renderDetailTable(personDeals){
     const rankCfg=RANKS.find(r=>r.v===rank)||{color:'#9ca3af'};
     const gp=Number(d['粗利'])||0;
     const gpStr=gp===0?'—':(gp<0?'<span style="color:#dc2626">▲'+Math.abs(gp).toLocaleString()+'</span>':gp.toLocaleString());
-    return `<tr onclick="openDealModal(${JSON.stringify(d).replace(/"/g,'&quot;')})">
+    const stale=isStale(d);
+    return `<tr class="${stale?'row-stale':''}" onclick="openDealModal(${JSON.stringify(d).replace(/"/g,'&quot;')})">
       <td title="${esc(d['会社名']||'')}">${esc(d['会社名']||'—')}</td>
       <td title="${esc(d['商材名']||'')}">${esc(d['商材名']||'—')}</td>
       <td><span class="detail-tbl-rank" style="display:inline-block;padding:2px 8px;border-radius:10px;
@@ -1086,6 +1116,7 @@ function renderDetailTable(personDeals){
       <td style="color:var(--text3);font-size:11px" title="${esc(d['メモ']||'')}">${esc(d['メモ']||'')}</td>
       <td onclick="event.stopPropagation()" style="text-align:center;padding:4px">
         <button class="task-btn" onclick="openTaskModal(${JSON.stringify(d).replace(/"/g,'&quot;')})" title="Googleタスクに追加">+T</button>
+        ${stale?`<button class="mail-btn" onclick="openMailModal(${JSON.stringify(d).replace(/"/g,'&quot;')})" title="フォローアップメールを下書き">メール</button>`:''}
       </td>
     </tr>`;
   }).join('');
@@ -1404,6 +1435,55 @@ async function saveTask(){
     btn.disabled=false; btn.textContent='登録する';
     console.warn('Task save failed:',e);
   }
+}
+
+// ============================================================
+// フォローアップメール下書き
+// ============================================================
+function isStale(deal){
+  const rank=deal['確度ランク'];
+  if(!['A','B','C'].includes(rank))return false;
+  const updated=deal['最終更新日'];
+  if(!updated)return true;
+  return (Date.now()-new Date(updated).getTime())/86400000>=14;
+}
+
+async function openMailModal(deal){
+  document.getElementById('mail-loading').style.display='';
+  document.getElementById('mail-form').style.display='none';
+  document.getElementById('mail-error').style.display='none';
+  document.getElementById('mail-footer').style.display='none';
+  document.getElementById('mail-modal').classList.add('open');
+  try{
+    const company=encodeURIComponent(deal['会社名']||'');
+    const person=encodeURIComponent(deal['担当者']||'');
+    const res=await fetch(GAS_URL+'?mode=followup&company='+company+'&person='+person);
+    const data=await res.json();
+    if(!data.success)throw new Error(data.error||'取得失敗');
+    document.getElementById('mail-to').value=data.recipientEmail||'';
+    document.getElementById('mail-subject').value=data.subject||'';
+    document.getElementById('mail-body').value=data.body||'';
+    document.getElementById('mail-doc-note').textContent=
+      data.docTitle?'参照メモ: '+data.docTitle:'会議メモは見つかりませんでした（案件情報のみで生成）';
+    document.getElementById('mail-loading').style.display='none';
+    document.getElementById('mail-form').style.display='';
+    document.getElementById('mail-footer').style.display='';
+  }catch(e){
+    document.getElementById('mail-loading').style.display='none';
+    document.getElementById('mail-error').textContent=e.message;
+    document.getElementById('mail-error').style.display='';
+  }
+}
+
+function closeMailModal(){
+  document.getElementById('mail-modal').classList.remove('open');
+}
+
+function openGmail(){
+  const to=encodeURIComponent(document.getElementById('mail-to').value);
+  const su=encodeURIComponent(document.getElementById('mail-subject').value);
+  const body=encodeURIComponent(document.getElementById('mail-body').value);
+  window.open('https://mail.google.com/mail/?view=cm&to='+to+'&su='+su+'&body='+body,'_blank');
 }
 
 async function saveDealModal(){
