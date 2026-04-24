@@ -1106,6 +1106,7 @@ function renderDetailTable(personDeals){
     const gp=Number(d['粗利'])||0;
     const gpStr=gp===0?'—':(gp<0?'<span style="color:#dc2626">▲'+Math.abs(gp).toLocaleString()+'</span>':gp.toLocaleString());
     const stale=isStale(d);
+    const showMail=stale||['決定','失注'].includes(d['確度ランク']||'');
     return `<tr class="${stale?'row-stale':''}" onclick="openDealModal(${JSON.stringify(d).replace(/"/g,'&quot;')})">
       <td title="${esc(d['会社名']||'')}">${esc(d['会社名']||'—')}</td>
       <td title="${esc(d['商材名']||'')}">${esc(d['商材名']||'—')}</td>
@@ -1116,7 +1117,7 @@ function renderDetailTable(personDeals){
       <td style="color:var(--text3);font-size:11px" title="${esc(d['メモ']||'')}">${esc(d['メモ']||'')}</td>
       <td onclick="event.stopPropagation()" style="text-align:center;padding:4px">
         <button class="task-btn" onclick="openTaskModal(${JSON.stringify(d).replace(/"/g,'&quot;')})" title="Googleタスクに追加">+T</button>
-        ${stale?`<button class="mail-btn" onclick="openMailModal(${JSON.stringify(d).replace(/"/g,'&quot;')})" title="フォローアップメールを下書き">メール</button>`:''}
+        ${showMail?`<button class="mail-btn" onclick="openMailModal(${JSON.stringify(d).replace(/"/g,'&quot;')})" title="フォローアップメールを下書き">メール</button>`:''}
       </td>
     </tr>`;
   }).join('');
