@@ -421,9 +421,9 @@ function applyMasterData(data){
   buildPersonOptions(data.personDetails || []);
   buildProductOptions(data.productDetails || []);
   customerList = (data.customers || []).map(c => ({
-    code:    c['顧客コード'] || c.code    || '',
-    company: c['企業名']     || c.company || '',
-    person:  c['AFC営業担当']|| c.person  || ''
+    code:    c['顧客ID']    || c['顧客コード'] || c.code    || '',
+    company: c['企業名']    || c.company || '',
+    person:  c['AFC担当者'] || c['AFC営業担当'] || c.person  || ''
   })).filter(c => c.company);
   restoreLastPerson();
 }
