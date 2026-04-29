@@ -318,6 +318,12 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;background:var(--bg);
               </div>
             </div>
           </div>
+          <!-- 理由 -->
+          <div class="fg" style="margin-top:10px">
+            <label class="fl">理由・背景 <span style="font-weight:400;color:#9a9794">（任意）</span></label>
+            <textarea class="fta" id="reason"
+              placeholder="例: 決定理由、失注理由、検討背景など"></textarea>
+          </div>
         </div>
 
         <button class="submit-btn" id="sbtn" onclick="submit()">案件を登録する</button>
@@ -711,7 +717,8 @@ async function submit() {
     rankLabel:     document.getElementById('rankLabel').value,
     unitSales, unitCost, courses, qty, months,
     expectedMonth: document.getElementById('expectedMonth').value,
-    memo:          document.getElementById('memo').value.trim()
+    memo:          document.getElementById('memo').value.trim(),
+    reason:        document.getElementById('reason').value.trim()
   };
 
   try {
@@ -765,6 +772,7 @@ function reset() {
   document.getElementById('qty').value     = '1';
   document.getElementById('months').value  = '1';
   document.getElementById('memo').value   = '';
+  document.getElementById('reason').value = '';
   document.getElementById('s-incentive').style.display  = 'none';
   document.getElementById('sbtn').disabled    = false;
   document.getElementById('sbtn').textContent = '案件を登録する';

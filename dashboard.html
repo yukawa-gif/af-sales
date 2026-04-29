@@ -604,6 +604,10 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
         <label class="mfl">メモ</label>
         <textarea class="mfta" id="dm-memo" placeholder="備考など"></textarea>
       </div>
+      <div class="mfg">
+        <label class="mfl">理由・背景 <span style="font-weight:400;color:#9a9794;font-size:11px">（任意）</span></label>
+        <textarea class="mfta" id="dm-reason" placeholder="決定理由、失注理由、検討背景など"></textarea>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="modal-btn modal-btn-cancel" onclick="closeDealModal()">キャンセル</button>
@@ -1361,6 +1365,7 @@ function openDealModal(deal){
   document.getElementById('dm-rank').value=deal['確度ランク']||'C';
   document.getElementById('dm-amount').value=deal['粗利']||'';
   document.getElementById('dm-memo').value=deal['メモ']||'';
+  document.getElementById('dm-reason').value=deal['理由']||'';
 
   // 売上予定月の選択肢（FY前後3ヶ月）
   const sel=document.getElementById('dm-month');
@@ -1496,12 +1501,14 @@ async function saveDealModal(){
   const month=document.getElementById('dm-month').value;
   const amount=Number(document.getElementById('dm-amount').value)||0;
   const memo=document.getElementById('dm-memo').value;
+  const reason=document.getElementById('dm-reason').value;
 
   // メモリ更新（即時反映）
   editingDeal['確度ランク']=rank;
   editingDeal['売上予定月']=month;
   editingDeal['粗利']=amount;
   editingDeal['メモ']=memo;
+  editingDeal['理由']=reason;
 
   // GAS更新（デモ以外）
   if(!isDemoMode&&editingDeal['案件ID']){
@@ -1515,7 +1522,8 @@ async function saveDealModal(){
           rankLabel:rank,
           expectedMonth:month,
           grossProfit:amount,
-          memo
+          memo,
+          reason
         }),
       });
     }catch(e){console.warn('GAS update failed:',e)}
