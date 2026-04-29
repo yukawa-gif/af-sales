@@ -25,10 +25,6 @@
     --red-bg:#fef2f2;
     --amber:#b45309;
     --amber-bg:#fffbeb;
-    --teal:#0e7490;
-    --teal-bg:#ecfeff;
-    --gray:#6b7280;
-    --gray-bg:#f9fafb;
     --r:10px;
     --r-sm:6px;
     --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.05);
@@ -38,133 +34,111 @@
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.6}
 
-  /* ヘッダー */
   .header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:var(--shadow)}
-  .header-logo{display:flex;align-items:center;gap:12px}
-  .logo-mark{width:32px;height:32px;background:var(--blue);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700;letter-spacing:-.03em}
   .header-title{font-size:15px;font-weight:700;color:var(--text)}
   .header-sub{font-size:12px;color:var(--text3);margin-top:1px}
-  .header-date{font-size:13px;color:var(--text3);font-family:'DM Mono',monospace}
 
-  /* メインレイアウト */
-  .wrap{max-width:860px;margin:0 auto;padding:28px 20px 60px}
+  .wrap{max-width:640px;margin:0 auto;padding:24px 16px 60px}
 
-  /* ステップインジケーター */
-  .steps{display:flex;align-items:center;gap:0;margin-bottom:28px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)}
-  .step{flex:1;padding:12px 16px;cursor:pointer;transition:.15s;border-right:1px solid var(--border);position:relative;text-align:center}
-  .step:last-child{border-right:none}
-  .step.active{background:var(--blue-bg)}
-  .step.done{background:var(--green-bg)}
-  .step-num{font-size:11px;font-weight:700;color:var(--text3);margin-bottom:2px;font-family:'DM Mono',monospace}
-  .step.active .step-num{color:var(--blue)}
-  .step.done .step-num{color:var(--green)}
-  .step-label{font-size:12px;font-weight:500;color:var(--text2)}
-  .step.active .step-label{color:var(--blue-text);font-weight:700}
-  .step.done .step-label{color:var(--green)}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px 22px;margin-bottom:14px;box-shadow:var(--shadow)}
+  .card-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .card-title-left{display:flex;align-items:center;gap:8px}
 
-  /* カード */
-  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:22px 24px;margin-bottom:16px;box-shadow:var(--shadow)}
-  .card-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:16px;display:flex;align-items:center;gap:8px}
-  .card-title-icon{font-size:16px}
+  /* プログレスバー */
+  .progress-section{margin-bottom:12px}
+  .progress-label-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+  .progress-label{font-size:12px;font-weight:500;color:var(--text2)}
+  .progress-value{font-size:13px;font-weight:700;font-family:'DM Mono',monospace}
+  .progress-track{height:10px;background:var(--surface2);border-radius:99px;overflow:hidden;border:1px solid var(--border)}
+  .progress-fill{height:100%;border-radius:99px;transition:width .5s ease;min-width:2px}
 
-  /* フォーム */
-  .fg{margin-bottom:14px}
-  .fl{display:block;font-size:12px;font-weight:500;color:var(--text2);margin-bottom:5px;letter-spacing:.02em}
-  .fi,.fsel{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:14px;font-family:'Noto Sans JP',sans-serif;background:var(--surface);color:var(--text);transition:.12s;outline:none}
-  .fi:focus,.fsel:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(29,78,216,.12)}
-  textarea.fi{resize:vertical;line-height:1.7}
+  /* 曜日別バー */
+  .day-bars{display:flex;gap:6px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
+  .day-col{flex:1;text-align:center}
+  .day-bar-wrap{height:48px;display:flex;align-items:flex-end;justify-content:center;gap:3px}
+  .day-bar{width:10px;border-radius:3px 3px 0 0;min-height:2px;transition:.3s}
+  .day-bar.calls{background:#93c5fd}
+  .day-bar.meetings{background:#6ee7b7}
+  .day-label{font-size:10px;color:var(--text3);margin-top:4px;font-family:'DM Mono',monospace}
+  .day-label.today{font-weight:700;color:var(--blue)}
+  .legend{display:flex;gap:14px;margin-top:8px;justify-content:flex-end}
+  .legend-item{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text3)}
+  .legend-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
 
-  /* KPI入力グリッド */
-  .kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-  .kpi-item{background:var(--surface2);border-radius:var(--r-sm);padding:10px 12px;border:1px solid var(--border)}
+  /* KPI入力 */
+  .kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+  .kpi-item{background:var(--surface2);border-radius:var(--r-sm);padding:12px 14px;border:1px solid var(--border)}
   .kpi-label{font-size:11px;color:var(--text3);margin-bottom:6px;font-weight:500}
-  .kpi-input{width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:16px;font-weight:700;font-family:'DM Mono',monospace;text-align:right;background:var(--surface);color:var(--text);outline:none;transition:.12s}
+  .kpi-input{width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:22px;font-weight:700;font-family:'DM Mono',monospace;text-align:right;background:var(--surface);color:var(--text);outline:none;transition:.12s}
   .kpi-input:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(29,78,216,.12)}
 
-  /* アポ合計バナー */
-  .apo-banner{background:var(--blue-bg);border:1px solid #bfdbfe;border-radius:var(--r-sm);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;margin-top:10px}
-  .apo-banner-label{font-size:12px;color:var(--blue-text);font-weight:500}
-  .apo-banner-val{font-size:22px;font-weight:700;color:var(--blue);font-family:'DM Mono',monospace}
-
-  /* ステータスボタン */
-  .status-btns{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
-  .sbtn{padding:5px 14px;border-radius:99px;font-size:12px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;border:1.5px solid var(--border);background:var(--surface);color:var(--text2);transition:.12s;font-weight:500}
-  .sbtn:hover{opacity:.85}
-
-  /* 案件カード */
-  .deal-card{border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:10px;position:relative;transition:.15s}
-  .deal-card:hover{box-shadow:var(--shadow-lg)}
-  .deal-close{position:absolute;top:10px;right:12px;background:none;border:none;cursor:pointer;font-size:18px;color:var(--text3);line-height:1;padding:2px 4px;border-radius:4px;transition:.1s}
-  .deal-close:hover{background:var(--surface2);color:var(--text)}
-
-  /* 粗利表示 */
-  .gp-disp{padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);font-size:15px;font-weight:700;font-family:'DM Mono',monospace;text-align:right;min-height:40px}
-
-  /* 空状態 */
-  .empty-state{text-align:center;padding:28px 20px;border:2px dashed var(--border);border-radius:var(--r);color:var(--text3);font-size:13px;line-height:2}
-  .empty-state-icon{font-size:28px;display:block;margin-bottom:6px}
-
   /* ボタン */
-  .btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
   .btn{padding:9px 20px;border-radius:var(--r-sm);font-size:13px;font-weight:500;cursor:pointer;font-family:'Noto Sans JP',sans-serif;border:1px solid var(--border);background:var(--surface);color:var(--text);transition:.12s}
   .btn:hover{background:var(--surface2)}
   .btn-primary{background:var(--blue);color:#fff;border-color:var(--blue)}
   .btn-primary:hover{background:#1e40af}
-  .btn-sm{padding:5px 12px;font-size:12px}
-  .btn-add{width:100%;padding:10px;border:2px dashed var(--border);border-radius:var(--r-sm);background:transparent;cursor:pointer;font-size:13px;color:var(--text3);font-family:'Noto Sans JP',sans-serif;transition:.12s;margin-top:6px}
-  .btn-add:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-bg)}
+  .btn-sm{padding:4px 12px;font-size:11px;border-radius:99px}
+  .btn-ghost{background:transparent;border-color:transparent;color:var(--text3)}
+  .btn-ghost:hover{background:var(--surface2);color:var(--text2)}
 
-  /* 完了画面 */
-  .success-card{text-align:center;padding:48px 32px}
-  .success-icon{font-size:48px;margin-bottom:16px;display:block}
-  .success-title{font-size:22px;font-weight:700;margin-bottom:8px}
-  .success-sub{font-size:14px;color:var(--text3);margin-bottom:28px}
-  .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;text-align:center;margin-top:24px;padding-top:24px;border-top:1px solid var(--border)}
-  .summary-item-val{font-size:24px;font-weight:700;font-family:'DM Mono',monospace;color:var(--blue)}
-  .summary-item-label{font-size:11px;color:var(--text3);margin-top:2px}
+  /* モーダル */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;display:flex;align-items:center;justify-content:center;padding:16px}
+  .modal-box{background:var(--surface);border-radius:var(--r);padding:28px 24px;width:100%;max-width:400px;box-shadow:var(--shadow-lg)}
+  .modal-title{font-size:17px;font-weight:700;margin-bottom:6px}
+  .modal-sub{font-size:13px;color:var(--text3);margin-bottom:22px;line-height:1.7}
+  .fg{margin-bottom:14px}
+  .fl{display:block;font-size:12px;font-weight:500;color:var(--text2);margin-bottom:5px}
+  .fi{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:18px;font-family:'DM Mono',monospace;font-weight:700;background:var(--surface);color:var(--text);transition:.12s;outline:none;text-align:right}
+  .fi:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(29,78,216,.12)}
 
-  /* ナビゲーションボタン */
-  .nav-btns{display:flex;gap:10px;justify-content:space-between;margin-top:8px}
+  /* Geminiアドバイス */
+  .advice-card{background:linear-gradient(135deg,#eff6ff 0%,#f0fdf4 100%);border:1px solid #bfdbfe;border-radius:var(--r);padding:20px 22px;margin-top:14px}
+  .advice-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .advice-icon{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--blue),#0e7490);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+  .advice-title{font-size:13px;font-weight:700;color:var(--blue-text)}
+  .advice-body{font-size:13px;line-height:2;color:var(--text2);white-space:pre-wrap}
+
+  /* 完了 */
+  .success-icon{font-size:40px;display:block;text-align:center;margin-bottom:12px}
+  .success-title{font-size:20px;font-weight:700;text-align:center;margin-bottom:4px}
+  .success-sub{font-size:13px;color:var(--text3);text-align:center;margin-bottom:22px}
 
   /* バッジ */
-  .badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600}
+  .badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600}
+  .badge-blue{background:var(--blue-bg);color:var(--blue-text)}
 
-  /* レスポンシブ */
-  @media(max-width:600px){
-    .kpi-grid{grid-template-columns:repeat(2,1fr)}
-    .wrap{padding:16px 12px 48px}
-    .deal-grid{grid-template-columns:1fr 1fr!important}
-    .summary-grid{grid-template-columns:repeat(2,1fr)}
-  }
+  /* スケルトン */
+  .skeleton{background:linear-gradient(90deg,var(--surface2) 25%,var(--border) 50%,var(--surface2) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px}
+  @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 
-  /* トースト */
+  .fsel{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:14px;font-family:'Noto Sans JP',sans-serif;background:var(--surface);color:var(--text);transition:.12s;outline:none}
+  .fsel:focus{border-color:var(--blue)}
+
   .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#1a1917;color:#fff;padding:10px 20px;border-radius:99px;font-size:13px;font-weight:500;z-index:999;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
   .toast.show{opacity:1}
 
-  /* セクション区切り */
-  .sec-divider{height:1px;background:var(--border);margin:20px 0}
+  @media(max-width:500px){
+    .wrap{padding:16px 12px 48px}
+  }
 </style>
 </head>
 <body>
 
 <!-- ヘッダー -->
 <div class="header">
-  <div class="header-logo">
-    <div>
-      <div class="header-title">営業日報</div>
-      <div class="header-sub">エー・ファクトリー株式会社</div>
-    </div>
+  <div>
+    <div class="header-title">営業日報</div>
+    <div class="header-sub">エー・ファクトリー株式会社</div>
   </div>
-  <div style="display:flex;align-items:center;gap:12px">
-    <div id="header-person-wrap" style="display:flex;align-items:center;gap:8px">
-      <span id="header-person-name" style="font-size:13px;font-weight:700;color:var(--text)"></span>
-      <span style="font-size:12px;color:var(--text3)" id="today-date"></span>
-      <button onclick="togglePersonPicker()" style="padding:3px 10px;border-radius:99px;border:1px solid var(--border);background:var(--surface2);font-size:11px;color:var(--text2);cursor:pointer;font-family:'Noto Sans JP',sans-serif;transition:.12s">変更</button>
-    </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <span id="header-person-name" style="font-size:13px;font-weight:700;color:var(--text)"></span>
+    <span id="today-date" style="font-size:12px;color:var(--text3)"></span>
+    <button onclick="togglePersonPicker()" class="btn btn-sm">変更</button>
   </div>
 </div>
-<!-- 担当者変更ポップオーバー -->
-<div id="person-picker" style="display:none;position:fixed;top:56px;right:16px;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;box-shadow:var(--shadow-lg);min-width:220px">
+
+<!-- 担当者ピッカー -->
+<div id="person-picker" style="display:none;position:fixed;top:56px;right:12px;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;box-shadow:var(--shadow-lg);min-width:220px">
   <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px">担当者を選択</div>
   <select id="r-person-picker" class="fsel" onchange="applyPersonChange(this.value)">
     <option value="">選択してください</option>
@@ -172,48 +146,127 @@
   <button onclick="togglePersonPicker()" style="margin-top:8px;width:100%;padding:6px;border:1px solid var(--border);border-radius:var(--r-sm);background:transparent;cursor:pointer;font-size:12px;color:var(--text3);font-family:'Noto Sans JP',sans-serif">閉じる</button>
 </div>
 
-<!-- メインコンテンツ -->
+<!-- 週次目標設定モーダル -->
+<div id="target-modal" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <div class="modal-title">今週の目標を設定</div>
+    <div class="modal-sub" id="target-modal-sub">今週1週間の行動目標を入力してください。<br>後からいつでも変更できます。</div>
+    <div class="fg">
+      <label class="fl">架電件数の目標（週合計）</label>
+      <input class="fi" type="number" id="target-calls" placeholder="例：50" min="0">
+    </div>
+    <div class="fg">
+      <label class="fl">有効面談件数の目標（週合計）</label>
+      <input class="fi" type="number" id="target-meetings" placeholder="例：10" min="0">
+    </div>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="btn" id="target-skip-btn" onclick="closeTargetModal()" style="flex:1">後で設定</button>
+      <button class="btn btn-primary" onclick="saveWeeklyTarget()" style="flex:2">設定する</button>
+    </div>
+  </div>
+</div>
+
+<!-- メイン -->
 <div class="wrap">
 
-  <!-- 入力フォーム -->
-  <div id="page-1" class="page-section">
+  <!-- 入力ページ -->
+  <div id="page-1">
+
+    <!-- 週次進捗カード -->
     <div class="card">
-      <div class="card-title"><span class="card-title-icon">📊</span>本日の実績件数</div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">
+      <div class="card-title">
+        <div class="card-title-left">
+          <span>今週の進捗</span>
+          <span id="week-range-badge" class="badge badge-blue"></span>
+        </div>
+        <button class="btn btn-sm btn-ghost" onclick="openTargetModal(false)" style="font-size:11px">目標を変更</button>
+      </div>
+
+      <!-- スケルトン -->
+      <div id="weekly-skeleton">
+        <div class="skeleton" style="height:12px;width:55%;margin-bottom:8px"></div>
+        <div class="skeleton" style="height:10px;margin-bottom:16px"></div>
+        <div class="skeleton" style="height:12px;width:55%;margin-bottom:8px"></div>
+        <div class="skeleton" style="height:10px"></div>
+      </div>
+
+      <!-- 週次データ -->
+      <div id="weekly-data" style="display:none">
+        <div class="progress-section">
+          <div class="progress-label-row">
+            <span class="progress-label">架電件数</span>
+            <span class="progress-value" id="calls-value-text">― / ― 件</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="calls-bar" style="width:0%;background:var(--blue)"></div>
+          </div>
+        </div>
+        <div class="progress-section">
+          <div class="progress-label-row">
+            <span class="progress-label">有効面談件数</span>
+            <span class="progress-value" id="meetings-value-text">― / ― 件</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="meetings-bar" style="width:0%;background:var(--green)"></div>
+          </div>
+        </div>
+        <div class="day-bars" id="day-bars"></div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#93c5fd"></div>架電</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#6ee7b7"></div>有効面談</div>
+        </div>
+      </div>
+
+      <!-- 目標未設定 -->
+      <div id="weekly-no-target" style="display:none;text-align:center;padding:16px 0;color:var(--text3);font-size:13px;line-height:2">
+        今週の目標がまだ設定されていません<br>
+        <button class="btn btn-primary btn-sm" style="margin-top:8px;padding:7px 18px;font-size:12px" onclick="openTargetModal(true)">目標を設定する</button>
+      </div>
+    </div>
+
+    <!-- 本日の実績入力 -->
+    <div class="card">
+      <div class="card-title">
+        <div class="card-title-left">本日の実績入力</div>
+      </div>
+      <div class="kpi-grid">
         <div class="kpi-item" style="border-top:3px solid var(--blue)">
+          <div class="kpi-label">架電件数</div>
+          <input class="kpi-input" type="number" id="r-calls" value="0" min="0">
+        </div>
+        <div class="kpi-item" style="border-top:3px solid var(--green)">
           <div class="kpi-label">有効面談件数</div>
-          <input class="kpi-input" type="number" id="r-meeting" value="0" min="0">
-        </div>
-        <div class="kpi-item">
-          <div class="kpi-label">自アポ</div>
-          <input class="kpi-input" type="number" id="r-self-apo" value="0" min="0">
-        </div>
-        <div class="kpi-item">
-          <div class="kpi-label">テレアポ</div>
-          <input class="kpi-input" type="number" id="r-tel-apo" value="0" min="0">
-        </div>
-        <div class="kpi-item">
-          <div class="kpi-label">紹介</div>
-          <input class="kpi-input" type="number" id="r-ref-apo" value="0" min="0">
+          <input class="kpi-input" type="number" id="r-meetings" value="0" min="0">
         </div>
       </div>
       <button class="btn btn-primary" id="submit-btn" onclick="submitReport()"
-        style="width:100%;padding:14px;font-size:15px;font-weight:700;border-radius:var(--r)">
-        📤 送信する
+        style="width:100%;padding:13px;font-size:14px;font-weight:700;border-radius:var(--r)">
+        送信する
       </button>
     </div>
-  </div>
 
-  <!-- 完了画面 -->
+  </div><!-- /page-1 -->
+
+  <!-- 完了ページ -->
   <div id="page-done" style="display:none">
-    <div class="card success-card">
-      <span class="success-icon">🎉</span>
-      <div class="success-title">日報を送信しました</div>
+    <div class="card">
+      <span class="success-icon">✅</span>
+      <div class="success-title">送信しました</div>
       <div class="success-sub" id="done-sub"></div>
-      <div class="summary-grid" id="done-summary"></div>
-      <div style="margin-top:32px">
-        <button class="btn btn-primary" onclick="resetAll()">新しい日報を入力する</button>
+
+      <!-- 本日の実績 -->
+      <div id="done-today"></div>
+
+      <!-- Geminiアドバイス -->
+      <div style="margin-top:14px">
+        <button class="btn btn-primary" id="advice-btn" onclick="loadAdvice()"
+          style="width:100%;background:linear-gradient(135deg,#1d4ed8,#0e7490);border:none">
+          AI振り返りを見る
+        </button>
+        <div id="advice-result"></div>
       </div>
+
+      <button class="btn" onclick="resetAll()" style="width:100%;margin-top:10px">新しい日報を入力する</button>
     </div>
   </div>
 
@@ -222,32 +275,46 @@
 <div class="toast" id="toast"></div>
 
 <script>
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 設定・定数
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 担当者リスト（フォールバック用。GASが設定されていれば自動上書きされる）
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbw_Hx1yajz8zFkpjoTs3YdAR3AdSPHG8VGDzg5h5xiZUid80rC1gSq-uRPX6BAZJOM/exec';
 const PERSONS_DEFAULT = ['鈴木純平','坂井竜世','佐々木憩','濱田雄一','田中準子','湯川悦英'];
 let PERSONS = [...PERSONS_DEFAULT];
-
-// GAS連携URL（全PCで共通・変更不要）
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbw_Hx1yajz8zFkpjoTs3YdAR3AdSPHG8VGDzg5h5xiZUid80rC1gSq-uRPX6BAZJOM/exec';
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 状態
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 let currentPerson = '';
+let weeklyData = null;
 const todayDate = new Date().toISOString().slice(0,10);
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 初期化
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-window.addEventListener('DOMContentLoaded', ()=>{
-  // 今日の日付をヘッダーに表示
-  const now = new Date();
-  const ymd = now.toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
-  document.getElementById('today-date').textContent = ymd;
+// ─── 週ユーティリティ ───
+function getMondayOfWeek(dateStr) {
+  const d = new Date(dateStr);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().slice(0,10);
+}
 
-  // 担当者ピッカーを構築する関数
+function getWeekDays(mondayStr) {
+  const labels = ['月','火','水','木','金'];
+  return labels.map((label, i) => {
+    const d = new Date(mondayStr);
+    d.setDate(d.getDate() + i);
+    return { date: d.toISOString().slice(0,10), label };
+  });
+}
+
+function formatWeekRange(mondayStr) {
+  const s = new Date(mondayStr);
+  const e = new Date(mondayStr);
+  e.setDate(e.getDate() + 4);
+  return `${s.getMonth()+1}/${s.getDate()}〜${e.getMonth()+1}/${e.getDate()}`;
+}
+
+// ─── 初期化 ───
+window.addEventListener('DOMContentLoaded', () => {
+  const now = new Date();
+  document.getElementById('today-date').textContent =
+    now.toLocaleDateString('ja-JP', {month:'long', day:'numeric', weekday:'short'});
+  document.getElementById('week-range-badge').textContent =
+    formatWeekRange(getMondayOfWeek(todayDate));
+
   function buildPersonPicker(list) {
     const sel = document.getElementById('r-person-picker');
     sel.innerHTML = '<option value="">選択してください</option>';
@@ -256,137 +323,258 @@ window.addEventListener('DOMContentLoaded', ()=>{
       o.value = p; o.textContent = p;
       sel.appendChild(o);
     });
-    // 現在の担当者を選択状態にする
     if (currentPerson) sel.value = currentPerson;
   }
 
-  // localStorageから担当者を復元（deal_form.htmlと共通キー）
   const saved = localStorage.getItem('deal_last_person');
   if (saved) {
     currentPerson = saved;
     document.getElementById('header-person-name').textContent = saved;
+    loadWeeklyData();
   } else {
-    // 未設定なら変更ポップオーバーを自動表示
     document.getElementById('header-person-name').textContent = '担当者未設定';
-    setTimeout(()=>togglePersonPicker(), 300);
+    setTimeout(() => togglePersonPicker(), 300);
   }
 
-  // まずデフォルトリストでピッカーを構築
   buildPersonPicker(PERSONS);
 
-  // GASからマスタ（担当者リスト）を取得して上書き
-  if (GAS_URL) {
-    fetch(GAS_URL + '?mode=master')
-      .then(r => r.json())
-      .then(d => {
-        if (d.success && d.persons && d.persons.length > 0) {
-          PERSONS = d.persons;
-          buildPersonPicker(PERSONS);
-        }
-      })
-      .catch(() => {});
-  }
+  fetch(GAS_URL + '?mode=master')
+    .then(r => r.json())
+    .then(d => {
+      if (d.success && d.persons?.length) {
+        PERSONS = d.persons;
+        buildPersonPicker(PERSONS);
+      }
+    }).catch(() => {});
 });
 
+// ─── 週次データ読み込み ───
+async function loadWeeklyData() {
+  if (!currentPerson) return;
+  const monday = getMondayOfWeek(todayDate);
+  document.getElementById('weekly-skeleton').style.display = '';
+  document.getElementById('weekly-data').style.display = 'none';
+  document.getElementById('weekly-no-target').style.display = 'none';
+  try {
+    const res = await fetch(`${GAS_URL}?mode=weeklyData&person=${encodeURIComponent(currentPerson)}&weekStart=${monday}`);
+    const data = await res.json();
+    if (data.success) {
+      weeklyData = data;
+      renderWeeklyCard(data);
+      // 月曜かつ目標未設定なら自動でモーダルを表示
+      if (new Date().getDay() === 1 && !data.target) {
+        openTargetModal(true);
+      }
+    }
+  } catch(e) {
+    console.warn('週次データ取得失敗:', e);
+  }
+  document.getElementById('weekly-skeleton').style.display = 'none';
+}
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 担当者変更
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function togglePersonPicker(){
+function renderWeeklyCard(data) {
+  const { target, daily } = data;
+
+  if (!target) {
+    document.getElementById('weekly-no-target').style.display = '';
+    return;
+  }
+
+  document.getElementById('weekly-data').style.display = '';
+  document.getElementById('weekly-no-target').style.display = 'none';
+
+  const totalCalls    = (daily||[]).reduce((s,d) => s + d.calls, 0);
+  const totalMeetings = (daily||[]).reduce((s,d) => s + d.meetings, 0);
+  const callPct    = target.calls    > 0 ? Math.min(100, Math.round(totalCalls    / target.calls    * 100)) : 0;
+  const meetingPct = target.meetings > 0 ? Math.min(100, Math.round(totalMeetings / target.meetings * 100)) : 0;
+
+  const callColor    = callPct    >= 100 ? '#15803d' : callPct    >= 70 ? '#1d4ed8' : '#f59e0b';
+  const meetingColor = meetingPct >= 100 ? '#15803d' : meetingPct >= 70 ? '#1d4ed8' : '#f59e0b';
+
+  document.getElementById('calls-value-text').textContent    = `${totalCalls} / ${target.calls} 件`;
+  document.getElementById('meetings-value-text').textContent = `${totalMeetings} / ${target.meetings} 件`;
+  document.getElementById('calls-bar').style.cssText    = `width:${callPct}%;background:${callColor}`;
+  document.getElementById('meetings-bar').style.cssText = `width:${meetingPct}%;background:${meetingColor}`;
+
+  // 曜日別バー
+  const monday   = getMondayOfWeek(todayDate);
+  const days     = getWeekDays(monday);
+  const dailyMap = {};
+  (daily||[]).forEach(d => { dailyMap[d.date] = d; });
+
+  const maxCalls = Math.max(1, ...days.map(d => (dailyMap[d.date]?.calls||0)));
+  const BAR_H    = 44;
+
+  document.getElementById('day-bars').innerHTML = days.map(({date, label}) => {
+    const d       = dailyMap[date] || {calls:0, meetings:0};
+    const callH   = Math.round(d.calls    / maxCalls * BAR_H);
+    const meetH   = Math.round(d.meetings / maxCalls * BAR_H);
+    const isToday = date === todayDate;
+    return `
+      <div class="day-col">
+        <div class="day-bar-wrap">
+          <div class="day-bar calls"    style="height:${Math.max(2,callH)}px"></div>
+          <div class="day-bar meetings" style="height:${Math.max(2,meetH)}px"></div>
+        </div>
+        <div class="day-label ${isToday?'today':''}">${label}</div>
+      </div>`;
+  }).join('');
+}
+
+// ─── 担当者変更 ───
+function togglePersonPicker() {
   const el = document.getElementById('person-picker');
   el.style.display = el.style.display === 'none' ? '' : 'none';
 }
 
-function applyPersonChange(name){
-  if(!name) return;
+function applyPersonChange(name) {
+  if (!name) return;
   currentPerson = name;
   localStorage.setItem('deal_last_person', name);
   document.getElementById('header-person-name').textContent = name;
   togglePersonPicker();
+  loadWeeklyData();
 }
 
+// ─── 週次目標モーダル ───
+function openTargetModal(required) {
+  document.getElementById('target-skip-btn').style.display = required ? 'none' : '';
+  document.getElementById('target-modal-sub').textContent  = required
+    ? '今週1週間の行動目標を入力してください。\n後からいつでも変更できます。'
+    : '今週の目標を変更します。';
+  if (weeklyData?.target) {
+    document.getElementById('target-calls').value    = weeklyData.target.calls    || '';
+    document.getElementById('target-meetings').value = weeklyData.target.meetings || '';
+  } else {
+    document.getElementById('target-calls').value    = '';
+    document.getElementById('target-meetings').value = '';
+  }
+  document.getElementById('target-modal').style.display = 'flex';
+}
 
+function closeTargetModal() {
+  document.getElementById('target-modal').style.display = 'none';
+}
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 送信
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-async function submitReport(){
-  if(!currentPerson){ toast('担当者を選択してください'); togglePersonPicker(); return; }
-  const btn = document.getElementById('submit-btn');
-  if(btn){ btn.disabled=true; btn.textContent='送信中...'; }
+async function saveWeeklyTarget() {
+  if (!currentPerson) { toast('担当者を選択してください'); return; }
+  const calls    = parseInt(document.getElementById('target-calls').value)    || 0;
+  const meetings = parseInt(document.getElementById('target-meetings').value) || 0;
+  if (!calls && !meetings) { toast('目標を入力してください'); return; }
 
-  const person = currentPerson;
-  const date   = todayDate;
+  const monday  = getMondayOfWeek(todayDate);
   const payload = {
-    action: 'dailyReport',
-    person, date,
-    activity:{
-      selfApo:   parseInt(document.getElementById('r-self-apo').value)||0,
-      telApo:    parseInt(document.getElementById('r-tel-apo').value)||0,
-      refApo:    parseInt(document.getElementById('r-ref-apo').value)||0,
-      agentRef:  0, bizent: 0, selfAgent: 0,
-      // 有効面談件数 → ヒアリング列にマッピング（GAS列構造を維持）
-      hearing:   parseInt(document.getElementById('r-meeting').value)||0,
-      proposal:  0, closing: 0, memo: '',
-    },
+    action: 'setWeeklyTarget',
+    person: currentPerson,
+    weekStart: monday,
+    callTarget: calls,
+    meetingTarget: meetings,
   };
 
-  // GASへ送信
-  let gasOk = false;
-  if(GAS_URL){
-    try{
-      await fetch(GAS_URL, {method:'POST', body:JSON.stringify(payload), mode:'no-cors'});
-      gasOk = true;
-    } catch(e){ console.warn('GAS送信失敗:', e); }
+  try {
+    await fetch(GAS_URL, {method:'POST', body:JSON.stringify(payload), mode:'no-cors'});
+    toast('目標を保存しました');
+    closeTargetModal();
+    weeklyData = weeklyData || {daily:[]};
+    weeklyData.target = {calls, meetings};
+    renderWeeklyCard(weeklyData);
+  } catch(e) {
+    toast('保存に失敗しました');
   }
-
-  // ローカルにも保存（localStorage: 直近30件）
-  try{
-    const saved = JSON.parse(localStorage.getItem('af_daily_reports')||'[]');
-    saved.unshift({...payload, id:Date.now(), sentAt:new Date().toISOString()});
-    localStorage.setItem('af_daily_reports', JSON.stringify(saved.slice(0,30)));
-  } catch(e){}
-
-  // 完了画面
-  showDone(payload);
-  if(btn){ btn.disabled=false; btn.textContent='📤 送信する'; }
 }
 
-function showDone(payload){
-  document.getElementById('page-1').style.display='none';
-  document.getElementById('page-done').style.display='';
+// ─── 日報送信 ───
+async function submitReport() {
+  if (!currentPerson) { toast('担当者を選択してください'); togglePersonPicker(); return; }
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true; btn.textContent = '送信中...';
 
-  const dateStr = new Date(payload.date).toLocaleDateString('ja-JP',{month:'long',day:'numeric',weekday:'short'});
-  document.getElementById('done-sub').textContent = `${payload.person} — ${dateStr}`;
+  const calls    = parseInt(document.getElementById('r-calls').value)    || 0;
+  const meetings = parseInt(document.getElementById('r-meetings').value) || 0;
+  const payload  = {action:'addActivity', person:currentPerson, date:todayDate, calls, meetings};
 
-  document.getElementById('done-summary').innerHTML = `
-    <div><div class="summary-item-val" style="color:var(--blue)">${payload.activity.hearing||0}</div><div class="summary-item-label">有効面談件数</div></div>
-    <div><div class="summary-item-val">${payload.activity.selfApo||0}</div><div class="summary-item-label">自アポ</div></div>
-    <div><div class="summary-item-val">${payload.activity.telApo||0}</div><div class="summary-item-label">テレアポ</div></div>
-    <div><div class="summary-item-val">${payload.activity.refApo||0}</div><div class="summary-item-label">紹介</div></div>
-  `;
+  try {
+    await fetch(GAS_URL, {method:'POST', body:JSON.stringify(payload), mode:'no-cors'});
+  } catch(e) { console.warn('GAS送信失敗:', e); }
+
+  btn.disabled = false; btn.textContent = '送信する';
+  showDone(calls, meetings);
 }
 
-function resetAll(){
-  document.getElementById('page-done').style.display='none';
-  document.getElementById('page-1').style.display='';
-  ['r-meeting','r-self-apo','r-tel-apo','r-ref-apo'].forEach(id=>{
-    const el=document.getElementById(id);if(el)el.value='0';
-  });
+function showDone(calls, meetings) {
+  document.getElementById('page-1').style.display   = 'none';
+  document.getElementById('page-done').style.display = '';
+
+  const dateStr = new Date().toLocaleDateString('ja-JP', {month:'long', day:'numeric', weekday:'short'});
+  document.getElementById('done-sub').textContent = `${currentPerson} — ${dateStr}`;
+
+  // 本日の数値
+  const target     = weeklyData?.target;
+  const prevTotal  = (weeklyData?.daily||[]).reduce((s,d) => ({calls:s.calls+d.calls, meetings:s.meetings+d.meetings}), {calls:0, meetings:0});
+  const newCalls   = prevTotal.calls + calls;
+  const newMeetings= prevTotal.meetings + meetings;
+  const callPct    = target?.calls    > 0 ? Math.min(100, Math.round(newCalls    / target.calls    * 100)) : null;
+  const meetingPct = target?.meetings > 0 ? Math.min(100, Math.round(newMeetings / target.meetings * 100)) : null;
+
+  document.getElementById('done-today').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div style="text-align:center;padding:14px;background:var(--blue-bg);border-radius:var(--r-sm)">
+        <div style="font-size:30px;font-weight:700;font-family:'DM Mono';color:var(--blue)">${calls}</div>
+        <div style="font-size:11px;color:var(--blue-text);margin-top:2px">本日の架電</div>
+        ${callPct!==null ? `<div style="font-size:11px;color:var(--text3);margin-top:4px">今週計 ${newCalls}件 / ${callPct}%</div>` : ''}
+      </div>
+      <div style="text-align:center;padding:14px;background:var(--green-bg);border-radius:var(--r-sm)">
+        <div style="font-size:30px;font-weight:700;font-family:'DM Mono';color:var(--green)">${meetings}</div>
+        <div style="font-size:11px;color:var(--green);margin-top:2px">本日の有効面談</div>
+        ${meetingPct!==null ? `<div style="font-size:11px;color:var(--text3);margin-top:4px">今週計 ${newMeetings}件 / ${meetingPct}%</div>` : ''}
+      </div>
+    </div>`;
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// ユーティリティ
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+// ─── Geminiアドバイス ───
+async function loadAdvice() {
+  const btn = document.getElementById('advice-btn');
+  btn.disabled = true; btn.textContent = 'AIが分析中...';
+
+  const monday = getMondayOfWeek(todayDate);
+  try {
+    const res  = await fetch(`${GAS_URL}?mode=weeklyAdvice&person=${encodeURIComponent(currentPerson)}&weekStart=${monday}`);
+    const data = await res.json();
+    const text = data.advice || 'アドバイスを取得できませんでした。';
+    document.getElementById('advice-result').innerHTML = `
+      <div class="advice-card">
+        <div class="advice-header">
+          <div class="advice-icon">✨</div>
+          <div class="advice-title">Gemini からのアドバイス</div>
+        </div>
+        <div class="advice-body">${escHtml(text)}</div>
+      </div>`;
+    btn.style.display = 'none';
+  } catch(e) {
+    document.getElementById('advice-result').innerHTML =
+      `<div style="color:var(--red);font-size:13px;margin-top:10px;text-align:center">取得に失敗しました。GASのGemini設定を確認してください。</div>`;
+    btn.disabled = false; btn.textContent = '再試行';
+  }
+}
+
+function resetAll() {
+  document.getElementById('page-done').style.display = 'none';
+  document.getElementById('page-1').style.display    = '';
+  document.getElementById('r-calls').value    = '0';
+  document.getElementById('r-meetings').value = '0';
+  loadWeeklyData();
+}
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
 let toastTimer;
-function toast(msg){
-  const el=document.getElementById('toast');
-  if(!el)return;
-  el.textContent=msg;el.classList.add('show');
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer=setTimeout(()=>el.classList.remove('show'),2200);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
 }
 </script>
 </body>
