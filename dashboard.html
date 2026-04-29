@@ -1361,7 +1361,10 @@ function openDealModal(deal){
   editingDeal=deal;
   document.getElementById('dm-company').textContent=deal['会社名']||'—';
   document.getElementById('dm-product').textContent=deal['商材名']||'—';
-  document.getElementById('dm-person').textContent=deal['担当者']||'—';
+  const dmPersonName=deal['担当者']||'—';
+  const dmPersonDetail=(masterData?.personDetails||[]).find(p=>p.name===dmPersonName);
+  const dmRole=dmPersonDetail?.role||'';
+  document.getElementById('dm-person').textContent=dmRole?`${dmRole} ${dmPersonName}`:dmPersonName;
   document.getElementById('dm-rank').value=deal['確度ランク']||'C';
   document.getElementById('dm-amount').value=deal['粗利']||'';
   document.getElementById('dm-memo').value=deal['メモ']||'';
