@@ -575,8 +575,12 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
           <span class="modal-info-val" id="dm-product"></span>
         </div>
         <div class="modal-info-row">
-          <span class="modal-info-label">担当者</span>
+          <span class="modal-info-label">AFC担当</span>
           <span class="modal-info-val" id="dm-person"></span>
+        </div>
+        <div class="modal-info-row" id="dm-contact-row" style="display:none">
+          <span class="modal-info-label">顧客担当</span>
+          <span class="modal-info-val" id="dm-contact"></span>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
@@ -1361,10 +1365,20 @@ function openDealModal(deal){
   editingDeal=deal;
   document.getElementById('dm-company').textContent=deal['会社名']||'—';
   document.getElementById('dm-product').textContent=deal['商材名']||'—';
-  const dmPersonName=deal['担当者']||'—';
-  const dmPersonDetail=(masterData?.personDetails||[]).find(p=>p.name===dmPersonName);
-  const dmRole=dmPersonDetail?.role||'';
-  document.getElementById('dm-person').textContent=dmRole?`${dmRole} ${dmPersonName}`:dmPersonName;
+  document.getElementById('dm-person').textContent=deal['担当者']||'—';
+
+  // 顧客担当者（担当者マスタから顧客IDで検索）
+  const customerId=deal['顧客ID']||'';
+  const contacts=(masterData?.contacts||[]).filter(c=>c['顧客ID']===customerId);
+  const contactRow=document.getElementById('dm-contact-row');
+  if(contacts.length>0){
+    const c=contacts[0];
+    const label=[c['役職'],c['担当者名']].filter(Boolean).join(' ');
+    document.getElementById('dm-contact').textContent=label||'—';
+    contactRow.style.display='';
+  } else {
+    contactRow.style.display='none';
+  }
   document.getElementById('dm-rank').value=deal['確度ランク']||'C';
   document.getElementById('dm-amount').value=deal['粗利']||'';
   document.getElementById('dm-memo').value=deal['メモ']||'';
