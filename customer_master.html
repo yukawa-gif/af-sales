@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>顧客管理 - エー・ファクトリー</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#2563eb;--blue-bg:#eff6ff;
+  --green:#16a34a;--green-bg:#f0fdf4;
+  --red:#dc2626;--red-bg:#fef2f2;
+  --amber:#d97706;--amber-bg:#fffbeb;
+  --purple:#7c3aed;--purple-bg:#f5f3ff;
+  --gray:#6b7280;--gray-bg:#f9fafb;
+  --navy:#1e3a5f;
+  --text:#111827;--text2:#4b5563;--text3:#9ca3af;
+  --border:#e5e7eb;--bg:#f3f4f6;--surface:#fff;
+  --r:8px;--r-lg:12px;--sidebar:200px
+}
+body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
+  background:var(--bg);color:var(--text);font-size:14px;min-height:100vh}
+
+/* ─── トップバー ─── */
+.topbar{background:var(--navy);color:#fff;height:52px;
+  display:flex;align-items:center;padding:0 24px;gap:16px;
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.topbar-logo{font-size:13px;font-weight:800;letter-spacing:.04em;white-space:nowrap}
+.topbar-sub{font-size:11px;opacity:.5;margin-left:4px}
+.topbar-spacer{flex:1}
+.topbar-date{font-size:11px;background:rgba(255,255,255,.12);padding:3px 10px;border-radius:20px}
+
+/* ─── サイドバー ─── */
+.sidebar{width:var(--sidebar);background:var(--surface);
+  border-right:1px solid var(--border);
+  position:fixed;top:52px;left:0;bottom:0;padding:16px 0}
+.sidebar-nav-item{display:flex;align-items:center;gap:8px;
+  padding:9px 20px;font-size:13px;color:var(--text2);
+  cursor:pointer;transition:.12s;text-decoration:none}
+.sidebar-nav-item:hover{background:var(--bg);color:var(--text)}
+.sidebar-nav-item.active{background:var(--blue-bg);color:var(--blue);font-weight:700}
+.sidebar-label{font-size:10px;font-weight:700;color:var(--text3);
+  letter-spacing:.08em;text-transform:uppercase;margin:12px 20px 6px;padding:0}
+.sidebar-divider{height:1px;background:var(--border);margin:10px 0}
+
+/* ─── メイン ─── */
+.main{margin-left:var(--sidebar);margin-top:52px;padding:20px 24px;min-height:calc(100vh - 52px)}
+
+/* ─── ページヘッダー ─── */
+.page-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
+.page-title{font-size:22px;font-weight:800}
+.page-meta{font-size:12px;color:var(--text3);margin-top:3px}
+
+/* ─── ボタン ─── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;
+  border-radius:var(--r);border:none;cursor:pointer;font-family:inherit;
+  font-size:13px;font-weight:600;transition:.15s}
+.btn-primary{background:var(--blue);color:#fff}
+.btn-primary:hover{background:#1d4ed8}
+.btn-secondary{background:var(--surface);color:var(--text2);border:1.5px solid var(--border)}
+.btn-secondary:hover{background:var(--bg)}
+.btn-danger{background:var(--red-bg);color:var(--red);border:1.5px solid #fca5a5}
+.btn-danger:hover{background:#fee2e2}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn-icon{padding:4px 8px;font-size:12px;border-radius:6px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ─── 統計カード ─── */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.stat-card{background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-lg);padding:14px 16px;border-top:4px solid var(--border)}
+.stat-label{font-size:10px;color:var(--text3);font-weight:600;margin-bottom:6px;letter-spacing:.02em}
+.stat-value{font-size:22px;font-weight:800;line-height:1.2}
+.stat-sub{font-size:11px;color:var(--text3);margin-top:3px}
+
+/* ─── 2ペインレイアウト ─── */
+.split-view{display:grid;grid-template-columns:1fr 400px;gap:16px;align-items:start}
+.split-view.no-right .right-pane{display:none}
+.right-pane{display:none}
+.right-pane.visible{display:block}
+
+/* ─── カード ─── */
+.card{background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-lg);padding:0;overflow:hidden}
+.card-header{display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px;border-bottom:1px solid var(--border)}
+.card-title{font-size:14px;font-weight:800}
+.card-hint{font-size:11px;color:var(--text3)}
+
+/* ─── テーブル共通 ─── */
+.master-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.master-tbl th{background:#f8fafc;border-bottom:2px solid var(--border);
+  padding:8px 10px;text-align:left;font-weight:700;color:var(--text2);white-space:nowrap}
+.master-tbl td{border-bottom:1px solid var(--border);padding:8px 10px;
+  vertical-align:middle;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.master-tbl tr:hover td{background:#f0f9ff;cursor:pointer}
+.master-tbl tr.selected td{background:var(--blue-bg) !important}
+.master-tbl .actions{display:flex;gap:4px;opacity:0;transition:.12s}
+.master-tbl tr:hover .actions{opacity:1}
+
+/* ─── バッジ ─── */
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700}
+.badge-active{background:#dcfce7;color:#166534}
+.badge-prospect{background:#dbeafe;color:#1e40af}
+.badge-inactive{background:#f3f4f6;color:#6b7280}
+.badge-existing{background:#fef9c3;color:#854d0e}
+.badge-ok{background:#dcfce7;color:#166534}
+.badge-ng{background:#fee2e2;color:#991b1b}
+
+/* ─── 検索・フィルタ ─── */
+.toolbar{display:flex;align-items:center;gap:8px;padding:10px 16px;
+  border-bottom:1px solid var(--border);flex-wrap:wrap}
+.search-input{padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--r);
+  font-size:12px;font-family:inherit;width:180px;outline:none;transition:.15s}
+.search-input:focus{border-color:var(--blue)}
+.filter-select{padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--r);
+  font-size:12px;font-family:inherit;outline:none;background:var(--surface);cursor:pointer}
+.toolbar-spacer{flex:1}
+.count-badge{font-size:11px;color:var(--text3)}
+
+/* ─── 空状態 ─── */
+.empty-state{padding:40px 20px;text-align:center;color:var(--text3);font-size:13px}
+.empty-icon{font-size:32px;margin-bottom:10px}
+
+/* ─── モーダル ─── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);
+  z-index:200;display:flex;align-items:center;justify-content:center}
+.modal-box{background:var(--surface);border-radius:var(--r-lg);
+  width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;
+  box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;
+  background:var(--surface);z-index:1}
+.modal-title{font-size:15px;font-weight:800}
+.modal-close{background:none;border:none;cursor:pointer;font-size:18px;color:var(--text3);
+  padding:2px 6px;border-radius:4px}
+.modal-close:hover{background:var(--bg)}
+.modal-body{padding:20px}
+.modal-footer{padding:14px 20px;border-top:1px solid var(--border);
+  display:flex;justify-content:flex-end;gap:8px;
+  position:sticky;bottom:0;background:var(--surface)}
+
+/* ─── フォーム ─── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-group{display:flex;flex-direction:column;gap:4px}
+.form-group.full{grid-column:1/-1}
+.form-label{font-size:11px;font-weight:600;color:var(--text2)}
+.form-label .req{color:var(--red);margin-left:2px}
+.form-input,.form-select,.form-textarea{
+  padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--r);
+  font-size:13px;font-family:inherit;outline:none;transition:.15s;background:var(--surface)}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--blue)}
+.form-textarea{resize:vertical;min-height:60px}
+.form-row{display:flex;align-items:center;gap:8px}
+.form-hint{font-size:10px;color:var(--text3);margin-top:2px}
+
+/* ─── ローディング ─── */
+.spinner{display:inline-block;width:14px;height:14px;
+  border:2px solid rgba(255,255,255,.4);border-top-color:#fff;
+  border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ─── トースト ─── */
+.toast-area{position:fixed;bottom:24px;right:24px;z-index:999;display:flex;flex-direction:column;gap:8px}
+.toast{background:#1f2937;color:#fff;padding:10px 16px;border-radius:var(--r);
+  font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.2);animation:slide-in .2s ease}
+.toast.success{background:#16a34a}
+.toast.error{background:var(--red)}
+@keyframes slide-in{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
+
+/* ─── 顧客詳細ヘッダー ─── */
+.customer-detail-header{padding:14px 16px;border-bottom:1px solid var(--border);
+  background:var(--blue-bg)}
+.customer-detail-name{font-size:14px;font-weight:800;color:var(--blue)}
+.customer-detail-meta{font-size:11px;color:var(--text3);margin-top:3px}
+
+/* ─── アラート ─── */
+.alert{padding:10px 14px;border-radius:var(--r);font-size:12px;
+  margin:8px 16px;border-left:3px solid}
+.alert-info{background:#eff6ff;border-color:var(--blue);color:#1e40af}
+</style>
+</head>
+<body>
+
+<!-- ─── トップバー ─── -->
+<div class="topbar">
+  <span class="topbar-logo">A-Factory<span class="topbar-sub">Sales</span></span>
+  <div class="topbar-spacer"></div>
+  <span class="topbar-date" id="topbarDate"></span>
+</div>
+
+<!-- ─── サイドバー ─── -->
+<nav class="sidebar">
+  <span class="sidebar-label">メニュー</span>
+  <a href="dashboard.html" class="sidebar-nav-item">📊 ダッシュボード</a>
+  <a href="deal_form.html" class="sidebar-nav-item">📝 案件登録</a>
+  <a href="daily_report.html" class="sidebar-nav-item">📋 日報</a>
+  <div class="sidebar-divider"></div>
+  <span class="sidebar-label">マスター</span>
+  <a href="customer_master.html" class="sidebar-nav-item active">🏢 顧客管理</a>
+</nav>
+
+<!-- ─── メインコンテンツ ─── -->
+<main class="main">
+
+  <!-- ページヘッダー -->
+  <div class="page-header">
+    <div>
+      <div class="page-title">顧客管理</div>
+      <div class="page-meta">顧客マスタ・担当者マスタの管理</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-secondary" onclick="handleMigrateOldDB()">🔄 旧DBから移行</button>
+      <button class="btn btn-primary" onclick="openCustomerModal()">＋ 新規顧客登録</button>
+    </div>
+  </div>
+
+  <!-- 統計 -->
+  <div class="stats-row">
+    <div class="stat-card" style="border-top-color:var(--blue)">
+      <div class="stat-label">総顧客数</div>
+      <div class="stat-value" id="statTotal">—</div>
+      <div class="stat-sub">顧客マスタ</div>
+    </div>
+    <div class="stat-card" style="border-top-color:var(--green)">
+      <div class="stat-label">アクティブ</div>
+      <div class="stat-value" id="statActive">—</div>
+      <div class="stat-sub">取引中・見込み</div>
+    </div>
+    <div class="stat-card" style="border-top-color:var(--purple)">
+      <div class="stat-label">総担当者数</div>
+      <div class="stat-value" id="statContacts">—</div>
+      <div class="stat-sub">担当者マスタ</div>
+    </div>
+    <div class="stat-card" style="border-top-color:var(--amber)">
+      <div class="stat-label">メール配信可</div>
+      <div class="stat-value" id="statMailOk">—</div>
+      <div class="stat-sub">担当者マスタ</div>
+    </div>
+  </div>
+
+  <!-- 2ペインビュー -->
+  <div class="split-view" id="splitView">
+
+    <!-- 左ペイン：顧客一覧 -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">顧客一覧</span>
+        <span class="count-badge" id="cusCount"></span>
+      </div>
+      <div class="toolbar">
+        <input class="search-input" id="cusSearch" placeholder="🔍 企業名・AFC担当者で検索"
+          oninput="renderCustomers()">
+        <select class="filter-select" id="cusStatusFilter" onchange="renderCustomers()">
+          <option value="">すべてのステータス</option>
+          <option value="取引中">取引中</option>
+          <option value="見込み">見込み</option>
+          <option value="既存">既存</option>
+          <option value="休眠">休眠</option>
+          <option value="失注">失注</option>
+        </select>
+        <div class="toolbar-spacer"></div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="master-tbl" id="cusTable">
+          <thead>
+            <tr>
+              <th>企業名</th>
+              <th>ステータス</th>
+              <th>AFC担当者</th>
+              <th>業種</th>
+              <th>都道府県</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="cusTbody">
+            <tr><td colspan="6" class="empty-state"><div class="empty-icon">⏳</div>読み込み中…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 右ペイン：担当者一覧 -->
+    <div class="card right-pane" id="contactPane">
+      <div class="customer-detail-header" id="contactPaneHeader">
+        <div class="customer-detail-name" id="contactPaneName">—</div>
+        <div class="customer-detail-meta" id="contactPaneMeta"></div>
+      </div>
+      <div class="card-header">
+        <span class="card-title">担当者一覧</span>
+        <button class="btn btn-primary btn-sm" onclick="openContactModal()">＋ 担当者追加</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="master-tbl" id="contactTable">
+          <thead>
+            <tr>
+              <th>担当者名</th>
+              <th>役職</th>
+              <th>メール</th>
+              <th>電話</th>
+              <th>配信</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="contactTbody">
+            <tr><td colspan="6" class="empty-state">顧客を選択してください</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /split-view -->
+
+</main><!-- /main -->
+
+
+<!-- ══════════════════════════════════════════════════
+     顧客登録・編集モーダル
+══════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="customerModal" style="display:none" onclick="handleOverlayClick(event,'customerModal')">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title" id="customerModalTitle">顧客登録</span>
+      <button class="modal-close" onclick="closeModal('customerModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label class="form-label">企業名<span class="req">*</span></label>
+          <div class="form-row">
+            <input class="form-input" id="cusCompany" placeholder="株式会社○○" style="flex:1">
+            <button class="btn btn-secondary btn-sm" id="detectBtn" onclick="detectIndustry()" title="Geminiで業種を自動判定">🤖 業種判定</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">業種</label>
+          <input class="form-input" id="cusIndustry" placeholder="例: G 情報通信業">
+          <span class="form-hint" id="industryHint"></span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ステータス</label>
+          <select class="form-select" id="cusStatus">
+            <option value="見込み">見込み</option>
+            <option value="取引中">取引中</option>
+            <option value="既存">既存</option>
+            <option value="休眠">休眠</option>
+            <option value="失注">失注</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">AFC担当者</label>
+          <select class="form-select" id="cusAfcStaff">
+            <option value="">— 選択 —</option>
+            <option>鈴木純平</option>
+            <option>坂井竜世</option>
+            <option>佐々木憩</option>
+            <option>濱田雄一</option>
+            <option>田中準子</option>
+            <option>綾戸涼太</option>
+            <option>湯川悦英</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">都道府県</label>
+          <select class="form-select" id="cusPref">
+            <option value="">— 選択 —</option>
+            <option>北海道</option><option>青森県</option><option>岩手県</option>
+            <option>宮城県</option><option>秋田県</option><option>山形県</option>
+            <option>福島県</option><option>茨城県</option><option>栃木県</option>
+            <option>群馬県</option><option>埼玉県</option><option>千葉県</option>
+            <option>東京都</option><option>神奈川県</option><option>新潟県</option>
+            <option>富山県</option><option>石川県</option><option>福井県</option>
+            <option>山梨県</option><option>長野県</option><option>岐阜県</option>
+            <option>静岡県</option><option>愛知県</option><option>三重県</option>
+            <option>滋賀県</option><option>京都府</option><option>大阪府</option>
+            <option>兵庫県</option><option>奈良県</option><option>和歌山県</option>
+            <option>鳥取県</option><option>島根県</option><option>岡山県</option>
+            <option>広島県</option><option>山口県</option><option>徳島県</option>
+            <option>香川県</option><option>愛媛県</option><option>高知県</option>
+            <option>福岡県</option><option>佐賀県</option><option>長崎県</option>
+            <option>熊本県</option><option>大分県</option><option>宮崎県</option>
+            <option>鹿児島県</option><option>沖縄県</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label class="form-label">住所</label>
+          <input class="form-input" id="cusAddress" placeholder="市区町村・番地">
+        </div>
+        <div class="form-group full">
+          <label class="form-label">メモ</label>
+          <textarea class="form-textarea" id="cusMemo" placeholder="自由記述"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('customerModal')">キャンセル</button>
+      <button class="btn btn-primary" id="saveCustomerBtn" onclick="saveCustomer()">保存</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════
+     担当者登録・編集モーダル
+══════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="contactModal" style="display:none" onclick="handleOverlayClick(event,'contactModal')">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title" id="contactModalTitle">担当者登録</span>
+      <button class="modal-close" onclick="closeModal('contactModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="contactCompanyLabel" class="alert alert-info" style="margin:0 0 12px;padding:8px 12px;border-radius:var(--r)">
+        対象企業: —
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">担当者名<span class="req">*</span></label>
+          <input class="form-input" id="conName" placeholder="山田 太郎">
+        </div>
+        <div class="form-group">
+          <label class="form-label">役職</label>
+          <input class="form-input" id="conTitle" placeholder="部長・課長など">
+        </div>
+        <div class="form-group full">
+          <label class="form-label">メールアドレス</label>
+          <input class="form-input" id="conEmail" type="email" placeholder="example@company.co.jp">
+        </div>
+        <div class="form-group">
+          <label class="form-label">電話番号</label>
+          <input class="form-input" id="conPhone" placeholder="03-xxxx-xxxx">
+        </div>
+        <div class="form-group">
+          <label class="form-label">メール配信可否</label>
+          <select class="form-select" id="conMailOk">
+            <option value="○">○ 可</option>
+            <option value="×">× 不可</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">主連絡手段</label>
+          <select class="form-select" id="conPrimaryChannel">
+            <option value="メール">メール</option>
+            <option value="電話">電話</option>
+            <option value="LINE">LINE</option>
+            <option value="対面">対面</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">SNS ID</label>
+          <input class="form-input" id="conSnsId" placeholder="LINE IDなど">
+        </div>
+        <div class="form-group full">
+          <label class="form-label">メモ</label>
+          <textarea class="form-textarea" id="conMemo" placeholder="自由記述"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('contactModal')">キャンセル</button>
+      <button class="btn btn-primary" id="saveContactBtn" onclick="saveContact()">保存</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ─── トーストエリア ─── -->
+<div class="toast-area" id="toastArea"></div>
+
+
+<script>
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyAC_jurLseKlw5gw8s15p6Xu1q66-fmcgBDUuruAeg5IlfmAFjU7mNvRwK1Yz1k9dt/exec';
+
+// ─── 状態 ───────────────────────────────────────────────────────
+let customers = [];
+let contacts  = [];
+let allContacts = []; // 統計用（全担当者）
+let selectedCustomerId = null;
+let editingCustomerId  = null;
+let editingContactId   = null;
+
+// ─── 初期化 ─────────────────────────────────────────────────────
+(async function init() {
+  document.getElementById('topbarDate').textContent =
+    new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'});
+  await loadCustomers();
+  loadAllContacts();
+})();
+
+// ─── フィールド名の正規化 ─────────────────────────────────────────
+function normalizeCustomer(c) {
+  return {
+    id:       c['顧客ID']       || c.id       || '',
+    company:  c['企業名']       || c.company  || '',
+    pref:     c['都道府県']     || c.pref     || '',
+    address:  c['住所']         || c.address  || '',
+    industry: c['業種']         || c.industry || '',
+    afcStaff: c['AFC担当者']    || c.afcStaff || '',
+    status:   c['顧客ステータス'] || c.status  || '',
+    memo:     c['メモ']         || c.memo     || ''
+  };
+}
+
+function normalizeContact(c) {
+  return {
+    id:             c['担当者ID']      || c.id             || '',
+    customerId:     c['顧客ID']        || c.customerId      || '',
+    name:           c['担当者名']      || c.name            || '',
+    title:          c['役職']          || c.title           || '',
+    email:          c['メールアドレス'] || c.email           || '',
+    phone:          c['電話番号']      || c.phone           || '',
+    mailOk:         c['メール配信可否'] || c.mailOk          || '—',
+    primaryChannel: c['主連絡手段']    || c.primaryChannel  || '',
+    snsId:          c['SNS_ID']        || c.snsId           || '',
+    memo:           c['メモ']          || c.memo            || ''
+  };
+}
+
+// ─── データ取得 ──────────────────────────────────────────────────
+async function loadCustomers() {
+  try {
+    const res = await fetch(GAS_URL, {
+      method:'POST',
+      body: JSON.stringify({action:'getCustomers'})
+    });
+    const raw = await res.json();
+    console.log('GASレスポンス:', JSON.stringify(raw).substring(0, 300));
+    const arr = Array.isArray(raw) ? raw : (raw.data || raw.result || []);
+    customers = arr.map(normalizeCustomer);
+    renderCustomers();
+    updateStats();
+  } catch(e) {
+    console.error('顧客取得失敗:', e);
+    showToast('顧客データの取得に失敗しました', 'error');
+    document.getElementById('cusTbody').innerHTML =
+      '<tr><td colspan="6" class="empty-state">データ取得エラー。GAS設定を確認してください。</td></tr>';
+  }
+}
+
+async function loadContacts(customerId) {
+  try {
+    const res = await fetch(GAS_URL, {
+      method:'POST',
+      body: JSON.stringify({action:'getContactMaster', customerId})
+    });
+    const raw = await res.json();
+    const arr = Array.isArray(raw) ? raw : (raw.data || []);
+    contacts = arr.map(normalizeContact).filter(c => c.name);
+    renderContacts();
+  } catch(e) {
+    console.error('担当者取得失敗:', e);
+    showToast('担当者データの取得に失敗しました', 'error');
+  }
+}
+
+async function loadAllContacts() {
+  try {
+    const res = await fetch(GAS_URL, {
+      method:'POST',
+      body: JSON.stringify({action:'getContactMaster', customerId:''})
+    });
+    allContacts = await res.json();
+    updateStats();
+  } catch(e) {
+    console.error('全担当者取得失敗:', e);
+  }
+}
+
+// ─── 統計更新 ────────────────────────────────────────────────────
+function updateStats() {
+  document.getElementById('statTotal').textContent = customers.length;
+  const active = customers.filter(c => ['取引中','見込み'].includes(c.status)).length;
+  document.getElementById('statActive').textContent = active;
+  if (allContacts.length > 0) {
+    document.getElementById('statContacts').textContent = allContacts.length;
+    const mailOk = allContacts.filter(c => c.mailOk === '○').length;
+    document.getElementById('statMailOk').textContent = mailOk;
+  }
+}
+
+// ─── 顧客一覧レンダリング ────────────────────────────────────────
+function renderCustomers() {
+  const q      = document.getElementById('cusSearch').value.toLowerCase();
+  const status = document.getElementById('cusStatusFilter').value;
+
+  const filtered = customers.filter(c => {
+    const matchQ = !q || c.company.toLowerCase().includes(q) ||
+                   (c.afcStaff||'').toLowerCase().includes(q);
+    const matchS = !status || c.status === status;
+    return matchQ && matchS;
+  });
+
+  document.getElementById('cusCount').textContent = `${filtered.length} 件`;
+
+  if (!filtered.length) {
+    document.getElementById('cusTbody').innerHTML =
+      '<tr><td colspan="6" class="empty-state"><div class="empty-icon">🔍</div>該当する顧客がありません</td></tr>';
+    return;
+  }
+
+  document.getElementById('cusTbody').innerHTML = filtered.map(c => `
+    <tr class="${c.id === selectedCustomerId ? 'selected' : ''}"
+        onclick="selectCustomer('${esc(c.id)}')">
+      <td style="font-weight:600">${esc(c.company)}</td>
+      <td>${statusBadge(c.status)}</td>
+      <td>${esc(c.afcStaff||'—')}</td>
+      <td style="font-size:11px;color:var(--text2)">${esc(c.industry||'—')}</td>
+      <td>${esc(c.pref||'—')}</td>
+      <td onclick="event.stopPropagation()">
+        <div class="actions">
+          <button class="btn btn-secondary btn-icon" title="編集"
+            onclick="openCustomerModal('${esc(c.id)}')">✏️</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function statusBadge(s) {
+  const map = {取引中:'active',見込み:'prospect',既存:'existing',休眠:'inactive',失注:'ng'};
+  const cls = map[s] || 'inactive';
+  return `<span class="badge badge-${cls}">${esc(s||'—')}</span>`;
+}
+
+// ─── 顧客選択 ────────────────────────────────────────────────────
+function selectCustomer(id) {
+  selectedCustomerId = id;
+  const cus = customers.find(c => c.id === id);
+  if (!cus) return;
+
+  // 右ペインを表示
+  document.getElementById('contactPane').classList.add('visible');
+  document.getElementById('splitView').style.gridTemplateColumns = '1fr 400px';
+
+  // ヘッダー更新
+  document.getElementById('contactPaneName').textContent = cus.company;
+  document.getElementById('contactPaneMeta').textContent =
+    [cus.pref, cus.industry, cus.afcStaff ? 'AFC:'+cus.afcStaff : ''].filter(Boolean).join(' / ');
+
+  loadContacts(id);
+  renderCustomers(); // 選択行ハイライト更新
+}
+
+// ─── 担当者一覧レンダリング ──────────────────────────────────────
+function renderContacts() {
+  if (!contacts.length) {
+    document.getElementById('contactTbody').innerHTML =
+      '<tr><td colspan="6" class="empty-state"><div class="empty-icon">👤</div>担当者がまだいません</td></tr>';
+    return;
+  }
+  document.getElementById('contactTbody').innerHTML = contacts.map(c => `
+    <tr>
+      <td style="font-weight:600">${esc(c.name||'—')}</td>
+      <td style="font-size:11px;color:var(--text2)">${esc(c.title||'—')}</td>
+      <td style="font-size:11px">${esc(c.email||'—')}</td>
+      <td style="font-size:11px">${esc(c.phone||'—')}</td>
+      <td><span class="badge ${c.mailOk==='○'?'badge-ok':'badge-ng'}">${esc(c.mailOk||'—')}</span></td>
+      <td onclick="event.stopPropagation()">
+        <div class="actions">
+          <button class="btn btn-secondary btn-icon" title="編集"
+            onclick="openContactModal('${esc(c.id)}')">✏️</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// ─── 顧客モーダル ────────────────────────────────────────────────
+function openCustomerModal(id = null) {
+  editingCustomerId = id;
+  document.getElementById('customerModalTitle').textContent = id ? '顧客情報を編集' : '顧客登録';
+  document.getElementById('industryHint').textContent = '';
+
+  if (id) {
+    const c = customers.find(x => x.id === id);
+    if (!c) return;
+    setVal('cusCompany', c.company);
+    setVal('cusIndustry', c.industry||'');
+    setVal('cusStatus', c.status||'見込み');
+    setVal('cusAfcStaff', c.afcStaff||'');
+    setVal('cusPref', c.pref||'');
+    setVal('cusAddress', c.address||'');
+    setVal('cusMemo', c.memo||'');
+  } else {
+    ['cusCompany','cusIndustry','cusAddress','cusMemo'].forEach(id => setVal(id,''));
+    setVal('cusStatus','見込み');
+    setVal('cusAfcStaff','');
+    setVal('cusPref','');
+  }
+  showModal('customerModal');
+}
+
+async function saveCustomer() {
+  const company = val('cusCompany').trim();
+  if (!company) { showToast('企業名は必須です','error'); return; }
+
+  const btn = document.getElementById('saveCustomerBtn');
+  setLoading(btn, true);
+
+  const payload = {
+    action: editingCustomerId ? 'updateCustomer' : 'addCustomer',
+    id:       editingCustomerId || undefined,
+    company,
+    industry: val('cusIndustry'),
+    status:   val('cusStatus'),
+    afcStaff: val('cusAfcStaff'),
+    pref:     val('cusPref'),
+    address:  val('cusAddress'),
+    memo:     val('cusMemo')
+  };
+
+  try {
+    const res = await fetch(GAS_URL, {
+      method:'POST',
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(editingCustomerId ? '顧客情報を更新しました' : '顧客を登録しました', 'success');
+      closeModal('customerModal');
+      await loadCustomers();
+      if (editingCustomerId) {
+        // 選択中なら右ペインのヘッダーも更新
+        if (selectedCustomerId === editingCustomerId) selectCustomer(editingCustomerId);
+      }
+    } else {
+      showToast('保存に失敗しました: ' + (data.error||''), 'error');
+    }
+  } catch(e) {
+    showToast('通信エラーが発生しました', 'error');
+    console.error(e);
+  } finally {
+    setLoading(btn, false);
+  }
+}
+
+// ─── 担当者モーダル ──────────────────────────────────────────────
+function openContactModal(id = null) {
+  if (!selectedCustomerId) { showToast('先に顧客を選択してください','error'); return; }
+  editingContactId = id;
+  document.getElementById('contactModalTitle').textContent = id ? '担当者情報を編集' : '担当者登録';
+
+  const cus = customers.find(c => c.id === selectedCustomerId);
+  document.getElementById('contactCompanyLabel').textContent =
+    '対象企業: ' + (cus ? cus.company : selectedCustomerId);
+
+  if (id) {
+    const c = contacts.find(x => x.id === id);
+    if (!c) return;
+    setVal('conName', c.name||'');
+    setVal('conTitle', c.title||'');
+    setVal('conEmail', c.email||'');
+    setVal('conPhone', c.phone||'');
+    setVal('conMailOk', c.mailOk||'○');
+    setVal('conPrimaryChannel', c.primaryChannel||'メール');
+    setVal('conSnsId', c.snsId||'');
+    setVal('conMemo', c.memo||'');
+  } else {
+    ['conName','conTitle','conEmail','conPhone','conSnsId','conMemo'].forEach(id => setVal(id,''));
+    setVal('conMailOk','○');
+    setVal('conPrimaryChannel','メール');
+  }
+  showModal('contactModal');
+}
+
+async function saveContact() {
+  const name = val('conName').trim();
+  if (!name) { showToast('担当者名は必須です','error'); return; }
+
+  const btn = document.getElementById('saveContactBtn');
+  setLoading(btn, true);
+
+  const payload = {
+    action: editingContactId ? 'updateContact' : 'addContact',
+    id:             editingContactId || undefined,
+    customerId:     selectedCustomerId,
+    name,
+    title:          val('conTitle'),
+    email:          val('conEmail'),
+    phone:          val('conPhone'),
+    mailOk:         val('conMailOk'),
+    primaryChannel: val('conPrimaryChannel'),
+    snsId:          val('conSnsId'),
+    memo:           val('conMemo')
+  };
+
+  try {
+    const res = await fetch(GAS_URL, {
+      method:'POST',
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(editingContactId ? '担当者情報を更新しました' : '担当者を登録しました', 'success');
+      closeModal('contactModal');
+      await loadContacts(selectedCustomerId);
+      loadAllContacts();
+    } else {
+      showToast('保存に失敗しました: ' + (data.error||''), 'error');
+    }
+  } catch(e) {
+    showToast('通信エラーが発生しました', 'error');
+    console.error(e);
+  } finally {
+    setLoading(btn, false);
+  }
+}
+
+// ─── Gemini 業種判定 ─────────────────────────────────────────────
+async function detectIndustry() {
+  const company = val('cusCompany').trim();
+  if (!company) { showToast('先に企業名を入力してください','error'); return; }
+
+  const btn = document.getElementById('detectBtn');
+  const hint = document.getElementById('industryHint');
+  btn.disabled = true;
+  btn.textContent = '判定中…';
+  hint.textContent = '';
+
+  try {
+    const res = await fetch(GAS_URL + '?mode=detectIndustry&companyName=' + encodeURIComponent(company));
+    const data = await res.json();
+    if (data.industry) {
+      setVal('cusIndustry', data.industry);
+      const conf = data.confidence === 'high' ? '高' : data.confidence === 'medium' ? '中' : '低';
+      hint.textContent = `Gemini推定（確度: ${conf}）`;
+    } else {
+      showToast('業種を判定できませんでした', 'error');
+    }
+  } catch(e) {
+    showToast('業種判定に失敗しました', 'error');
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🤖 業種判定';
+  }
+}
+
+// ─── 旧DB移行 ────────────────────────────────────────────────────
+async function handleMigrateOldDB() {
+  if (!confirm('旧「顧客DB」シートのデータを顧客マスタ・担当者マスタに移行しますか？\n重複企業はスキップされます。')) return;
+  showToast('移行処理を開始しています…');
+  try {
+    const res = await fetch(GAS_URL, {
+      method:'POST',
+      body: JSON.stringify({ action:'migrateOldDB' })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`移行完了: ${data.migrated}件を追加しました`, 'success');
+      await loadCustomers();
+      loadAllContacts();
+    } else {
+      showToast('移行に失敗しました: ' + (data.error||''), 'error');
+    }
+  } catch(e) {
+    showToast('通信エラーが発生しました', 'error');
+    console.error(e);
+  }
+}
+
+// ─── ユーティリティ ──────────────────────────────────────────────
+function showModal(id) { document.getElementById(id).style.display = 'flex'; }
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+function handleOverlayClick(e, id) { if(e.target === e.currentTarget) closeModal(id); }
+function val(id) { return document.getElementById(id).value; }
+function setVal(id, v) { document.getElementById(id).value = v; }
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function setLoading(btn, on) {
+  if (on) {
+    btn.disabled = true;
+    btn._orig = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span> 保存中…';
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = btn._orig || '保存';
+  }
+}
+
+let toastTimer;
+function showToast(msg, type = '') {
+  const area = document.getElementById('toastArea');
+  const el = document.createElement('div');
+  el.className = 'toast' + (type ? ' ' + type : '');
+  el.textContent = msg;
+  area.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ESCキーでモーダルを閉じる
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  ['customerModal','contactModal'].forEach(id => {
+    if (document.getElementById(id).style.display !== 'none') closeModal(id);
+  });
+});
+</script>
+</body>
+</html>
