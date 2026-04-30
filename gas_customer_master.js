@@ -244,14 +244,52 @@ function detectIndustry(companyName) {
 }
 
 // ============================================================
+// 顧客・担当者 削除
+// ============================================================
+
+function deleteCustomer(id) {
+  const ss       = SpreadsheetApp.getActiveSpreadsheet();
+  const cusSheet = ss.getSheetByName(CUSTOMER_SHEET);
+  const conSheet = ss.getSheetByName(CONTACT_SHEET);
+  if (!cusSheet) throw new Error('顧客マスタシートが見つかりません');
+
+  // 顧客行を削除
+  const cusData = cusSheet.getDataRange().getValues();
+  for (let i = 1; i < cusData.length; i++) {
+    if (cusData[i][0] === id) { cusSheet.deleteRow(i + 1); break; }
+  }
+
+  // 紐づく担当者を全削除
+  if (conSheet) {
+    const conData = conSheet.getDataRange().getValues();
+    for (let i = conData.length - 1; i >= 1; i--) {
+      if (conData[i][1] === id) conSheet.deleteRow(i + 1);
+    }
+  }
+  return { success: true };
+}
+
+function deleteContact(id) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONTACT_SHEET);
+  if (!sheet) throw new Error('担当者マスタシートが見つかりません');
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === id) { sheet.deleteRow(i + 1); return { success: true }; }
+  }
+  throw new Error('担当者ID ' + id + ' が見つかりません');
+}
+
+// ============================================================
 // 既存 doGet / doPost の switch-case に以下を追加してください
 // ============================================================
 //
 //   case 'getCustomers':    return ok(getCustomers());
 //   case 'addCustomer':     return ok(addCustomer(d));
 //   case 'updateCustomer':  return ok(updateCustomer(d));
-//   case 'getContacts':     return ok(getContacts(d.customerId));
+//   case 'deleteCustomer':  return ok(deleteCustomer(d.id));
+//   case 'getContactMaster':return ok(getContacts(d.customerId));
 //   case 'addContact':      return ok(addContact(d));
 //   case 'updateContact':   return ok(updateContact(d));
+//   case 'deleteContact':   return ok(deleteContact(d.id));
 //   case 'detectIndustry':  return ok(detectIndustry(d.companyName));
 //   case 'migrateOldDB':    return ok(migrateOldCustomerDB());

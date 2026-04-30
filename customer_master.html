@@ -67,6 +67,11 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
 .btn-icon{padding:4px 8px;font-size:12px;border-radius:6px}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 
+/* ─── クイックステータス ─── */
+.status-select{border:none;background:transparent;font-size:11px;font-weight:700;
+  cursor:pointer;padding:2px 4px;border-radius:6px;outline:none;max-width:90px}
+.status-select:focus{outline:2px solid var(--blue)}
+
 /* ─── 統計カード ─── */
 .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
 .stat-card{background:var(--surface);border:1px solid var(--border);
@@ -225,19 +230,19 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
       <div class="stat-sub">顧客マスタ</div>
     </div>
     <div class="stat-card" style="border-top-color:var(--green)">
-      <div class="stat-label">アクティブ</div>
+      <div class="stat-label">取引中</div>
       <div class="stat-value" id="statActive">—</div>
-      <div class="stat-sub">取引中・見込み</div>
+      <div class="stat-sub" id="statActiveSub">既存・取引中</div>
     </div>
     <div class="stat-card" style="border-top-color:var(--purple)">
-      <div class="stat-label">総担当者数</div>
-      <div class="stat-value" id="statContacts">—</div>
-      <div class="stat-sub">担当者マスタ</div>
+      <div class="stat-label">見込み</div>
+      <div class="stat-value" id="statProspect">—</div>
+      <div class="stat-sub">商談中・アプローチ中</div>
     </div>
     <div class="stat-card" style="border-top-color:var(--amber)">
-      <div class="stat-label">メール配信可</div>
-      <div class="stat-value" id="statMailOk">—</div>
-      <div class="stat-sub">担当者マスタ</div>
+      <div class="stat-label">休眠・失注</div>
+      <div class="stat-value" id="statInactive">—</div>
+      <div class="stat-sub">フォロー対象</div>
     </div>
   </div>
 
@@ -272,7 +277,6 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
               <th>AFC担当者</th>
               <th>業種</th>
               <th>都道府県</th>
-              <th>操作</th>
             </tr>
           </thead>
           <tbody id="cusTbody">
@@ -393,8 +397,18 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
           <textarea class="form-textarea" id="cusMemo" placeholder="自由記述"></textarea>
         </div>
       </div>
+
+      <!-- 担当者セクション（編集時のみ表示） -->
+      <div id="cusContactSection" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span class="form-label" style="font-size:12px">担当者一覧</span>
+          <button class="btn btn-primary btn-sm" onclick="openContactModalFromCustomer()">＋ 担当者追加</button>
+        </div>
+        <div id="cusContactList" style="font-size:12px;color:var(--text2)">読み込み中…</div>
+      </div>
     </div>
     <div class="modal-footer">
+      <button class="btn btn-danger" id="deleteCustomerBtn" onclick="deleteCustomer()" style="display:none;margin-right:auto">削除</button>
       <button class="btn btn-secondary" onclick="closeModal('customerModal')">キャンセル</button>
       <button class="btn btn-primary" id="saveCustomerBtn" onclick="saveCustomer()">保存</button>
     </div>
@@ -511,7 +525,9 @@ function normalizeContact(c) {
     title:          c['役職']          || c.title           || '',
     email:          c['メールアドレス'] || c.email           || '',
     phone:          c['電話番号']      || c.phone           || '',
-    mailOk:         c['メール配信可否'] || c.mailOk          || '—',
+    mailOk:         (['○','×'].includes(c['メール配信可否']) ? c['メール配信可否'] : null)
+                  || (['○','×'].includes(c.mailOk) ? c.mailOk : null)
+                  || '○',
     primaryChannel: c['主連絡手段']    || c.primaryChannel  || '',
     snsId:          c['SNS_ID']        || c.snsId           || '',
     memo:           c['メモ']          || c.memo            || ''
@@ -571,13 +587,12 @@ async function loadAllContacts() {
 // ─── 統計更新 ────────────────────────────────────────────────────
 function updateStats() {
   document.getElementById('statTotal').textContent = customers.length;
-  const active = customers.filter(c => ['取引中','見込み'].includes(c.status)).length;
-  document.getElementById('statActive').textContent = active;
-  if (allContacts.length > 0) {
-    document.getElementById('statContacts').textContent = allContacts.length;
-    const mailOk = allContacts.filter(c => c.mailOk === '○').length;
-    document.getElementById('statMailOk').textContent = mailOk;
-  }
+  const active   = customers.filter(c => ['取引中','既存'].includes(c.status)).length;
+  const prospect = customers.filter(c => c.status === '見込み').length;
+  const inactive = customers.filter(c => ['休眠','失注'].includes(c.status)).length;
+  document.getElementById('statActive').textContent   = active;
+  document.getElementById('statProspect').textContent = prospect;
+  document.getElementById('statInactive').textContent = inactive;
 }
 
 // ─── 顧客一覧レンダリング ────────────────────────────────────────
@@ -600,28 +615,77 @@ function renderCustomers() {
     return;
   }
 
-  document.getElementById('cusTbody').innerHTML = filtered.map(c => `
+  document.getElementById('cusTbody').innerHTML = filtered.map(c => {
+    const cusContacts = allContacts
+      .filter(con => String(con['顧客ID'] || con.customerId || '').trim() === String(c.id).trim())
+      .map(con => con['担当者名'] || con.name || '')
+      .filter(Boolean);
+    return `
     <tr class="${c.id === selectedCustomerId ? 'selected' : ''}"
         onclick="selectCustomer('${esc(c.id)}')">
-      <td style="font-weight:600">${esc(c.company)}</td>
-      <td>${statusBadge(c.status)}</td>
+      <td onclick="event.stopPropagation();selectCustomer('${esc(c.id)}');openCustomerModal('${esc(c.id)}')">
+        <div style="font-weight:600;color:var(--blue);cursor:pointer;text-decoration:underline dotted">${esc(c.company)}</div>
+        ${cusContacts.length ? `<div style="font-size:10px;color:var(--text3);margin-top:1px">${esc(cusContacts.join('・'))}</div>` : ''}
+      </td>
+      <td onclick="event.stopPropagation()">
+        <select class="status-select" style="${statusSelectStyle(c.status)}"
+          onchange="quickUpdateStatus('${esc(c.id)}', this.value)">
+          <option value="取引中" ${c.status==='取引中'?'selected':''}>取引中</option>
+          <option value="既存"   ${c.status==='既存'  ?'selected':''}>既存</option>
+          <option value="見込み" ${c.status==='見込み'?'selected':''}>見込み</option>
+          <option value="休眠"   ${c.status==='休眠'  ?'selected':''}>休眠</option>
+          <option value="失注"   ${c.status==='失注'  ?'selected':''}>失注</option>
+        </select>
+      </td>
       <td>${esc(c.afcStaff||'—')}</td>
       <td style="font-size:11px;color:var(--text2)">${esc(c.industry||'—')}</td>
       <td>${esc(c.pref||'—')}</td>
-      <td onclick="event.stopPropagation()">
-        <div class="actions">
-          <button class="btn btn-secondary btn-icon" title="編集"
-            onclick="openCustomerModal('${esc(c.id)}')">✏️</button>
-        </div>
-      </td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function statusBadge(s) {
   const map = {取引中:'active',見込み:'prospect',既存:'existing',休眠:'inactive',失注:'ng'};
   const cls = map[s] || 'inactive';
   return `<span class="badge badge-${cls}">${esc(s||'—')}</span>`;
+}
+
+function statusSelectStyle(s) {
+  const styles = {
+    取引中: 'background:#dcfce7;color:#166534',
+    既存:   'background:#fef9c3;color:#854d0e',
+    見込み: 'background:#dbeafe;color:#1e40af',
+    休眠:   'background:#f3f4f6;color:#6b7280',
+    失注:   'background:#fee2e2;color:#991b1b',
+  };
+  return styles[s] || 'background:#f3f4f6;color:#6b7280';
+}
+
+async function quickUpdateStatus(id, status) {
+  const cus = customers.find(c => c.id === id);
+  if (!cus) return;
+  const prev = cus.status;
+  cus.status = status; // 楽観的更新
+  updateStats();
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'updateCustomer', id, status })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      cus.status = prev;
+      updateStats();
+      renderCustomers();
+      showToast('ステータス更新に失敗しました', 'error');
+    }
+  } catch(e) {
+    cus.status = prev;
+    updateStats();
+    renderCustomers();
+    showToast('通信エラーが発生しました', 'error');
+  }
 }
 
 // ─── 顧客選択 ────────────────────────────────────────────────────
@@ -661,6 +725,8 @@ function renderContacts() {
         <div class="actions">
           <button class="btn btn-secondary btn-icon" title="編集"
             onclick="openContactModal('${esc(c.id)}')">✏️</button>
+          <button class="btn btn-danger btn-icon" title="削除"
+            onclick="deleteContact('${esc(c.id)}','${esc(c.name)}')">🗑</button>
         </div>
       </td>
     </tr>
@@ -672,6 +738,8 @@ function openCustomerModal(id = null) {
   editingCustomerId = id;
   document.getElementById('customerModalTitle').textContent = id ? '顧客情報を編集' : '顧客登録';
   document.getElementById('industryHint').textContent = '';
+  document.getElementById('deleteCustomerBtn').style.display = id ? 'inline-flex' : 'none';
+  document.getElementById('cusContactSection').style.display = id ? 'block' : 'none';
 
   if (id) {
     const c = customers.find(x => x.id === id);
@@ -683,6 +751,7 @@ function openCustomerModal(id = null) {
     setVal('cusPref', c.pref||'');
     setVal('cusAddress', c.address||'');
     setVal('cusMemo', c.memo||'');
+    loadContactsForModal(id);
   } else {
     ['cusCompany','cusIndustry','cusAddress','cusMemo'].forEach(id => setVal(id,''));
     setVal('cusStatus','見込み');
@@ -805,6 +874,131 @@ async function saveContact() {
     console.error(e);
   } finally {
     setLoading(btn, false);
+  }
+}
+
+// ─── モーダル内担当者表示 ────────────────────────────────────────
+async function loadContactsForModal(customerId) {
+  const el = document.getElementById('cusContactList');
+  el.textContent = '読み込み中…';
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'getContactMaster', customerId })
+    });
+    const raw = await res.json();
+    const arr = (Array.isArray(raw) ? raw : (raw.data || [])).map(normalizeContact).filter(c => c.name);
+    if (!arr.length) {
+      el.innerHTML = '<span style="color:var(--text3)">担当者が登録されていません</span>';
+      return;
+    }
+    el.innerHTML = arr.map(c => `
+      <div style="display:flex;align-items:center;justify-content:space-between;
+                  padding:6px 8px;border-radius:6px;margin-bottom:4px;background:var(--bg)">
+        <div>
+          <span style="font-weight:600">${esc(c.name)}</span>
+          ${c.title ? `<span style="color:var(--text3);margin-left:6px">${esc(c.title)}</span>` : ''}
+          ${c.email ? `<span style="color:var(--text2);margin-left:8px;font-size:11px">${esc(c.email)}</span>` : ''}
+        </div>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-secondary btn-icon" onclick="editContactFromModal('${esc(c.id)}','${esc(customerId)}')">✏️</button>
+          <button class="btn btn-danger btn-icon" onclick="deleteContactFromModal('${esc(c.id)}','${esc(c.name)}','${esc(customerId)}')">🗑</button>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    el.innerHTML = '<span style="color:var(--red)">取得エラー</span>';
+  }
+}
+
+function openContactModalFromCustomer() {
+  selectedCustomerId = editingCustomerId;
+  closeModal('customerModal');
+  openContactModal();
+}
+
+function editContactFromModal(contactId, customerId) {
+  selectedCustomerId = customerId;
+  // contacts配列を一時的に上書きしてモーダルを開く
+  fetch(GAS_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'getContactMaster', customerId })
+  }).then(r => r.json()).then(raw => {
+    contacts = (Array.isArray(raw) ? raw : (raw.data || [])).map(normalizeContact).filter(c => c.name);
+    closeModal('customerModal');
+    openContactModal(contactId);
+  });
+}
+
+async function deleteContactFromModal(contactId, name, customerId) {
+  if (!confirm(`「${name}」を削除しますか？`)) return;
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'deleteContact', id: contactId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('担当者を削除しました', 'success');
+      loadContactsForModal(customerId);
+      loadAllContacts();
+    } else {
+      showToast('削除に失敗しました: ' + (data.error || ''), 'error');
+    }
+  } catch(e) {
+    showToast('通信エラーが発生しました', 'error');
+  }
+}
+
+// ─── 削除 ────────────────────────────────────────────────────────
+async function deleteCustomer() {
+  const c = customers.find(x => x.id === editingCustomerId);
+  if (!c) return;
+  if (!confirm(`「${c.company}」を削除しますか？\n関連する担当者データも削除されます。`)) return;
+
+  const btn = document.getElementById('deleteCustomerBtn');
+  setLoading(btn, true);
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'deleteCustomer', id: editingCustomerId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('顧客を削除しました', 'success');
+      closeModal('customerModal');
+      if (selectedCustomerId === editingCustomerId) {
+        selectedCustomerId = null;
+        document.getElementById('contactPane').classList.remove('visible');
+      }
+      await loadCustomers();
+    } else {
+      showToast('削除に失敗しました: ' + (data.error || ''), 'error');
+    }
+  } catch(e) {
+    showToast('通信エラーが発生しました', 'error');
+  } finally {
+    setLoading(btn, false);
+  }
+}
+
+async function deleteContact(id, name) {
+  if (!confirm(`「${name}」を削除しますか？`)) return;
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'deleteContact', id })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('担当者を削除しました', 'success');
+      await loadContacts(selectedCustomerId);
+      loadAllContacts();
+    } else {
+      showToast('削除に失敗しました: ' + (data.error || ''), 'error');
+    }
+  } catch(e) {
+    showToast('通信エラーが発生しました', 'error');
   }
 }
 
