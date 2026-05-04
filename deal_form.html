@@ -562,7 +562,7 @@ function onProductChange() {
 
 function applyProduct(name) {
   if (!name || !masterData) return;
-  const p = masterData.productDetails.find(d => d.name === name);
+  const p = masterData?.productDetails?.find(d => d.name === name);
   if (!p) return;
 
   const isQuote = p.priceType === '都度見積もり';
@@ -732,7 +732,7 @@ async function submit() {
 
     // インセンティブ表示用再計算
     const gp = (unitSales - unitCost) * courses * qty; // 月次粗利
-    const p  = masterData ? masterData.productDetails.find(d => d.name === productName) : null;
+    const p  = masterData?.productDetails?.find(d => d.name === productName) ?? null;
     const incentiveRate = p ? (p.incentiveRate || 0) : 0;
     const incentive = Math.floor(gp * months * incentiveRate);
 

@@ -963,6 +963,9 @@ function editContactFromModal(contactId, customerId) {
     contacts = (Array.isArray(raw) ? raw : (raw.data || [])).map(normalizeContact).filter(c => c.name);
     closeModal('customerModal');
     openContactModal(contactId);
+  }).catch(err => {
+    console.error('担当者情報取得失敗', err);
+    showToast('担当者情報の取得に失敗しました', 'error');
   });
 }
 
