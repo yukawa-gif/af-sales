@@ -75,8 +75,8 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
 .person-role{font-size:10px;color:var(--text3);margin-top:1px}
 .sidebar-divider{height:1px;background:var(--border);margin:10px 12px}
 .sidebar-nav-item{display:flex;align-items:center;gap:8px;
-  padding:8px 20px;font-size:13px;color:var(--text2);cursor:pointer;
-  transition:var(--transition)}
+  padding:8px 12px;font-size:13px;color:var(--text2);cursor:pointer;
+  transition:var(--transition);margin-bottom:2px;font-weight:500}
 .sidebar-nav-item:hover{background:var(--bg);color:var(--text)}
 
 /* ─── メインコンテンツ ─── */
@@ -443,6 +443,22 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
 
 <!-- サイドバー -->
 <div class="sidebar">
+  <!-- ナビゲーション -->
+  <div style="padding:8px 12px 4px">
+    <a href="dashboard.html" class="sidebar-nav-item" style="background:var(--blue-bg);color:var(--blue);border-radius:8px;font-weight:700;text-decoration:none">
+      <i data-lucide="layout-dashboard" style="width:15px;height:15px;flex-shrink:0"></i> ダッシュボード
+    </a>
+    <a href="deal_form.html" class="sidebar-nav-item" style="text-decoration:none;border-radius:8px">
+      <i data-lucide="briefcase" style="width:15px;height:15px;flex-shrink:0"></i> 案件登録
+    </a>
+    <a href="daily_report.html" class="sidebar-nav-item" style="text-decoration:none;border-radius:8px">
+      <i data-lucide="file-text" style="width:15px;height:15px;flex-shrink:0"></i> 実績報告
+    </a>
+    <a href="customer_master.html" class="sidebar-nav-item" style="text-decoration:none;border-radius:8px">
+      <i data-lucide="building-2" style="width:15px;height:15px;flex-shrink:0"></i> 顧客管理
+    </a>
+  </div>
+  <div class="sidebar-divider"></div>
   <div class="sidebar-section">
     <div class="sidebar-label">担当者</div>
     <div id="person-list"></div>
@@ -454,9 +470,14 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
 
   <!-- ページヘッダー -->
   <div class="page-header">
-    <div>
-      <div class="page-title" id="page-title">— さんのダッシュボード</div>
-      <div class="page-meta" id="page-meta"></div>
+    <div style="display:flex;align-items:flex-start;gap:12px">
+      <div style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:10px;background:var(--blue-bg);color:var(--blue);flex-shrink:0;margin-top:2px">
+        <i data-lucide="bar-chart-2" style="width:18px;height:18px"></i>
+      </div>
+      <div>
+        <div class="page-title" id="page-title">ダッシュボード</div>
+        <div class="page-meta" id="page-meta"></div>
+      </div>
     </div>
   </div>
 
@@ -468,7 +489,9 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
   <div class="timeline-card">
     <div class="timeline-card-header">
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-        <span style="font-size:15px;font-weight:800;flex-shrink:0">月別推移</span>
+        <span style="font-size:15px;font-weight:800;flex-shrink:0;display:flex;align-items:center;gap:7px">
+          <i data-lucide="calendar-range" style="width:16px;height:16px;color:var(--blue)"></i> 月別推移
+        </span>
         <div id="mg-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
         <span style="font-size:11px;color:var(--text3);margin-left:auto" id="timeline-hint"></span>
       </div>
@@ -492,7 +515,10 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
   <!-- 目標達成率グラフ -->
   <div class="card" style="margin-bottom:16px" id="chart-card">
     <div class="card-header" onclick="toggleChartPanel()" style="cursor:pointer;user-select:none">
-      <span class="card-title" id="chart-title">月別 粗利実績 vs 目標</span>
+      <span class="card-title" style="display:flex;align-items:center;gap:7px">
+        <i data-lucide="trending-up" style="width:15px;height:15px;color:var(--blue)"></i>
+        <span id="chart-title">月別 粗利実績 vs 目標</span>
+      </span>
       <span class="card-hint" id="chart-hint" style="margin-left:auto"></span>
       <span id="chart-toggle-icon" style="margin-left:8px;font-size:12px;color:var(--text3);flex-shrink:0">▼</span>
     </div>
@@ -506,7 +532,9 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
   <!-- 担当者別詳細パネル -->
   <div class="detail-card" id="detail-panel" style="display:none">
     <div class="detail-card-header" onclick="toggleDetailPanel()" style="cursor:pointer;user-select:none">
-      <span style="font-size:15px;font-weight:800;flex-shrink:0">案件一覧</span>
+      <span style="font-size:15px;font-weight:800;flex-shrink:0;display:flex;align-items:center;gap:7px">
+        <i data-lucide="list" style="width:16px;height:16px;color:var(--blue)"></i> 案件一覧
+      </span>
       <div class="detail-filter-btns" id="detail-filter-btns" onclick="event.stopPropagation()"></div>
       <span class="detail-count" id="detail-count"></span>
       <span id="detail-toggle-icon" style="margin-left:8px;font-size:12px;color:var(--text3);flex-shrink:0">▼</span>
@@ -535,7 +563,9 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
     <!-- KPI -->
     <div class="card">
       <div class="card-header" style="flex-direction:column;align-items:flex-start;gap:10px">
-        <span class="card-title">KPI</span>
+        <span class="card-title" style="display:flex;align-items:center;gap:7px">
+          <i data-lucide="activity" style="width:15px;height:15px;color:var(--blue)"></i> KPI
+        </span>
         <div id="kpi-period-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
       </div>
       <div id="kpi-table-wrap"></div>
@@ -544,7 +574,9 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
     <!-- 年間進捗 -->
     <div class="card">
       <div class="card-header">
-        <span class="card-title">年間進捗</span>
+        <span class="card-title" style="display:flex;align-items:center;gap:7px">
+          <i data-lucide="target" style="width:15px;height:15px;color:var(--blue)"></i> 年間進捗
+        </span>
         <span class="card-hint" id="elapsed-hint"></span>
       </div>
       <div class="prog-wrap">
@@ -608,7 +640,9 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
       <!-- インセンティブ -->
       <div class="card">
         <div class="card-header" onclick="toggleIncentiveCard()" style="cursor:pointer;user-select:none">
-          <span class="card-title">インセンティブ支払いスケジュール</span>
+          <span class="card-title" style="display:flex;align-items:center;gap:7px">
+            <i data-lucide="coins" style="width:15px;height:15px;color:var(--blue)"></i> インセンティブ支払いスケジュール
+          </span>
           <div style="display:flex;align-items:center;gap:10px;margin-left:auto">
             <span class="card-hint" id="incentive-period-hint"></span>
             <span style="font-weight:800;color:var(--blue);font-size:14px"><span id="incentive-total">0</span>万円</span>
@@ -2577,6 +2611,7 @@ async function fetchAIAdvice(){
   }
 }
 
+lucide.createIcons();
 init();
 </script>
 </body>
