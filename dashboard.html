@@ -423,9 +423,9 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
       <span style="font-size:15px;font-weight:800;flex-shrink:0">案件一覧</span>
       <div class="detail-filter-btns" id="detail-filter-btns" onclick="event.stopPropagation()"></div>
       <span class="detail-count" id="detail-count"></span>
-      <span id="detail-toggle-icon" style="margin-left:8px;font-size:12px;color:var(--text3);flex-shrink:0">▲</span>
+      <span id="detail-toggle-icon" style="margin-left:8px;font-size:12px;color:var(--text3);flex-shrink:0">▼</span>
     </div>
-    <div id="detail-table-wrap" style="overflow-x:auto">
+    <div id="detail-table-wrap" style="overflow-x:auto;display:none">
       <table class="detail-tbl">
         <thead id="detail-thead-row">
           <tr>
@@ -1411,7 +1411,7 @@ function closeDealModal(){
 // ============================================================
 // 案件一覧 開閉
 // ============================================================
-let detailPanelOpen = true;
+let detailPanelOpen = false;
 function toggleDetailPanel() {
   detailPanelOpen = !detailPanelOpen;
   document.getElementById('detail-table-wrap').style.display = detailPanelOpen ? '' : 'none';
