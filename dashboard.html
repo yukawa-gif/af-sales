@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ダッシュボード - エー・ファクトリー</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -423,6 +424,17 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
     </div>
   </div>
 
+  <!-- 目標達成率グラフ -->
+  <div class="card" style="margin-bottom:16px" id="chart-card">
+    <div class="card-header">
+      <span class="card-title" id="chart-title">月別 粗利実績 vs 目標</span>
+      <span class="card-hint" id="chart-hint"></span>
+    </div>
+    <div style="position:relative;height:240px">
+      <canvas id="achievement-chart"></canvas>
+    </div>
+  </div>
+
   <!-- 担当者別詳細パネル -->
   <div class="detail-card" id="detail-panel" style="display:none">
     <div class="detail-card-header" onclick="toggleDetailPanel()" style="cursor:pointer;user-select:none">
@@ -793,6 +805,7 @@ let currentPerson=null;
 let isDemoMode=false,realActual=[],realDeals=[],realGoals=null;
 let personColorMap={};
 let kpiPeriod='month'; // 'today'|'week'|'month'|'fy'
+let achievementChart=null;
 
 // ============================================================
 // 初期化
@@ -1050,6 +1063,7 @@ function render(person){
   renderKPITable(kpiSums,kpiGoal);
   renderProgress(annualTarget,actualTotal,yomiTotal,forecast,col,monthlyTarget,thisMonthActual);
   renderIncentiveCard(person,isTeam);
+  renderAchievementChart(personDeals,person,isTeam);
 }
 
 // ============================================================
@@ -2080,6 +2094,138 @@ function renderIncentiveCard(person, isTeam){
       </div>`).join('');
   }
   totalEl.textContent=fmt(Math.round(total/10000));
+}
+
+// ============================================================
+// 目標達成率グラフ
+// ============================================================
+function renderAchievementChart(personDeals, person, isTeam) {
+  const canvas = document.getElementById('achievement-chart');
+  if (!canvas) return;
+  if (achievementChart) { achievementChart.destroy(); achievementChart = null; }
+
+  const months = fyMonths.map(m => ({ ym: yyyyMM(m.year, m.month), label: m.month + '月' }));
+
+  if (isTeam) {
+    // ─── チームビュー：担当者別 達成率 横棒グラフ ───
+    const persons = (masterData?.personDetails || []).filter(p => p.status === '在籍中' && p.role !== 'P');
+    const labels = [], actPcts = [], yomiPcts = [], colors = [];
+
+    persons.forEach(p => {
+      const goal = (goalsData?.persons || []).find(g => g.name === p.name);
+      const target = goal ? Math.round(goal.salesTarget || 0) : 0;
+      if (!target) return;
+
+      const pDeals = dealsData.filter(d =>
+        d['担当者'] === p.name &&
+        fyMonths.some(m => yyyyMM(m.year, m.month) === String(d['売上予定月']||'').slice(0,7))
+      );
+      const actual = pDeals
+        .filter(d => ['売上','決定'].includes(d['確度ランク']))
+        .reduce((s,d) => s + toMan(Number(d['粗利'])||0), 0);
+      const yomi = pDeals
+        .filter(d => ['A','B'].includes(d['確度ランク']))
+        .reduce((s,d) => s + toMan(Number(d['粗利'])||0), 0);
+
+      const actPct  = Math.round(actual / target * 100);
+      const yomiPct = Math.min(Math.round(yomi / target * 100), Math.max(0, 100 - actPct));
+
+      labels.push(p.name);
+      actPcts.push(actPct);
+      yomiPcts.push(yomiPct);
+      colors.push(personColorMap[p.name] || '#6b7280');
+    });
+
+    if (!labels.length) {
+      document.getElementById('chart-hint').textContent = '目標が設定されている担当者がいません';
+      return;
+    }
+
+    document.getElementById('chart-title').textContent = '担当者別 粗利目標達成率';
+    document.getElementById('chart-hint').textContent  = '実績（売上・決定）＋ ヨミ（A・B）';
+
+    // チームは人数分の高さを確保
+    canvas.parentElement.style.height = Math.max(200, labels.length * 52) + 'px';
+
+    achievementChart = new Chart(canvas.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: '実績', data: actPcts,  backgroundColor: colors,                   borderRadius: 4 },
+          { label: 'ヨミ',  data: yomiPcts, backgroundColor: colors.map(c => c + '55'), borderRadius: 4 }
+        ]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true, maintainAspectRatio: false,
+        scales: {
+          x: { stacked: true, min: 0, max: 130,
+               ticks: { callback: v => v + '%', font: { size: 11 } },
+               grid: { color: '#e5e7eb' } },
+          y: { stacked: true, ticks: { font: { size: 12 } } }
+        },
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12, padding: 14 } },
+          tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.raw + '%' } }
+        }
+      }
+    });
+
+  } else {
+    // ─── 個人ビュー：月別 粗利実績 vs 目標 複合グラフ ───
+    const personGoal = (goalsData?.persons || []).find(p => p.name === person);
+    const col = personColorMap[person] || '#2563eb';
+
+    const actArr = months.map(m =>
+      personDeals
+        .filter(d => ['売上','決定'].includes(d['確度ランク']) && String(d['売上予定月']||'').slice(0,7) === m.ym)
+        .reduce((s,d) => s + toMan(Number(d['粗利'])||0), 0)
+    );
+    const yomiArr = months.map(m =>
+      personDeals
+        .filter(d => ['A','B'].includes(d['確度ランク']) && String(d['売上予定月']||'').slice(0,7) === m.ym)
+        .reduce((s,d) => s + toMan(Number(d['粗利'])||0), 0)
+    );
+    const tgtArr = months.map(m => {
+      if (!personGoal) return null;
+      return personGoal.months ? (personGoal.months[m.ym] || 0) : Math.round(personGoal.monthlyTarget || 0);
+    });
+    const hasTarget = tgtArr.some(v => v !== null && v > 0);
+
+    document.getElementById('chart-title').textContent = '月別 粗利実績 vs 目標';
+    document.getElementById('chart-hint').textContent  = hasTarget ? '' : '目標未設定';
+    canvas.parentElement.style.height = '240px';
+
+    achievementChart = new Chart(canvas.getContext('2d'), {
+      data: {
+        labels: months.map(m => m.label),
+        datasets: [
+          { type: 'bar',  label: '実績（売上・決定）', data: actArr,
+            backgroundColor: col,        borderRadius: 4, stack: 'gp' },
+          { type: 'bar',  label: 'ヨミ（A・B）',      data: yomiArr,
+            backgroundColor: col + '66', borderRadius: 4, stack: 'gp' },
+          { type: 'line', label: '月別目標',           data: tgtArr,
+            borderColor: '#dc2626', backgroundColor: 'transparent',
+            borderWidth: 2, borderDash: [4,3],
+            pointBackgroundColor: '#dc2626', pointRadius: 3, tension: 0.2 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: {
+          y: { beginAtZero: true,
+               ticks: { callback: v => v + '万', font: { size: 11 } },
+               grid: { color: '#e5e7eb' } },
+          x: { grid: { display: false } }
+        },
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12, padding: 14 } },
+          tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.raw + '万円' } }
+        }
+      }
+    });
+  }
 }
 
 // ============================================================
