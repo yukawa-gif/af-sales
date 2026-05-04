@@ -167,6 +167,16 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
   border-radius:50%;animation:spin .6s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* ─── トップバーボタン ─── */
+.topbar-btn{padding:5px 14px;border-radius:20px;
+  border:1.5px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);
+  color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;
+  text-decoration:none;display:inline-flex;align-items:center;transition:.15s;white-space:nowrap}
+.topbar-btn:hover{background:rgba(255,255,255,.2)}
+
+/* ─── 担当者フィルタ ─── */
+.sidebar-nav-item.pf-active{background:var(--blue-bg);color:var(--blue);font-weight:700}
+
 /* ─── トースト ─── */
 .toast-area{position:fixed;bottom:24px;right:24px;z-index:999;display:flex;flex-direction:column;gap:8px}
 .toast{background:#1f2937;color:#fff;padding:10px 16px;border-radius:var(--r);
@@ -194,17 +204,16 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
   <span class="topbar-logo">A-Factory<span class="topbar-sub">Sales</span></span>
   <div class="topbar-spacer"></div>
   <span class="topbar-date" id="topbarDate"></span>
+  <a href="dashboard.html" class="topbar-btn">📊 ダッシュボード</a>
+  <a href="deal_form.html" class="topbar-btn">＋ 案件登録</a>
+  <a href="daily_report.html" class="topbar-btn">📝 日報</a>
 </div>
 
 <!-- ─── サイドバー ─── -->
 <nav class="sidebar">
-  <span class="sidebar-label">メニュー</span>
-  <a href="dashboard.html" class="sidebar-nav-item">📊 ダッシュボード</a>
-  <a href="deal_form.html" class="sidebar-nav-item">📝 案件登録</a>
-  <a href="daily_report.html" class="sidebar-nav-item">📋 日報</a>
-  <div class="sidebar-divider"></div>
-  <span class="sidebar-label">マスター</span>
-  <a href="customer_master.html" class="sidebar-nav-item active">🏢 顧客管理</a>
+  <span class="sidebar-label">担当者</span>
+  <div class="sidebar-nav-item pf-active" id="sf-__all__" onclick="selectPersonFilter('')">全員</div>
+  <div id="person-filter-list"></div>
 </nav>
 
 <!-- ─── メインコンテンツ ─── -->
@@ -494,6 +503,7 @@ let allContacts = []; // 統計用（全担当者）
 let selectedCustomerId = null;
 let editingCustomerId  = null;
 let editingContactId   = null;
+let selectedPersonFilter = '';
 
 // ─── 初期化 ─────────────────────────────────────────────────────
 (async function init() {
@@ -501,7 +511,32 @@ let editingContactId   = null;
     new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'});
   await loadCustomers();
   loadAllContacts();
+  loadPersons();
 })();
+
+// ─── 担当者フィルタ ──────────────────────────────────────────────
+async function loadPersons() {
+  try {
+    const res = await fetch(GAS_URL + '?mode=master');
+    const d = await res.json();
+    if (d.success && d.personDetails) {
+      const active = d.personDetails.filter(p => p.status === '在籍中');
+      const list = document.getElementById('person-filter-list');
+      list.innerHTML = active.map(p =>
+        `<div class="sidebar-nav-item" id="sf-${esc(p.name)}" onclick="selectPersonFilter('${esc(p.name)}')">${esc(p.name)}</div>`
+      ).join('');
+    }
+  } catch(e) {}
+}
+
+function selectPersonFilter(name) {
+  selectedPersonFilter = name;
+  document.querySelectorAll('.sidebar-nav-item').forEach(el => el.classList.remove('pf-active'));
+  const id = name ? 'sf-' + name : 'sf-__all__';
+  const el = document.getElementById(id);
+  if (el) el.classList.add('pf-active');
+  renderCustomers();
+}
 
 // ─── フィールド名の正規化 ─────────────────────────────────────────
 function normalizeCustomer(c) {
@@ -604,7 +639,8 @@ function renderCustomers() {
     const matchQ = !q || c.company.toLowerCase().includes(q) ||
                    (c.afcStaff||'').toLowerCase().includes(q);
     const matchS = !status || c.status === status;
-    return matchQ && matchS;
+    const matchP = !selectedPersonFilter || c.afcStaff === selectedPersonFilter;
+    return matchQ && matchS && matchP;
   });
 
   document.getElementById('cusCount').textContent = `${filtered.length} 件`;
