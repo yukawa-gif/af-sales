@@ -1692,7 +1692,7 @@ function openGoalModal(){
 
 function goalPersons(){
   return (masterData?.personDetails||[]).filter(p=>
-    p.status==='在籍中'&&String(p.code||'').toLowerCase().startsWith('af')&&p.role!=='P'
+    p.status==='在籍中'&&p.role!=='P'
   );
 }
 
