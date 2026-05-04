@@ -188,9 +188,12 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
 .incentive-month-section{margin-bottom:12px}
 .incentive-month-section:last-child{margin-bottom:0}
 .incentive-month-header{display:flex;justify-content:space-between;align-items:center;
-  padding:4px 8px;background:var(--bg);border-radius:6px;margin-bottom:4px;
-  font-size:12px;font-weight:700;color:var(--text2)}
+  padding:6px 10px;background:var(--bg);border-radius:6px;margin-bottom:4px;
+  font-size:12px;font-weight:700;color:var(--text2);
+  cursor:pointer;user-select:none;transition:.12s}
+.incentive-month-header:hover{background:var(--border)}
 .incentive-month-header.current{background:var(--blue-bg);color:var(--blue)}
+.incentive-month-header.current:hover{background:#dbeafe}
 
 /* ─── AIアドバイスカード ─── */
 .ai-card{background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);
@@ -1520,6 +1523,15 @@ function closeDealModal(){
 // ============================================================
 // 案件一覧 開閉
 // ============================================================
+function toggleIncentiveMonth(id) {
+  const body = document.getElementById(id);
+  const icon = document.getElementById(id + '-icon');
+  if (!body) return;
+  const opening = body.style.display === 'none';
+  body.style.display = opening ? '' : 'none';
+  icon.textContent = opening ? '▼' : '▶';
+}
+
 let detailPanelOpen = false;
 function toggleDetailPanel() {
   detailPanelOpen = !detailPanelOpen;
@@ -2145,18 +2157,24 @@ function renderIncentiveCard(person, isTeam){
     const monthTotal=monthRows.reduce((s,r)=>s+r.amt,0);
     grandTotal+=monthTotal;
     const isCurrent=ym===todayYM;
+    const safeId='inc-'+ym.replace('-','');
     return `
       <div class="incentive-month-section">
-        <div class="incentive-month-header${isCurrent?' current':''}">
+        <div class="incentive-month-header${isCurrent?' current':''}" onclick="toggleIncentiveMonth('${safeId}')">
           <span>${parseInt(y)}年${parseInt(m)}月${isCurrent?' 〈今月〉':''}</span>
-          <span>¥${fmt(Math.round(monthTotal/10000))}万</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span>¥${fmt(Math.round(monthTotal/10000))}万</span>
+            <span id="${safeId}-icon" style="font-size:10px;color:var(--text3)">▶</span>
+          </div>
         </div>
-        ${monthRows.map(({d,amt})=>`
-          <div class="incentive-row">
-            <span class="incentive-co">${esc(d['会社名']||'')}</span>
-            <span class="incentive-prod">${esc(d['商材名']||'')}</span>
-            <span class="incentive-amt">¥${fmt(Math.round(amt/10000))}万</span>
-          </div>`).join('')}
+        <div id="${safeId}" style="display:none">
+          ${monthRows.map(({d,amt})=>`
+            <div class="incentive-row">
+              <span class="incentive-co">${esc(d['会社名']||'')}</span>
+              <span class="incentive-prod">${esc(d['商材名']||'')}</span>
+              <span class="incentive-amt">¥${fmt(Math.round(amt/10000))}万</span>
+            </div>`).join('')}
+        </div>
       </div>`;
   }).join('');
 
