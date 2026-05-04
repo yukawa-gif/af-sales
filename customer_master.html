@@ -226,7 +226,6 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
       <div class="page-meta">顧客マスタ・担当者マスタの管理</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
-      <button class="btn btn-secondary" onclick="handleMigrateOldDB()">🔄 旧DBから移行</button>
       <button class="btn btn-primary" onclick="openCustomerModal()">＋ 新規顧客登録</button>
     </div>
   </div>
@@ -1071,28 +1070,6 @@ async function detectIndustry() {
   }
 }
 
-// ─── 旧DB移行 ────────────────────────────────────────────────────
-async function handleMigrateOldDB() {
-  if (!confirm('旧「顧客DB」シートのデータを顧客マスタ・担当者マスタに移行しますか？\n重複企業はスキップされます。')) return;
-  showToast('移行処理を開始しています…');
-  try {
-    const res = await fetch(GAS_URL, {
-      method:'POST',
-      body: JSON.stringify({ action:'migrateOldDB' })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(`移行完了: ${data.migrated}件を追加しました`, 'success');
-      await loadCustomers();
-      loadAllContacts();
-    } else {
-      showToast('移行に失敗しました: ' + (data.error||''), 'error');
-    }
-  } catch(e) {
-    showToast('通信エラーが発生しました', 'error');
-    console.error(e);
-  }
-}
 
 // ─── ユーティリティ ──────────────────────────────────────────────
 function showModal(id) { document.getElementById(id).style.display = 'flex'; }
