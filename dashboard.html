@@ -760,6 +760,49 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbyAC_jurLseKlw5gw8s15p6
 const CACHE_KEY = 'af_dashboard_v1';
 const CACHE_TTL = 30 * 60 * 1000; // 30分（バックグラウンド更新するので長めでOK）
 
+// ============================================================
+// 通信ヘルパー
+// ============================================================
+// GET: タイムアウト15秒 + 最大2回リトライ（指数バックオフ）
+async function gasGet(params, { retries = 2, timeoutMs = 15000 } = {}) {
+  const url = GAS_URL + '?' + new URLSearchParams(params).toString();
+  let lastErr;
+  for (let i = 0; i <= retries; i++) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { signal: ctrl.signal });
+      clearTimeout(timer);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return await res.json();
+    } catch (err) {
+      clearTimeout(timer);
+      lastErr = err.name === 'AbortError' ? new Error('GAS応答タイムアウト（15秒）') : err;
+      if (i < retries) await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+    }
+  }
+  throw lastErr;
+}
+
+// POST (no-cors): fire-and-forget。レスポンスは読めないがタイムアウトは保持
+async function gasPost(payload, { timeoutMs = 15000 } = {}) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    await fetch(GAS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      body: JSON.stringify(payload),
+      signal: ctrl.signal,
+    });
+  } catch (err) {
+    if (err.name === 'AbortError') throw new Error('GAS送信タイムアウト（15秒）');
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 const PERSON_COLORS=['#2563eb','#16a34a','#dc2626','#d97706','#7c3aed','#0891b2','#be185d'];
 
 const RANKS=[
@@ -914,8 +957,7 @@ function loadDashboardCache(){
 
 async function fetchDashboardData(){
   try{
-    const res=await fetch(GAS_URL+'?mode=all');
-    const d=await res.json();
+    const d = await gasGet({ mode: 'all' });
     if(!d.success) return null;
     const cache={
       timestamp: Date.now(),
@@ -926,7 +968,10 @@ async function fetchDashboardData(){
     };
     try{ localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); }catch(e){}
     return cache;
-  }catch(e){ return null; }
+  }catch(e){
+    console.error('ダッシュボードデータ取得失敗:', e.message);
+    return null;
+  }
 }
 
 function applyDashboardData(cache){
@@ -1594,15 +1639,11 @@ async function saveTask(){
     notes:document.getElementById('task-notes').value||''
   };
   try{
-    await fetch(GAS_URL,{
-      method:'POST',mode:'no-cors',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(payload)
-    });
+    await gasPost(payload);
     closeTaskModal();
   }catch(e){
     btn.disabled=false; btn.textContent='登録する';
-    console.warn('Task save failed:',e);
+    console.warn('タスク登録失敗:', e.message);
   }
 }
 
@@ -1624,10 +1665,7 @@ async function openMailModal(deal){
   document.getElementById('mail-footer').style.display='none';
   document.getElementById('mail-modal').classList.add('open');
   try{
-    const company=encodeURIComponent(deal['会社名']||'');
-    const person=encodeURIComponent(deal['担当者']||'');
-    const res=await fetch(GAS_URL+'?mode=followup&company='+company+'&person='+person);
-    const data=await res.json();
+    const data=await gasGet({ mode:'followup', company:deal['会社名']||'', person:deal['担当者']||'' });
     if(!data.success)throw new Error(data.error||'取得失敗');
     document.getElementById('mail-to').value=data.recipientEmail||'';
     document.getElementById('mail-subject').value=data.subject||'';
@@ -1676,20 +1714,16 @@ async function saveDealModal(){
   // GAS更新（デモ以外）
   if(!isDemoMode&&editingDeal['案件ID']){
     try{
-      await fetch(GAS_URL,{
-        method:'POST',mode:'no-cors',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          action:'updateDeal',
-          id:editingDeal['案件ID'],
-          rankLabel:rank,
-          expectedMonth:month,
-          grossProfit:amount,
-          memo,
-          reason
-        }),
+      await gasPost({
+        action:'updateDeal',
+        id:editingDeal['案件ID'],
+        rankLabel:rank,
+        expectedMonth:month,
+        grossProfit:amount,
+        memo,
+        reason
       });
-    }catch(e){console.warn('GAS update failed:',e)}
+    }catch(e){ console.warn('案件更新失敗:', e.message); }
   }
 
   btn.disabled=false;btn.textContent='保存';
@@ -1834,12 +1868,8 @@ async function saveGoalModal(){
 
   if(!isDemoMode){
     try{
-      await fetch(GAS_URL,{
-        method:'POST',mode:'no-cors',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({action:'saveGoals',fy:'FY'+currentFY,goals}),
-      });
-    }catch(e){console.warn('Goal save failed:',e)}
+      await gasPost({ action:'saveGoals', fy:'FY'+currentFY, goals });
+    }catch(e){ console.warn('目標保存失敗:', e.message); }
   }
 
   btn.disabled=false; btn.textContent='保存';
@@ -1858,8 +1888,7 @@ async function showGoalsHistory(){
   document.getElementById('goals-history-modal').style.display='flex';
 
   try{
-    const res=await fetch(GAS_URL+'?mode=goals_history&fy='+fy);
-    const d=await res.json();
+    const d=await gasGet({ mode:'goals_history', fy });
     renderGoalsHistory(d.history||[]);
   }catch(e){
     document.getElementById('gh-loading').textContent='取得失敗: '+e.message;
@@ -2476,9 +2505,7 @@ async function fetchAIAdvice(){
   document.getElementById('ai-error').style.display='none';
   document.getElementById('ai-body').innerHTML='<div class="ai-loading"><div class="ai-spin"></div>Geminiが分析中です...</div>';
   try{
-    const person=encodeURIComponent(currentPerson||'__all__');
-    const res=await fetch(GAS_URL+'?mode=ai&person='+person);
-    const data=await res.json();
+    const data=await gasGet({ mode:'ai', person: currentPerson||'__all__' });
     if(!data.success) throw new Error(data.error||'取得失敗');
     document.getElementById('ai-body').innerHTML=
       `<div class="ai-body">${esc(data.text).replace(/\n/g,'<br>')}</div>`;
