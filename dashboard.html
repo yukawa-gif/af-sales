@@ -649,8 +649,23 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
       </table>
     </div>
     <div class="modal-footer">
+      <button class="modal-btn" style="margin-right:auto;background:var(--bg);border:1px solid var(--border);color:var(--text2)" onclick="showGoalsHistory()">📋 履歴</button>
       <button class="modal-btn modal-btn-cancel" onclick="closeGoalModal()">キャンセル</button>
       <button class="modal-btn modal-btn-save" id="gm-save" onclick="saveGoalModal()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 目標履歴モーダル -->
+<div class="modal-overlay" id="goals-history-modal" onclick="if(event.target===this)closeGoalsHistoryModal()" style="display:none">
+  <div class="modal-box" style="width:min(820px,96vw);max-height:85vh;display:flex;flex-direction:column">
+    <div class="modal-header">
+      <span class="modal-title">📋 目標設定 履歴 <span id="gh-fy" style="color:var(--text3);font-size:14px"></span></span>
+      <button class="modal-close" onclick="closeGoalsHistoryModal()">✕</button>
+    </div>
+    <div class="modal-body" id="gh-body" style="overflow-y:auto;flex:1;padding:16px">
+      <div id="gh-loading" style="text-align:center;padding:32px;color:var(--text3)">読み込み中...</div>
+      <div id="gh-list" style="display:none"></div>
     </div>
   </div>
 </div>
@@ -1757,7 +1772,7 @@ async function saveGoalModal(){
       await fetch(GAS_URL,{
         method:'POST',mode:'no-cors',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({action:'saveGoals',goals}),
+        body:JSON.stringify({action:'saveGoals',fy:'FY'+currentFY,goals}),
       });
     }catch(e){console.warn('Goal save failed:',e)}
   }
@@ -1765,6 +1780,78 @@ async function saveGoalModal(){
   btn.disabled=false; btn.textContent='保存';
   closeGoalModal();
   if(currentPerson) render(currentPerson);
+}
+
+// ============================================================
+// 目標設定 履歴モーダル
+// ============================================================
+async function showGoalsHistory(){
+  const fy='FY'+currentFY;
+  document.getElementById('gh-fy').textContent=fy;
+  document.getElementById('gh-loading').style.display='block';
+  document.getElementById('gh-list').style.display='none';
+  document.getElementById('goals-history-modal').style.display='flex';
+
+  try{
+    const res=await fetch(GAS_URL+'?mode=goals_history&fy='+fy);
+    const d=await res.json();
+    renderGoalsHistory(d.history||[]);
+  }catch(e){
+    document.getElementById('gh-loading').textContent='取得失敗: '+e.message;
+  }
+}
+
+function closeGoalsHistoryModal(){
+  document.getElementById('goals-history-modal').style.display='none';
+}
+
+function renderGoalsHistory(history){
+  document.getElementById('gh-loading').style.display='none';
+  const list=document.getElementById('gh-list');
+  list.style.display='block';
+
+  if(history.length===0){
+    list.innerHTML='<div style="text-align:center;padding:32px;color:var(--text3)">履歴がありません。</div>';
+    return;
+  }
+
+  const persons=goalPersons();
+  list.innerHTML=history.map((item,idx)=>{
+    const total=(item.goals?.persons||[]).reduce((s,p)=>s+Object.values(p.months||{}).reduce((a,v)=>a+v,0),0);
+    const rowsHtml=persons.map(p=>{
+      const pg=(item.goals?.persons||[]).find(g=>g.name===p.name);
+      const months=pg?.months||{};
+      const annual=Object.values(months).reduce((s,v)=>s+v,0);
+      const cells=fyMonths.map(m=>{
+        const v=months[yyyyMM(m.year,m.month)]||0;
+        return `<td style="text-align:right;padding:3px 6px;font-size:12px;color:${v>0?'var(--text1)':'var(--text3)'}">${v>0?v:'-'}</td>`;
+      }).join('');
+      return `<tr>
+        <td style="padding:3px 8px;font-size:12px;white-space:nowrap">${p.name}</td>
+        ${cells}
+        <td style="text-align:right;padding:3px 8px;font-size:12px;font-weight:700;color:var(--blue)">${annual}</td>
+      </tr>`;
+    }).join('');
+
+    const monthHeaders=fyMonths.map(m=>`<th style="text-align:right;padding:3px 6px;font-size:11px;color:var(--text3);min-width:32px">${m.month}月</th>`).join('');
+
+    return `<details style="border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden" ${idx===0?'open':''}>
+      <summary style="padding:12px 16px;cursor:pointer;background:var(--bg);display:flex;align-items:center;gap:12px;list-style:none">
+        <span style="font-weight:700;color:var(--text1)">${item.savedAt}</span>
+        <span style="color:var(--text3);font-size:13px">年間合計: <strong style="color:var(--blue)">${total}万円</strong></span>
+      </summary>
+      <div style="overflow-x:auto;padding:8px">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr>
+            <th style="text-align:left;padding:3px 8px;font-size:11px;color:var(--text3)">担当者</th>
+            ${monthHeaders}
+            <th style="text-align:right;padding:3px 8px;font-size:11px;color:var(--text3)">年計</th>
+          </tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+    </details>`;
+  }).join('');
 }
 
 function toggleMG(mgId){
