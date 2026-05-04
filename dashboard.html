@@ -551,14 +551,20 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
 
       <!-- インセンティブ -->
       <div class="card">
-        <div class="card-header">
+        <div class="card-header" onclick="toggleIncentiveCard()" style="cursor:pointer;user-select:none">
           <span class="card-title">インセンティブ支払いスケジュール</span>
-          <span class="card-hint" id="incentive-period-hint"></span>
+          <div style="display:flex;align-items:center;gap:10px;margin-left:auto">
+            <span class="card-hint" id="incentive-period-hint"></span>
+            <span style="font-weight:800;color:var(--blue);font-size:14px"><span id="incentive-total">0</span>万円</span>
+            <span id="incentive-card-icon" style="font-size:12px;color:var(--text3)">▼</span>
+          </div>
         </div>
-        <div id="incentive-list"></div>
-        <div class="incentive-total-row">
-          <span class="incentive-total-lbl">合計</span>
-          <span class="incentive-total-val"><span id="incentive-total">0</span>万円</span>
+        <div id="incentive-card-body" style="display:none">
+          <div id="incentive-list"></div>
+          <div class="incentive-total-row">
+            <span class="incentive-total-lbl">合計</span>
+            <span class="incentive-total-val"><span id="incentive-total-footer">0</span>万円</span>
+          </div>
         </div>
       </div>
 
@@ -1523,6 +1529,14 @@ function closeDealModal(){
 // ============================================================
 // 案件一覧 開閉
 // ============================================================
+function toggleIncentiveCard() {
+  const body = document.getElementById('incentive-card-body');
+  const icon = document.getElementById('incentive-card-icon');
+  const opening = body.style.display === 'none';
+  body.style.display = opening ? '' : 'none';
+  icon.textContent = opening ? '▲' : '▼';
+}
+
 function toggleIncentiveMonth(id) {
   const body = document.getElementById(id);
   const icon = document.getElementById(id + '-icon');
@@ -2179,6 +2193,8 @@ function renderIncentiveCard(person, isTeam){
   }).join('');
 
   totalEl.textContent=fmt(Math.round(grandTotal/10000));
+  const footerEl=document.getElementById('incentive-total-footer');
+  if(footerEl) footerEl.textContent=fmt(Math.round(grandTotal/10000));
 }
 
 // ============================================================
