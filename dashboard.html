@@ -1249,10 +1249,68 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
     });
   });
 
+  // 粗利目標（月別）を goalsData から集計
+  const targetByMonth={};
+  fyMonths.forEach(m=>{targetByMonth[yyyyMM(m.year,m.month)]=0});
+  if(isTeam){
+    (goalsData?.persons||[]).forEach(p=>{
+      fyMonths.forEach(m=>{
+        const ym=yyyyMM(m.year,m.month);
+        targetByMonth[ym]+=(p.months?p.months[ym]||0:0);
+      });
+    });
+  }else{
+    const pg=(goalsData?.persons||[]).find(p=>p.name===person);
+    if(pg?.months) fyMonths.forEach(m=>{
+      const ym=yyyyMM(m.year,m.month);
+      targetByMonth[ym]=pg.months[ym]||0;
+    });
+  }
+
   const tbody=document.getElementById('tl-tbody');
   tbody.innerHTML='';
 
-  // 実績行（常時表示）
+  // GAP行（実績 - 目標、最上段）
+  const gapCells=fyMonths.map(m=>{
+    const ym=yyyyMM(m.year,m.month);
+    const mgId=ymToMG[ym];
+    const actual=Math.round(augActual[ym]||0);
+    const target=targetByMonth[ym]||0;
+    if(target===0&&actual===0) return `<td data-mg="${mgId}" style="${mgs(ym)}"></td>`;
+    const gap=actual-target;
+    const col=gap>=0?'#2563eb':'#dc2626';
+    const bg=gap>0?';background:#eff6ff':gap<0?';background:#fef2f2':'';
+    const sign=gap>=0?'+':'';
+    return `<td class="${ym===todayYM?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}${bg}">
+      <span class="tl-amt" style="color:${col};font-weight:700">${sign}${fmt(gap)}万</span>
+    </td>`;
+  }).join('');
+  const gapRow=document.createElement('tr');
+  gapRow.innerHTML=`
+    <td class="td-co" style="color:#6366f1;font-weight:700">GAP</td>
+    <td class="td-rank"><span class="tl-rank-badge" style="background:#6366f1;width:18px;height:18px;font-size:9px">G</span></td>
+    <td class="td-name" style="color:var(--text3)">実績−目標</td>
+    ${gapCells}`;
+  tbody.appendChild(gapRow);
+
+  // 粗利目標行（GAP の下）
+  const targetCells=fyMonths.map(m=>{
+    const ym=yyyyMM(m.year,m.month);
+    const mgId=ymToMG[ym];
+    const v=targetByMonth[ym]||0;
+    return `<td class="${ym===todayYM?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}">
+      ${v>0?`<span class="tl-amt" style="color:var(--text2)">${fmt(v)}万</span>`:''}
+    </td>`;
+  }).join('');
+  const targetRow=document.createElement('tr');
+  targetRow.innerHTML=`
+    <td class="td-co" style="color:var(--text2)">粗利目標</td>
+    <td class="td-rank"><span class="tl-rank-badge" style="background:#94a3b8;width:18px;height:18px;font-size:9px">目</span></td>
+    <td class="td-name" style="color:var(--text3)">月別目標</td>
+    ${targetCells}`;
+  tbody.appendChild(targetRow);
+
+  // 実績行（粗利目標の下）
   const actualCells=fyMonths.map(m=>{
     const ym=yyyyMM(m.year,m.month);
     const isCur=ym===todayYM;
