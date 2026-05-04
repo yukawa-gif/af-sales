@@ -172,7 +172,7 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
 
 /* ─── 下段グリッド ─── */
 .bottom-grid{display:grid;grid-template-columns:380px 1fr;gap:14px;margin-bottom:16px}
-.incentive-ai-wrap{grid-column:1/-1;display:flex;gap:14px;align-items:stretch}
+.incentive-ai-wrap{grid-column:1/-1;display:flex;flex-direction:column;gap:14px}
 
 /* ─── インセンティブカード ─── */
 .incentive-month-lbl{font-size:11px;color:var(--text3);margin-bottom:10px}
@@ -185,6 +185,12 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
 .incentive-total-lbl{font-size:12px;color:var(--text2);font-weight:700}
 .incentive-total-val{font-size:20px;font-weight:800;color:var(--blue)}
 .incentive-empty{font-size:12px;color:var(--text3);padding:20px 0;text-align:center}
+.incentive-month-section{margin-bottom:12px}
+.incentive-month-section:last-child{margin-bottom:0}
+.incentive-month-header{display:flex;justify-content:space-between;align-items:center;
+  padding:4px 8px;background:var(--bg);border-radius:6px;margin-bottom:4px;
+  font-size:12px;font-weight:700;color:var(--text2)}
+.incentive-month-header.current{background:var(--blue-bg);color:var(--blue)}
 
 /* ─── AIアドバイスカード ─── */
 .ai-card{background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);
@@ -537,24 +543,24 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
       </div>
     </div>
 
-    <!-- インセンティブ＋AIアドバイス（横並び） -->
+    <!-- インセンティブ＋AIアドバイス（縦並び） -->
     <div class="incentive-ai-wrap">
 
       <!-- インセンティブ -->
-      <div class="card" style="width:300px;flex-shrink:0">
+      <div class="card">
         <div class="card-header">
-          <span class="card-title">インセンティブ</span>
+          <span class="card-title">インセンティブ支払いスケジュール</span>
+          <span class="card-hint" id="incentive-period-hint"></span>
         </div>
-        <div class="incentive-month-lbl" id="incentive-month-lbl"></div>
         <div id="incentive-list"></div>
         <div class="incentive-total-row">
-          <span class="incentive-total-lbl">翌月合計</span>
+          <span class="incentive-total-lbl">合計</span>
           <span class="incentive-total-val"><span id="incentive-total">0</span>万円</span>
         </div>
       </div>
 
       <!-- AIアドバイスカード -->
-      <div class="ai-card" style="flex:1">
+      <div class="ai-card">
         <div class="ai-card-header">
           <div class="ai-card-title">
             ✨ 今月の営業活動へのAIアドバイス
@@ -2068,14 +2074,11 @@ function renderProgress(target,actual,yomi,forecast,col,monthlyTarget,thisMonthA
 // インセンティブカード
 // ============================================================
 function renderIncentiveCard(person, isTeam){
-  const today=new Date();
-  const nm=new Date(today.getFullYear(),today.getMonth()+1,1);
-  const nextYM=nm.getFullYear()+'-'+String(nm.getMonth()+1).padStart(2,'0');
-  const label=(nm.getMonth()+1)+'月';
+  const fyStartYM = yyyyMM(fyMonths[0].year, fyMonths[0].month); // FY開始月（例: '2025-08'）
 
-  document.getElementById('incentive-month-lbl').textContent=label+'（翌月）の支払い予定';
+  // 月別マップ: { 'YYYY-MM': [{d, amt}, ...] }
+  const byMonth = {};
 
-  const rows=[];
   (dealsData||[]).forEach(d=>{
     if(!isTeam&&d['担当者']!==person) return;
     if(d['確度ランク']==='失注') return;
@@ -2084,35 +2087,63 @@ function renderIncentiveCard(person, isTeam){
     const startYM=String(d['売上予定月']||'').slice(0,7);
     if(!startYM) return;
     const months=Math.max(1,Number(d['月数'])||1);
+
     if(months<=1){
       // スポット：売上予定月のみ
-      if(startYM===nextYM) rows.push({d, amt: totalIncentive});
+      if(startYM>=fyStartYM){
+        if(!byMonth[startYM]) byMonth[startYM]=[];
+        byMonth[startYM].push({d, amt:totalIncentive});
+      }
     }else{
-      // ストック：契約期間中の翌月なら毎月支払い
-      const start=new Date(startYM+'-01');
-      const end=new Date(start.getFullYear(),start.getMonth()+months,1);
-      const next=new Date(nextYM+'-01');
-      if(next>=start&&next<end){
-        rows.push({d, amt: Math.floor(totalIncentive/months)});
+      // ストック：契約期間中の各月
+      for(let i=0;i<months;i++){
+        const base=new Date(startYM+'-01');
+        base.setMonth(base.getMonth()+i);
+        const ym=yyyyMM(base.getFullYear(),base.getMonth()+1);
+        if(ym<fyStartYM) continue;
+        if(!byMonth[ym]) byMonth[ym]=[];
+        byMonth[ym].push({d, amt:Math.floor(totalIncentive/months)});
       }
     }
   });
 
+  const sortedMonths=Object.keys(byMonth).sort();
   const listEl=document.getElementById('incentive-list');
   const totalEl=document.getElementById('incentive-total');
-  const total=rows.reduce((s,r)=>s+r.amt,0);
 
-  if(rows.length===0){
-    listEl.innerHTML='<div class="incentive-empty">翌月の支払い予定はありません</div>';
-  }else{
-    listEl.innerHTML=rows.map(({d,amt})=>`
-      <div class="incentive-row">
-        <span class="incentive-co">${esc(d['会社名']||'')}</span>
-        <span class="incentive-prod">${esc(d['商材名']||'')}</span>
-        <span class="incentive-amt">${fmt(Math.round(amt/10000))}万</span>
-      </div>`).join('');
+  if(!sortedMonths.length){
+    listEl.innerHTML='<div class="incentive-empty">支払い予定のインセンティブがありません</div>';
+    totalEl.textContent='0';
+    document.getElementById('incentive-period-hint').textContent='';
+    return;
   }
-  totalEl.textContent=fmt(Math.round(total/10000));
+
+  document.getElementById('incentive-period-hint').textContent=
+    fyStartYM.replace('-','年')+'月〜';
+
+  let grandTotal=0;
+  listEl.innerHTML=sortedMonths.map(ym=>{
+    const [y,m]=ym.split('-');
+    const monthRows=byMonth[ym];
+    const monthTotal=monthRows.reduce((s,r)=>s+r.amt,0);
+    grandTotal+=monthTotal;
+    const isCurrent=ym===todayYM;
+    return `
+      <div class="incentive-month-section">
+        <div class="incentive-month-header${isCurrent?' current':''}">
+          <span>${parseInt(y)}年${parseInt(m)}月${isCurrent?' 〈今月〉':''}</span>
+          <span>¥${fmt(Math.round(monthTotal/10000))}万</span>
+        </div>
+        ${monthRows.map(({d,amt})=>`
+          <div class="incentive-row">
+            <span class="incentive-co">${esc(d['会社名']||'')}</span>
+            <span class="incentive-prod">${esc(d['商材名']||'')}</span>
+            <span class="incentive-amt">¥${fmt(Math.round(amt/10000))}万</span>
+          </div>`).join('')}
+      </div>`;
+  }).join('');
+
+  totalEl.textContent=fmt(Math.round(grandTotal/10000));
 }
 
 // ============================================================
