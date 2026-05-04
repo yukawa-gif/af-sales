@@ -257,23 +257,34 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
 .monthly-prog-pct{font-size:15px;font-weight:800;color:var(--blue)}
 
 /* ─── 目標設定モーダル ─── */
-.goal-modal-box{width:min(1640px,96vw) !important;max-height:none;overflow:visible}
-.goal-table{width:100%;border-collapse:collapse;margin-top:4px;table-layout:fixed}
-.goal-table th{font-size:11px;color:var(--text3);font-weight:700;letter-spacing:.04em;
-  padding:6px 8px;text-align:center;border-bottom:2px solid var(--border);
-  background:var(--bg);white-space:nowrap}
-.goal-table th:first-child{text-align:left;width:100px}
-.goal-table td{padding:6px 8px;border-bottom:1px solid var(--border);
-  text-align:center;vertical-align:middle}
-.goal-table td:first-child{text-align:left;font-weight:600;font-size:13px;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.goal-table tbody tr:last-child td{border-bottom:none}
-.goal-input{width:100%;max-width:240px;padding:5px 6px;border:1.5px solid var(--border);
-  border-radius:6px;font-size:13px;text-align:right;font-family:inherit;
-  -webkit-appearance:none;transition:.15s;box-sizing:border-box}
-.goal-input:focus{outline:none;border-color:var(--blue);
-  box-shadow:0 0 0 3px rgba(37,99,235,.1)}
-.goal-hint{font-size:10px;color:var(--text3);margin-top:2px}
+.goal-modal-box{width:min(1640px,96vw) !important;max-height:96vh;overflow:visible}
+.goal-table{border-collapse:collapse;font-size:12px;white-space:nowrap;min-width:100%}
+.goal-table th{font-size:11px;font-weight:700;padding:5px 7px;text-align:center;
+  border:1px solid var(--border);line-height:1.4}
+.goal-table th:first-child{text-align:left;min-width:72px}
+.goal-table td{padding:4px 5px;border:1px solid var(--border);text-align:center;vertical-align:middle}
+.goal-table td:first-child{text-align:left;font-weight:600;padding-left:8px;white-space:nowrap}
+.goal-table th.h-q1{background:#dbeafe;color:#1e40af}
+.goal-table th.h-q2{background:#dcfce7;color:#15803d}
+.goal-table th.h-q3{background:#ede9fe;color:#6d28d9}
+.goal-table th.h-sum{background:#e2e8f0;color:var(--text2)}
+.goal-table th.h-annual{background:#1e3a5f;color:#fff}
+.goal-table td.q1{background:#f8fbff}
+.goal-table td.q2{background:#f8fdf8}
+.goal-table td.q3{background:#faf8ff}
+.goal-table td.td-sum{background:#e8edf3;font-weight:700}
+.goal-table td.td-annual{background:#dbeafe;font-weight:800;color:var(--blue)}
+.goal-table tr.tr-total td{background:#1e3a5f;color:#fff;font-weight:700}
+.goal-table tr.tr-total td.q1{background:#1e3270;color:#93c5fd}
+.goal-table tr.tr-total td.q2{background:#14532d;color:#86efac}
+.goal-table tr.tr-total td.q3{background:#4c1d95;color:#c4b5fd}
+.goal-table tr.tr-total td.td-sum{background:#111827;color:#d1d5db}
+.goal-table tr.tr-total td.td-annual{background:#1d4ed8;color:#fff}
+.goal-input-sm{width:68px;padding:3px 5px;border:1.5px solid var(--border);
+  border-radius:5px;font-size:12px;text-align:right;font-family:inherit;-webkit-appearance:none;transition:.15s}
+.goal-input-sm:focus{outline:none;border-color:var(--blue)}
+.goal-th-today{outline:2px solid var(--blue);outline-offset:-2px}
+.goal-hint{font-size:10px;color:var(--text3)}
 .goal-modal-note{font-size:12px;color:var(--text2);padding:0 20px 10px;
   border-bottom:1px solid var(--border);margin-bottom:4px}
 .goal-btn{padding:5px 14px;border-radius:20px;
@@ -620,19 +631,21 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
     <div class="modal-header">
       <div class="modal-title">⚙ 目標設定 <span id="gm-fy" style="color:var(--text3);font-size:14px"></span></div>
     </div>
-    <div class="modal-body">
-      <p class="goal-modal-note">担当者ごとに年間粗利目標とKPI目標を設定します。</p>
+    <div class="modal-body" style="padding:12px 16px;overflow-x:auto">
+      <p class="goal-modal-note">各月の粗利目標（万円）を入力してください。前期・中期・後期・年間合計が自動計算されます。</p>
       <table class="goal-table">
         <thead>
           <tr>
-            <th>担当者</th>
-            <th>年間粗利目標<span class="goal-hint">（万円）</span></th>
-            <th>月間粗利目標<span class="goal-hint">（万円）</span></th>
-            <th>面談目標<span class="goal-hint">（件）</span></th>
-            <th>架電目標<span class="goal-hint">（件）</span></th>
+            <th rowspan="2" style="background:var(--bg);min-width:72px">担当者</th>
+            <th colspan="5" class="h-q1">前期（8〜11月）</th>
+            <th colspan="5" class="h-q2">中期（12〜3月）</th>
+            <th colspan="5" class="h-q3">後期（4〜7月）</th>
+            <th rowspan="2" class="h-annual">年間計<br><span class="goal-hint" style="color:rgba(255,255,255,.7)">万円</span></th>
           </tr>
+          <tr id="goal-month-header"></tr>
         </thead>
         <tbody id="goal-tbody"></tbody>
+        <tfoot id="goal-tfoot"></tfoot>
       </table>
     </div>
     <div class="modal-footer">
@@ -1006,12 +1019,13 @@ function render(person){
     kpiGoal={kpi:{meeting:tm,call:tc}};
   }
 
-  // 今月目標・今月実績
+  // 今月目標・今月実績（months があれば当月値を使用、なければ monthlyTarget にフォールバック）
+  const getMonthlyGP=p=>p?.months?p.months[todayYM]||0:Math.round(p?.monthlyTarget||0);
   let monthlyTarget=0;
   if(isTeam){
-    monthlyTarget=(goalsData?.persons||[]).reduce((s,p)=>s+Math.round(p.monthlyTarget||0),0);
+    monthlyTarget=(goalsData?.persons||[]).reduce((s,p)=>s+getMonthlyGP(p),0);
   }else{
-    monthlyTarget=personGoal?Math.round(personGoal.monthlyTarget||0):0;
+    monthlyTarget=getMonthlyGP(personGoal);
   }
   const thisMonthActual=Math.round(actualByMonth[todayYM]||0);
 
@@ -1548,37 +1562,105 @@ async function saveDealModal(){
 // ============================================================
 // 目標設定モーダル
 // ============================================================
+// 期定義（fyMonths のインデックス）
+const GOAL_PERIODS=[
+  {cls:'q1',label:'前期',indices:[0,1,2,3]},
+  {cls:'q2',label:'中期',indices:[4,5,6,7]},
+  {cls:'q3',label:'後期',indices:[8,9,10,11]},
+];
+
 function openGoalModal(){
-  const persons=(masterData?.personDetails||[]).filter(p=>p.status==='在籍中'&&String(p.code||'').toLowerCase().startsWith('af')&&p.role!=='P');
+  const persons=goalPersons();
   document.getElementById('gm-fy').textContent='FY'+currentFY;
 
+  // 月ヘッダー行
+  document.getElementById('goal-month-header').innerHTML=GOAL_PERIODS.map(p=>
+    p.indices.map(i=>{
+      const m=fyMonths[i];
+      const ym=yyyyMM(m.year,m.month);
+      const isCur=ym===todayYM;
+      return `<th class="h-${p.cls}${isCur?' goal-th-today':''}">${m.month}月${isCur?'<br><span style="font-size:9px;font-weight:400">今月</span>':''}</th>`;
+    }).join('')+
+    `<th class="h-sum">${p.label}計<br><span class="goal-hint">万円</span></th>`
+  ).join('');
+
+  // データ行
   const tbody=document.getElementById('goal-tbody');
-  tbody.innerHTML=persons.map(p=>{
+  tbody.innerHTML=persons.map((p,pi)=>{
     const pg=(goalsData?.persons||[]).find(g=>g.name===p.name)||{};
-    const st=pg.salesTarget!=null?pg.salesTarget:'';
-    const mgt=pg.monthlyTarget!=null?pg.monthlyTarget:'';
-    const mt=(pg.kpi||{}).meeting!=null?(pg.kpi||{}).meeting:'';
-    const ct=(pg.kpi||{}).call!=null?(pg.kpi||{}).call:'';
-    return `<tr>
-      <td>${esc(p.name)}</td>
-      <td><input class="goal-input" type="number" min="0" step="10"
-        data-person="${esc(p.name)}" data-field="sales"
-        value="${st}" placeholder="0"></td>
-      <td><input class="goal-input" type="number" min="0" step="10"
-        data-person="${esc(p.name)}" data-field="monthlyTarget"
-        value="${mgt}" placeholder="0"></td>
-      <td><input class="goal-input" type="number" min="0"
-        data-person="${esc(p.name)}" data-field="meeting"
-        value="${mt}" placeholder="0"></td>
-      <td><input class="goal-input" type="number" min="0"
-        data-person="${esc(p.name)}" data-field="call"
-        value="${ct}" placeholder="0"></td>
-    </tr>`;
+    const months=pg.months||{};
+    const monthCells=GOAL_PERIODS.map(period=>
+      period.indices.map(i=>{
+        const ym=yyyyMM(fyMonths[i].year,fyMonths[i].month);
+        const val=months[ym]!=null?months[ym]:'';
+        return `<td class="${period.cls}"><input class="goal-input-sm" type="number" min="0" step="10"
+          data-pi="${pi}" data-ym="${ym}" value="${val}" placeholder="0" oninput="calcGoalRow(${pi})"></td>`;
+      }).join('')+`<td class="td-sum" id="gsum-${pi}-${period.cls}">—</td>`
+    ).join('');
+    return `<tr><td>${esc(p.name)}</td>${monthCells}<td class="td-annual" id="gannual-${pi}">—</td></tr>`;
   }).join('');
 
+  // tfoot（全社計）
+  document.getElementById('goal-tfoot').innerHTML=`<tr class="tr-total">
+    <td>全社計</td>
+    ${GOAL_PERIODS.map(p=>
+      p.indices.map(i=>`<td class="${p.cls}" id="gtotal-${yyyyMM(fyMonths[i].year,fyMonths[i].month)}">—</td>`).join('')+
+      `<td class="td-sum" id="gtotal-${p.cls}">—</td>`
+    ).join('')}
+    <td class="td-annual" id="gtotal-annual">—</td>
+  </tr>`;
+
+  // 初期計算
+  persons.forEach((_,pi)=>calcGoalRow(pi));
+
   document.getElementById('goal-modal').classList.add('open');
-  // 最初のフィールドにフォーカス
-  setTimeout(()=>tbody.querySelector('input')?.focus(),50);
+  setTimeout(()=>document.querySelector('#goal-tbody input')?.focus(),50);
+}
+
+function goalPersons(){
+  return (masterData?.personDetails||[]).filter(p=>
+    p.status==='在籍中'&&String(p.code||'').toLowerCase().startsWith('af')&&p.role!=='P'
+  );
+}
+
+function calcGoalRow(pi){
+  let annual=0;
+  GOAL_PERIODS.forEach(p=>{
+    let sum=0;
+    p.indices.forEach(i=>{
+      const ym=yyyyMM(fyMonths[i].year,fyMonths[i].month);
+      const inp=document.querySelector(`#goal-tbody input[data-pi="${pi}"][data-ym="${ym}"]`);
+      sum+=inp?parseInt(inp.value)||0:0;
+    });
+    const el=document.getElementById(`gsum-${pi}-${p.cls}`);
+    if(el) el.textContent=fmt(sum);
+    annual+=sum;
+  });
+  const el=document.getElementById(`gannual-${pi}`);
+  if(el) el.textContent=fmt(annual);
+  calcGoalTotals();
+}
+
+function calcGoalTotals(){
+  let annualTotal=0;
+  GOAL_PERIODS.forEach(p=>{
+    let periodTotal=0;
+    p.indices.forEach(i=>{
+      const ym=yyyyMM(fyMonths[i].year,fyMonths[i].month);
+      let monthTotal=0;
+      document.querySelectorAll(`#goal-tbody input[data-ym="${ym}"]`).forEach(inp=>{
+        monthTotal+=parseInt(inp.value)||0;
+      });
+      const el=document.getElementById(`gtotal-${ym}`);
+      if(el) el.textContent=fmt(monthTotal);
+      periodTotal+=monthTotal;
+    });
+    const el=document.getElementById(`gtotal-${p.cls}`);
+    if(el) el.textContent=fmt(periodTotal);
+    annualTotal+=periodTotal;
+  });
+  const el=document.getElementById('gtotal-annual');
+  if(el) el.textContent=fmt(annualTotal);
 }
 
 function closeGoalModal(){
@@ -1589,24 +1671,29 @@ async function saveGoalModal(){
   const btn=document.getElementById('gm-save');
   btn.disabled=true; btn.textContent='保存中...';
 
-  // テーブルから値を収集
+  const persons=goalPersons();
   const personMap={};
-  document.querySelectorAll('#goal-tbody input').forEach(inp=>{
-    const person=inp.dataset.person;
-    const field=inp.dataset.field;
-    if(!personMap[person]) personMap[person]={name:person,kpi:{}};
-    const val=inp.value===''?0:(parseInt(inp.value)||0);
-    if(field==='sales')         personMap[person].salesTarget=val;
-    if(field==='monthlyTarget') personMap[person].monthlyTarget=val;
-    if(field==='meeting')       personMap[person].kpi.meeting=val;
-    if(field==='call')          personMap[person].kpi.call=val;
+  persons.forEach(p=>{
+    const pg=(goalsData?.persons||[]).find(g=>g.name===p.name)||{};
+    personMap[p.name]={name:p.name,months:{},kpi:pg.kpi||{}};
   });
-  const goals={persons:Object.values(personMap)};
 
-  // メモリ更新（即時反映）
+  document.querySelectorAll('#goal-tbody input[data-ym]').forEach(inp=>{
+    const pi=parseInt(inp.dataset.pi);
+    const ym=inp.dataset.ym;
+    const name=persons[pi]?.name;
+    if(name&&personMap[name]) personMap[name].months[ym]=parseInt(inp.value)||0;
+  });
+
+  // salesTarget・monthlyTarget を派生（render()の後方互換）
+  Object.values(personMap).forEach(p=>{
+    p.salesTarget=Object.values(p.months).reduce((s,v)=>s+v,0);
+    p.monthlyTarget=p.months[todayYM]||0;
+  });
+
+  const goals={persons:Object.values(personMap)};
   goalsData=goals;
 
-  // GAS保存
   if(!isDemoMode){
     try{
       await fetch(GAS_URL,{
