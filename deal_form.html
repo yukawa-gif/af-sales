@@ -581,11 +581,11 @@ function applyProduct(name) {
 // 金額・インセンティブ計算
 // ============================================================
 function calcAmount() {
-  const unitSales = parseInt(document.getElementById('sales').value)   || 0;
-  const unitCost  = parseInt(document.getElementById('cost').value)    || 0;
-  const courses   = parseInt(document.getElementById('courses').value) || 1;
-  const qty       = parseInt(document.getElementById('qty').value)     || 1;
-  let   months    = parseInt(document.getElementById('months').value)  || 1;
+  const unitSales = Number(document.getElementById('sales').value)     || 0;
+  const unitCost  = Number(document.getElementById('cost').value)      || 0;
+  const courses   = parseInt(document.getElementById('courses').value, 10) || 1;
+  const qty       = parseInt(document.getElementById('qty').value, 10)     || 1;
+  let   months    = parseInt(document.getElementById('months').value, 10)  || 1;
 
   if (months > 24) { months = 24; document.getElementById('months').value = 24; }
 
@@ -702,11 +702,11 @@ async function submit() {
 
   const person      = getSelectedPerson();
   const productName = getSelectedProduct();
-  const unitSales   = parseInt(document.getElementById('sales').value)   || 0;
-  const unitCost    = parseInt(document.getElementById('cost').value)    || 0;
-  const courses     = parseInt(document.getElementById('courses').value) || 1;
-  const qty         = parseInt(document.getElementById('qty').value)     || 1;
-  const months      = Math.min(parseInt(document.getElementById('months').value) || 1, 24);
+  const unitSales   = Number(document.getElementById('sales').value)     || 0;
+  const unitCost    = Number(document.getElementById('cost').value)      || 0;
+  const courses     = parseInt(document.getElementById('courses').value, 10) || 1;
+  const qty         = parseInt(document.getElementById('qty').value, 10)     || 1;
+  const months      = Math.min(parseInt(document.getElementById('months').value, 10) || 1, 24);
 
   const payload = {
     action:        'addDeal',
