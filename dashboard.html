@@ -426,12 +426,15 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
 
   <!-- 目標達成率グラフ -->
   <div class="card" style="margin-bottom:16px" id="chart-card">
-    <div class="card-header">
+    <div class="card-header" onclick="toggleChartPanel()" style="cursor:pointer;user-select:none">
       <span class="card-title" id="chart-title">月別 粗利実績 vs 目標</span>
-      <span class="card-hint" id="chart-hint"></span>
+      <span class="card-hint" id="chart-hint" style="margin-left:auto"></span>
+      <span id="chart-toggle-icon" style="margin-left:8px;font-size:12px;color:var(--text3);flex-shrink:0">▼</span>
     </div>
-    <div style="position:relative;height:240px">
-      <canvas id="achievement-chart"></canvas>
+    <div id="chart-body" style="display:none">
+      <div style="position:relative;height:240px">
+        <canvas id="achievement-chart"></canvas>
+      </div>
     </div>
   </div>
 
@@ -1063,7 +1066,11 @@ function render(person){
   renderKPITable(kpiSums,kpiGoal);
   renderProgress(annualTarget,actualTotal,yomiTotal,forecast,col,monthlyTarget,thisMonthActual);
   renderIncentiveCard(person,isTeam);
-  renderAchievementChart(personDeals,person,isTeam);
+  pendingChartArgs = [personDeals, person, isTeam];
+  if (chartPanelOpen) {
+    renderAchievementChart(...pendingChartArgs);
+    pendingChartArgs = null;
+  }
 }
 
 // ============================================================
@@ -1512,6 +1519,18 @@ function toggleDetailPanel() {
   detailPanelOpen = !detailPanelOpen;
   document.getElementById('detail-table-wrap').style.display = detailPanelOpen ? '' : 'none';
   document.getElementById('detail-toggle-icon').textContent = detailPanelOpen ? '▲' : '▼';
+}
+
+let chartPanelOpen = false;
+let pendingChartArgs = null;
+function toggleChartPanel() {
+  chartPanelOpen = !chartPanelOpen;
+  document.getElementById('chart-body').style.display = chartPanelOpen ? '' : 'none';
+  document.getElementById('chart-toggle-icon').textContent = chartPanelOpen ? '▲' : '▼';
+  if (chartPanelOpen && pendingChartArgs) {
+    renderAchievementChart(...pendingChartArgs);
+    pendingChartArgs = null;
+  }
 }
 
 // ============================================================
