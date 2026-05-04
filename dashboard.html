@@ -44,11 +44,6 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
 .topbar-fy{font-size:11px;font-weight:700;background:rgba(255,255,255,.1);
   border:1px solid rgba(255,255,255,.15);padding:4px 12px;border-radius:20px;
   color:rgba(255,255,255,.8);letter-spacing:.06em}
-.demo-btn{padding:5px 14px;border-radius:20px;border:1px solid rgba(255,255,255,.2);
-  background:transparent;color:rgba(255,255,255,.75);font-size:11px;font-weight:600;
-  cursor:pointer;font-family:inherit;transition:var(--transition)}
-.demo-btn:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.35);color:#fff}
-.demo-btn.on{background:rgba(251,191,36,.18);border-color:rgba(251,191,36,.5);color:#fbbf24}
 
 /* ─── サイドバー ─── */
 .sidebar{width:var(--sidebar);background:var(--surface);
@@ -437,7 +432,6 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
   <a href="daily_report.html" target="_blank" class="goal-btn" style="text-decoration:none">実績報告</a>
   <button class="goal-btn" onclick="openGoalModal()">⚙ 目標設定</button>
   <span class="topbar-fy" id="fy-badge">FY2025</span>
-  <button class="demo-btn" id="demo-btn" onclick="toggleDemo()">DEMO</button>
   <button id="refresh-btn" onclick="manualRefresh()" style="background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:15px;padding:4px 6px;border-radius:6px;transition:var(--transition)" title="データを更新" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,.5)'">↻</button>
 </div>
 
