@@ -580,69 +580,6 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
       <div id="kpi-table-wrap"></div>
     </div>
 
-    <!-- 年間進捗 -->
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title" style="display:flex;align-items:center;gap:7px">
-          <i data-lucide="target" style="width:15px;height:15px;color:var(--blue)"></i> 年間進捗
-        </span>
-        <span class="card-hint" id="elapsed-hint"></span>
-      </div>
-      <div class="prog-wrap">
-        <div class="prog-header">
-          <span>実績 <b id="ph-actual">0</b> 万円</span>
-          <span id="ph-pct" style="font-size:16px;font-weight:800;color:var(--blue)">0%</span>
-          <span>目標 <b id="ph-target">—</b> 万円</span>
-        </div>
-        <div class="prog-bg">
-          <div class="prog-actual" id="bar-actual" style="width:0%"></div>
-          <div class="prog-yomi"   id="bar-yomi"   style="width:0%;left:0%"></div>
-          <div class="prog-pct-label" id="bar-label"></div>
-        </div>
-      </div>
-      <div class="prog-metrics">
-        <div class="prog-metric">
-          <div class="prog-metric-label">残り目標</div>
-          <div class="prog-metric-val" style="color:var(--red)" id="kv-remain">—</div>
-          <div class="prog-metric-unit">万円</div>
-        </div>
-        <div class="prog-metric">
-          <div class="prog-metric-label">着地見込</div>
-          <div class="prog-metric-val" style="color:var(--purple)" id="kv-forecast">—</div>
-          <div class="prog-metric-unit">万円</div>
-        </div>
-        <div class="prog-metric" style="grid-column:1/-1">
-          <div class="prog-metric-label">フォアキャスト</div>
-          <div class="prog-metric-val" style="color:var(--amber)" id="kv-forecast-pct">—</div>
-          <div class="prog-metric-unit">%達成見込</div>
-        </div>
-      </div>
-      <!-- 今月実績 vs 今月目標 -->
-      <div class="monthly-prog" id="monthly-prog-wrap" style="display:none">
-        <div class="monthly-prog-divider"></div>
-        <div class="monthly-prog-header">
-          <span class="monthly-prog-title">今月の粗利</span>
-          <span class="monthly-prog-pct" id="kv-month-pct">—</span>
-        </div>
-        <div class="prog-bg" style="margin-top:6px">
-          <div class="prog-actual" id="bar-month-actual" style="width:0%"></div>
-          <div class="prog-pct-label" id="bar-month-label"></div>
-        </div>
-        <div class="prog-metrics" style="margin-top:8px">
-          <div class="prog-metric">
-            <div class="prog-metric-label">今月実績</div>
-            <div class="prog-metric-val" id="kv-month-actual">—</div>
-            <div class="prog-metric-unit">万円</div>
-          </div>
-          <div class="prog-metric">
-            <div class="prog-metric-label">今月目標</div>
-            <div class="prog-metric-val" id="kv-month-target">—</div>
-            <div class="prog-metric-unit">万円</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- インセンティブ＋AIアドバイス（縦並び） -->
     <div class="incentive-ai-wrap">
 
@@ -686,6 +623,74 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
       </div>
 
     </div><!-- /incentive-ai-wrap -->
+
+    <!-- 年間進捗（アコーディオン） -->
+    <div class="card">
+      <div class="card-header" onclick="toggleAnnualProgress()" style="cursor:pointer;user-select:none">
+        <span class="card-title" style="display:flex;align-items:center;gap:7px">
+          <i data-lucide="target" style="width:15px;height:15px;color:var(--blue)"></i> 年間進捗
+        </span>
+        <div style="display:flex;align-items:center;gap:10px;margin-left:auto">
+          <span class="card-hint" id="elapsed-hint"></span>
+          <span id="annual-progress-icon" style="font-size:12px;color:var(--text3)">▼</span>
+        </div>
+      </div>
+      <div id="annual-progress-body" style="display:none">
+        <div class="prog-wrap">
+          <div class="prog-header">
+            <span>実績 <b id="ph-actual">0</b> 万円</span>
+            <span id="ph-pct" style="font-size:16px;font-weight:800;color:var(--blue)">0%</span>
+            <span>目標 <b id="ph-target">—</b> 万円</span>
+          </div>
+          <div class="prog-bg">
+            <div class="prog-actual" id="bar-actual" style="width:0%"></div>
+            <div class="prog-yomi"   id="bar-yomi"   style="width:0%;left:0%"></div>
+            <div class="prog-pct-label" id="bar-label"></div>
+          </div>
+        </div>
+        <div class="prog-metrics">
+          <div class="prog-metric">
+            <div class="prog-metric-label">残り目標</div>
+            <div class="prog-metric-val" style="color:var(--red)" id="kv-remain">—</div>
+            <div class="prog-metric-unit">万円</div>
+          </div>
+          <div class="prog-metric">
+            <div class="prog-metric-label">着地見込</div>
+            <div class="prog-metric-val" style="color:var(--purple)" id="kv-forecast">—</div>
+            <div class="prog-metric-unit">万円</div>
+          </div>
+          <div class="prog-metric" style="grid-column:1/-1">
+            <div class="prog-metric-label">フォアキャスト</div>
+            <div class="prog-metric-val" style="color:var(--amber)" id="kv-forecast-pct">—</div>
+            <div class="prog-metric-unit">%達成見込</div>
+          </div>
+        </div>
+        <!-- 今月実績 vs 今月目標 -->
+        <div class="monthly-prog" id="monthly-prog-wrap" style="display:none">
+          <div class="monthly-prog-divider"></div>
+          <div class="monthly-prog-header">
+            <span class="monthly-prog-title">今月の粗利</span>
+            <span class="monthly-prog-pct" id="kv-month-pct">—</span>
+          </div>
+          <div class="prog-bg" style="margin-top:6px">
+            <div class="prog-actual" id="bar-month-actual" style="width:0%"></div>
+            <div class="prog-pct-label" id="bar-month-label"></div>
+          </div>
+          <div class="prog-metrics" style="margin-top:8px">
+            <div class="prog-metric">
+              <div class="prog-metric-label">今月実績</div>
+              <div class="prog-metric-val" id="kv-month-actual">—</div>
+              <div class="prog-metric-unit">万円</div>
+            </div>
+            <div class="prog-metric">
+              <div class="prog-metric-label">今月目標</div>
+              <div class="prog-metric-val" id="kv-month-target">—</div>
+              <div class="prog-metric-unit">万円</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
   </div><!-- /bottom-grid -->
 
@@ -1780,6 +1785,14 @@ function closeDealModal(){
 // ============================================================
 // 案件一覧 開閉
 // ============================================================
+function toggleAnnualProgress() {
+  const body = document.getElementById('annual-progress-body');
+  const icon = document.getElementById('annual-progress-icon');
+  const opening = body.style.display === 'none';
+  body.style.display = opening ? '' : 'none';
+  icon.textContent = opening ? '▲' : '▼';
+}
+
 function toggleIncentiveCard() {
   const body = document.getElementById('incentive-card-body');
   const icon = document.getElementById('incentive-card-icon');
