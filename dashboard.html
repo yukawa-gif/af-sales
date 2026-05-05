@@ -2422,6 +2422,8 @@ function renderIncentiveCard(person, isTeam){
   if(!sortedMonths.length){
     listEl.innerHTML='<div class="incentive-empty">支払い予定のインセンティブがありません</div>';
     totalEl.textContent='0';
+    const emptyFooter=document.getElementById('incentive-total-footer');
+    if(emptyFooter) emptyFooter.textContent='0';
     document.getElementById('incentive-period-hint').textContent='';
     return;
   }
