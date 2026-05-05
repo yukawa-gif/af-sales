@@ -26,7 +26,7 @@ function getNextId_(sheet, prefix) {
 //     G:顧客ステータス H:登録日 I:最終更新日 J:メモ
 // ============================================================
 
-function getCustomers() {
+function getAllCustomers_() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CUSTOMER_SHEET);
   if (!sheet) return [];
   const [, ...rows] = sheet.getDataRange().getValues();
@@ -38,10 +38,41 @@ function getCustomers() {
     industry: r[4],
     afcStaff: r[5],
     status:   r[6],
-    createdAt: r[7] ? Utilities.formatDate(new Date(r[7]), 'Asia/Tokyo', 'yyyy-MM-dd') : '',
-    updatedAt: r[8] ? Utilities.formatDate(new Date(r[8]), 'Asia/Tokyo', 'yyyy-MM-dd') : '',
     memo:     r[9]
   }));
+}
+
+function getCustomers(d) {
+  const page     = parseInt((d && d.page != null) ? d.page : 0, 10);
+  const pageSize = parseInt((d && d.pageSize)     ? d.pageSize : 50, 10);
+  const query    = d && d.query    ? String(d.query).toLowerCase()    : '';
+  const status   = d && d.status   ? String(d.status)                 : '';
+  const afcStaff = d && d.afcStaff ? String(d.afcStaff)              : '';
+
+  const all = getAllCustomers_();
+  const filtered = all.filter(c => {
+    if (status   && c.status   !== status)   return false;
+    if (afcStaff && c.afcStaff !== afcStaff) return false;
+    if (query) {
+      const co = String(c.company  || '').toLowerCase();
+      const st = String(c.afcStaff || '').toLowerCase();
+      if (!co.includes(query) && !st.includes(query)) return false;
+    }
+    return true;
+  });
+
+  const total = filtered.length;
+  const data  = filtered.slice(page * pageSize, (page + 1) * pageSize);
+  return { success: true, data, total, page, pageSize };
+}
+
+function getCustomerStats() {
+  const all      = getAllCustomers_();
+  const total    = all.length;
+  const active   = all.filter(c => c.status === '取引中' || c.status === '既存').length;
+  const prospect = all.filter(c => c.status === '見込み').length;
+  const inactive = all.filter(c => c.status === '休眠'   || c.status === '失注').length;
+  return { success: true, total, active, prospect, inactive };
 }
 
 function addCustomer(d) {
@@ -110,7 +141,7 @@ function addContact(d) {
   // 顧客マスタから企業名を補完
   let company = d.company || '';
   if (!company && d.customerId) {
-    const found = getCustomers().find(c => c.id === d.customerId);
+    const found = getAllCustomers_().find(c => c.id === d.customerId);
     if (found) company = found.company;
   }
 
@@ -161,7 +192,7 @@ function migrateOldCustomerDB() {
   if (!conSheet) throw new Error('担当者マスタシートが見つかりません');
 
   const [, ...rows]  = oldSheet.getDataRange().getValues();
-  const existingCompanies = getCustomers().map(c => c.company);
+  const existingCompanies = getAllCustomers_().map(c => c.company);
   let count = 0;
 
   for (const r of rows) {

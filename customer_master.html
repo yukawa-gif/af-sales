@@ -265,8 +265,8 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
       </div>
       <div class="toolbar">
         <input class="search-input" id="cusSearch" placeholder="🔍 企業名・AFC担当者で検索"
-          oninput="renderCustomers()">
-        <select class="filter-select" id="cusStatusFilter" onchange="renderCustomers()">
+          oninput="onSearchInput()">
+        <select class="filter-select" id="cusStatusFilter" onchange="loadCustomers(0)">
           <option value="">すべてのステータス</option>
           <option value="取引中">取引中</option>
           <option value="見込み">見込み</option>
@@ -288,10 +288,11 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
             </tr>
           </thead>
           <tbody id="cusTbody">
-            <tr><td colspan="6" class="empty-state"><div class="empty-icon">⏳</div>読み込み中…</td></tr>
+            <tr><td colspan="5" class="empty-state"><div class="empty-icon">⏳</div>読み込み中…</td></tr>
           </tbody>
         </table>
       </div>
+      <div id="paginationArea" style="display:flex;align-items:center;justify-content:center;gap:12px;padding:10px 16px;border-top:1px solid var(--border)"></div>
     </div>
 
     <!-- 右ペイン：担当者一覧 -->
@@ -496,21 +497,22 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbyAC_jurLseKlw5gw8s15p6Xu1q66-fmcgBDUuruAeg5IlfmAFjU7mNvRwK1Yz1k9dt/exec';
 
 // ─── 状態 ───────────────────────────────────────────────────────
-let customers = [];
-let contacts  = [];
-let allContacts = []; // 統計用（全担当者）
+let customers          = [];  // 現在ページのデータのみ
+let contacts           = [];
+let currentPage        = 0;
+let totalCount         = 0;
+const PAGE_SIZE        = 50;
 let selectedCustomerId = null;
 let editingCustomerId  = null;
 let editingContactId   = null;
 let selectedPersonFilter = '';
+let searchDebounce     = null;
 
 // ─── 初期化 ─────────────────────────────────────────────────────
 (async function init() {
   document.getElementById('topbarDate').textContent =
     new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'});
-  await loadCustomers();
-  loadAllContacts();
-  loadPersons();
+  await Promise.all([loadCustomerStats(), loadCustomers(0), loadPersons()]);
 })();
 
 // ─── 担当者フィルタ ──────────────────────────────────────────────
@@ -534,20 +536,20 @@ function selectPersonFilter(name) {
   const id = name ? 'sf-' + name : 'sf-__all__';
   const el = document.getElementById(id);
   if (el) el.classList.add('pf-active');
-  renderCustomers();
+  loadCustomers(0);
 }
 
 // ─── フィールド名の正規化 ─────────────────────────────────────────
 function normalizeCustomer(c) {
   return {
-    id:       c['顧客ID']       || c.id       || '',
-    company:  c['企業名']       || c.company  || '',
-    pref:     c['都道府県']     || c.pref     || '',
-    address:  c['住所']         || c.address  || '',
-    industry: c['業種']         || c.industry || '',
-    afcStaff: c['AFC担当者']    || c.afcStaff || '',
-    status:   c['顧客ステータス'] || c.status  || '',
-    memo:     c['メモ']         || c.memo     || ''
+    id:       c.id       || '',
+    company:  c.company  || '',
+    pref:     c.pref     || '',
+    address:  c.address  || '',
+    industry: c.industry || '',
+    afcStaff: c.afcStaff || '',
+    status:   c.status   || '',
+    memo:     c.memo     || ''
   };
 }
 
@@ -568,99 +570,81 @@ function normalizeContact(c) {
   };
 }
 
-// ─── データ取得 ──────────────────────────────────────────────────
-async function loadCustomers() {
+// ─── 統計（専用エンドポイント）──────────────────────────────────
+async function loadCustomerStats() {
   try {
     const res = await fetch(GAS_URL, {
-      method:'POST',
-      body: JSON.stringify({action:'getCustomers'})
+      method: 'POST',
+      body: JSON.stringify({ action: 'getCustomerStats' })
+    });
+    const d = await res.json();
+    if (d.success) {
+      document.getElementById('statTotal').textContent    = d.total;
+      document.getElementById('statActive').textContent   = d.active;
+      document.getElementById('statProspect').textContent = d.prospect;
+      document.getElementById('statInactive').textContent = d.inactive;
+    }
+  } catch(e) { console.error('統計取得失敗:', e); }
+}
+
+// ─── 顧客一覧取得（サーバー側フィルタ＋ページネーション）─────────
+async function loadCustomers(page = 0) {
+  currentPage = page;
+  document.getElementById('cusTbody').innerHTML =
+    '<tr><td colspan="5" class="empty-state"><div class="empty-icon">⏳</div>読み込み中…</td></tr>';
+
+  const query    = document.getElementById('cusSearch').value.trim();
+  const status   = document.getElementById('cusStatusFilter').value;
+
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'getCustomers',
+        page,
+        pageSize: PAGE_SIZE,
+        query,
+        status,
+        afcStaff: selectedPersonFilter
+      })
     });
     const raw = await res.json();
-    console.log('GASレスポンス:', JSON.stringify(raw).substring(0, 300));
-    const arr = Array.isArray(raw) ? raw : (raw.data || raw.result || []);
-    customers = arr.map(normalizeCustomer);
-    renderCustomers();
-    updateStats();
+    if (raw.success) {
+      customers  = (raw.data || []).map(normalizeCustomer);
+      totalCount = raw.total || 0;
+      renderCustomers();
+      renderPagination();
+    } else {
+      throw new Error(raw.error || '不明なエラー');
+    }
   } catch(e) {
     console.error('顧客取得失敗:', e);
     showToast('顧客データの取得に失敗しました', 'error');
     document.getElementById('cusTbody').innerHTML =
-      '<tr><td colspan="6" class="empty-state">データ取得エラー。GAS設定を確認してください。</td></tr>';
+      '<tr><td colspan="5" class="empty-state">データ取得エラー</td></tr>';
   }
 }
 
-async function loadContacts(customerId) {
-  try {
-    const res = await fetch(GAS_URL, {
-      method:'POST',
-      body: JSON.stringify({action:'getContactMaster', customerId})
-    });
-    const raw = await res.json();
-    const arr = Array.isArray(raw) ? raw : (raw.data || []);
-    contacts = arr.map(normalizeContact).filter(c => c.name);
-    renderContacts();
-  } catch(e) {
-    console.error('担当者取得失敗:', e);
-    showToast('担当者データの取得に失敗しました', 'error');
-  }
+function onSearchInput() {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => loadCustomers(0), 400);
 }
 
-async function loadAllContacts() {
-  try {
-    const res = await fetch(GAS_URL, {
-      method:'POST',
-      body: JSON.stringify({action:'getContactMaster', customerId:''})
-    });
-    allContacts = await res.json();
-    updateStats();
-  } catch(e) {
-    console.error('全担当者取得失敗:', e);
-  }
-}
-
-// ─── 統計更新 ────────────────────────────────────────────────────
-function updateStats() {
-  document.getElementById('statTotal').textContent = customers.length;
-  const active   = customers.filter(c => ['取引中','既存'].includes(c.status)).length;
-  const prospect = customers.filter(c => c.status === '見込み').length;
-  const inactive = customers.filter(c => ['休眠','失注'].includes(c.status)).length;
-  document.getElementById('statActive').textContent   = active;
-  document.getElementById('statProspect').textContent = prospect;
-  document.getElementById('statInactive').textContent = inactive;
-}
-
-// ─── 顧客一覧レンダリング ────────────────────────────────────────
+// ─── 顧客一覧レンダリング（フィルタ済みデータをそのまま描画）────
 function renderCustomers() {
-  const q      = document.getElementById('cusSearch').value.toLowerCase();
-  const status = document.getElementById('cusStatusFilter').value;
+  document.getElementById('cusCount').textContent = `${totalCount} 件`;
 
-  const filtered = customers.filter(c => {
-    const matchQ = !q || c.company.toLowerCase().includes(q) ||
-                   (c.afcStaff||'').toLowerCase().includes(q);
-    const matchS = !status || c.status === status;
-    const matchP = !selectedPersonFilter || c.afcStaff === selectedPersonFilter;
-    return matchQ && matchS && matchP;
-  });
-
-  document.getElementById('cusCount').textContent = `${filtered.length} 件`;
-
-  if (!filtered.length) {
+  if (!customers.length) {
     document.getElementById('cusTbody').innerHTML =
-      '<tr><td colspan="6" class="empty-state"><div class="empty-icon">🔍</div>該当する顧客がありません</td></tr>';
+      '<tr><td colspan="5" class="empty-state"><div class="empty-icon">🔍</div>該当する顧客がありません</td></tr>';
     return;
   }
 
-  document.getElementById('cusTbody').innerHTML = filtered.map(c => {
-    const cusContacts = allContacts
-      .filter(con => String(con['顧客ID'] || con.customerId || '').trim() === String(c.id).trim())
-      .map(con => con['担当者名'] || con.name || '')
-      .filter(Boolean);
-    return `
+  document.getElementById('cusTbody').innerHTML = customers.map(c => `
     <tr class="${c.id === selectedCustomerId ? 'selected' : ''}"
         onclick="selectCustomer('${esc(c.id)}')">
       <td onclick="event.stopPropagation();selectCustomer('${esc(c.id)}');openCustomerModal('${esc(c.id)}')">
         <div style="font-weight:600;color:var(--blue);cursor:pointer;text-decoration:underline dotted">${esc(c.company)}</div>
-        ${cusContacts.length ? `<div style="font-size:10px;color:var(--text3);margin-top:1px">${esc(cusContacts.join('・'))}</div>` : ''}
       </td>
       <td onclick="event.stopPropagation()">
         <select class="status-select" style="${statusSelectStyle(c.status)}"
@@ -676,14 +660,22 @@ function renderCustomers() {
       <td style="font-size:11px;color:var(--text2)">${esc(c.industry||'—')}</td>
       <td>${esc(c.pref||'—')}</td>
     </tr>
-  `;
-  }).join('');
+  `).join('');
 }
 
-function statusBadge(s) {
-  const map = {取引中:'active',見込み:'prospect',既存:'existing',休眠:'inactive',失注:'ng'};
-  const cls = map[s] || 'inactive';
-  return `<span class="badge badge-${cls}">${esc(s||'—')}</span>`;
+// ─── ページネーション ────────────────────────────────────────────
+function renderPagination() {
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  if (totalPages <= 1) { document.getElementById('paginationArea').innerHTML = ''; return; }
+  const start = currentPage * PAGE_SIZE + 1;
+  const end   = Math.min((currentPage + 1) * PAGE_SIZE, totalCount);
+  document.getElementById('paginationArea').innerHTML = `
+    <button class="btn btn-secondary btn-sm" onclick="loadCustomers(${currentPage - 1})"
+      ${currentPage === 0 ? 'disabled' : ''}>◀ 前へ</button>
+    <span style="font-size:12px;color:var(--text2)">${start}–${end} / ${totalCount}件</span>
+    <button class="btn btn-secondary btn-sm" onclick="loadCustomers(${currentPage + 1})"
+      ${currentPage >= totalPages - 1 ? 'disabled' : ''}>次へ ▶</button>
+  `;
 }
 
 function statusSelectStyle(s) {
@@ -701,8 +693,8 @@ async function quickUpdateStatus(id, status) {
   const cus = customers.find(c => c.id === id);
   if (!cus) return;
   const prev = cus.status;
-  cus.status = status; // 楽観的更新
-  updateStats();
+  cus.status = status;
+  renderCustomers();
   try {
     const res = await fetch(GAS_URL, {
       method: 'POST',
@@ -711,13 +703,13 @@ async function quickUpdateStatus(id, status) {
     const data = await res.json();
     if (!data.success) {
       cus.status = prev;
-      updateStats();
       renderCustomers();
       showToast('ステータス更新に失敗しました', 'error');
+    } else {
+      loadCustomerStats();
     }
   } catch(e) {
     cus.status = prev;
-    updateStats();
     renderCustomers();
     showToast('通信エラーが発生しました', 'error');
   }
@@ -729,20 +721,33 @@ function selectCustomer(id) {
   const cus = customers.find(c => c.id === id);
   if (!cus) return;
 
-  // 右ペインを表示
   document.getElementById('contactPane').classList.add('visible');
   document.getElementById('splitView').style.gridTemplateColumns = '1fr 400px';
-
-  // ヘッダー更新
   document.getElementById('contactPaneName').textContent = cus.company;
   document.getElementById('contactPaneMeta').textContent =
     [cus.pref, cus.industry, cus.afcStaff ? 'AFC:'+cus.afcStaff : ''].filter(Boolean).join(' / ');
 
   loadContacts(id);
-  renderCustomers(); // 選択行ハイライト更新
+  renderCustomers();
 }
 
-// ─── 担当者一覧レンダリング ──────────────────────────────────────
+// ─── 担当者取得・レンダリング ─────────────────────────────────────
+async function loadContacts(customerId) {
+  try {
+    const res = await fetch(GAS_URL, {
+      method:'POST',
+      body: JSON.stringify({action:'getContactMaster', customerId})
+    });
+    const raw = await res.json();
+    const arr = Array.isArray(raw) ? raw : (raw.data || []);
+    contacts = arr.map(normalizeContact).filter(c => c.name);
+    renderContacts();
+  } catch(e) {
+    console.error('担当者取得失敗:', e);
+    showToast('担当者データの取得に失敗しました', 'error');
+  }
+}
+
 function renderContacts() {
   if (!contacts.length) {
     document.getElementById('contactTbody').innerHTML =
@@ -804,7 +809,7 @@ async function saveCustomer() {
   setLoading(btn, true);
 
   const payload = {
-    action: editingCustomerId ? 'updateCustomer' : 'addCustomer',
+    action:   editingCustomerId ? 'updateCustomer' : 'addCustomer',
     id:       editingCustomerId || undefined,
     company,
     industry: val('cusIndustry'),
@@ -816,18 +821,15 @@ async function saveCustomer() {
   };
 
   try {
-    const res = await fetch(GAS_URL, {
-      method:'POST',
-      body: JSON.stringify(payload)
-    });
+    const res = await fetch(GAS_URL, { method:'POST', body: JSON.stringify(payload) });
     const data = await res.json();
     if (data.success) {
       showToast(editingCustomerId ? '顧客情報を更新しました' : '顧客を登録しました', 'success');
       closeModal('customerModal');
-      await loadCustomers();
-      if (editingCustomerId) {
-        // 選択中なら右ペインのヘッダーも更新
-        if (selectedCustomerId === editingCustomerId) selectCustomer(editingCustomerId);
+      await loadCustomers(currentPage);
+      loadCustomerStats();
+      if (editingCustomerId && selectedCustomerId === editingCustomerId) {
+        selectCustomer(editingCustomerId);
       }
     } else {
       showToast('保存に失敗しました: ' + (data.error||''), 'error');
@@ -877,7 +879,7 @@ async function saveContact() {
   setLoading(btn, true);
 
   const payload = {
-    action: editingContactId ? 'updateContact' : 'addContact',
+    action:         editingContactId ? 'updateContact' : 'addContact',
     id:             editingContactId || undefined,
     customerId:     selectedCustomerId,
     name,
@@ -891,16 +893,12 @@ async function saveContact() {
   };
 
   try {
-    const res = await fetch(GAS_URL, {
-      method:'POST',
-      body: JSON.stringify(payload)
-    });
+    const res = await fetch(GAS_URL, { method:'POST', body: JSON.stringify(payload) });
     const data = await res.json();
     if (data.success) {
       showToast(editingContactId ? '担当者情報を更新しました' : '担当者を登録しました', 'success');
       closeModal('contactModal');
       await loadContacts(selectedCustomerId);
-      loadAllContacts();
     } else {
       showToast('保存に失敗しました: ' + (data.error||''), 'error');
     }
@@ -954,7 +952,6 @@ function openContactModalFromCustomer() {
 
 function editContactFromModal(contactId, customerId) {
   selectedCustomerId = customerId;
-  // contacts配列を一時的に上書きしてモーダルを開く
   fetch(GAS_URL, {
     method: 'POST',
     body: JSON.stringify({ action: 'getContactMaster', customerId })
@@ -962,10 +959,7 @@ function editContactFromModal(contactId, customerId) {
     contacts = (Array.isArray(raw) ? raw : (raw.data || [])).map(normalizeContact).filter(c => c.name);
     closeModal('customerModal');
     openContactModal(contactId);
-  }).catch(err => {
-    console.error('担当者情報取得失敗', err);
-    showToast('担当者情報の取得に失敗しました', 'error');
-  });
+  }).catch(() => showToast('担当者情報の取得に失敗しました', 'error'));
 }
 
 async function deleteContactFromModal(contactId, name, customerId) {
@@ -979,7 +973,6 @@ async function deleteContactFromModal(contactId, name, customerId) {
     if (data.success) {
       showToast('担当者を削除しました', 'success');
       loadContactsForModal(customerId);
-      loadAllContacts();
     } else {
       showToast('削除に失敗しました: ' + (data.error || ''), 'error');
     }
@@ -1009,7 +1002,8 @@ async function deleteCustomer() {
         selectedCustomerId = null;
         document.getElementById('contactPane').classList.remove('visible');
       }
-      await loadCustomers();
+      await loadCustomers(currentPage);
+      loadCustomerStats();
     } else {
       showToast('削除に失敗しました: ' + (data.error || ''), 'error');
     }
@@ -1031,7 +1025,6 @@ async function deleteContact(id, name) {
     if (data.success) {
       showToast('担当者を削除しました', 'success');
       await loadContacts(selectedCustomerId);
-      loadAllContacts();
     } else {
       showToast('削除に失敗しました: ' + (data.error || ''), 'error');
     }
@@ -1070,7 +1063,6 @@ async function detectIndustry() {
   }
 }
 
-
 // ─── ユーティリティ ──────────────────────────────────────────────
 function showModal(id) { document.getElementById(id).style.display = 'flex'; }
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -1092,7 +1084,6 @@ function setLoading(btn, on) {
   }
 }
 
-let toastTimer;
 function showToast(msg, type = '') {
   const area = document.getElementById('toastArea');
   const el = document.createElement('div');
@@ -1102,7 +1093,6 @@ function showToast(msg, type = '') {
   setTimeout(() => el.remove(), 3500);
 }
 
-// ESCキーでモーダルを閉じる
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   ['customerModal','contactModal'].forEach(id => {
