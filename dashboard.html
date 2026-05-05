@@ -1372,6 +1372,7 @@ function renderAlert(target,actual,yomi){
 // 未入金アラートウィジェット
 // ============================================================
 let unpaidAlertOpen = false;
+let unpaidAlertDeals = [];
 function renderUnpaidAlert(deals) {
   const area = document.getElementById('unpaid-alert-area');
   area.innerHTML = '';
@@ -1387,13 +1388,14 @@ function renderUnpaidAlert(deals) {
   if (unpaid.length === 0) return;
 
   unpaid.sort((a, b) => (a['売上予定月'] < b['売上予定月'] ? -1 : 1));
+  unpaidAlertDeals = unpaid;
 
   const rows = unpaid.map(d => {
     const gp = Number(d['粗利']) || 0;
     return `<div class="unpaid-alert-row">
       <span class="unpaid-alert-month">${d['売上予定月']}</span>
       <span class="unpaid-alert-person">${d['担当者'] || ''}</span>
-      <span class="unpaid-alert-company">${d['会社名'] || ''}</span>
+      <span class="unpaid-alert-company" style="cursor:pointer;text-decoration:underline" title="クリックで編集">${d['会社名'] || ''}</span>
       <span class="unpaid-alert-amount">${fmtMan(gp)}</span>
     </div>`;
   }).join('');
@@ -1413,6 +1415,14 @@ function renderUnpaidAlert(deals) {
       </div>
     </div>`;
   lucide.createIcons();
+
+  // インラインonclickではなくDOMイベントで登録（スコープ問題を回避）
+  area.querySelectorAll('.unpaid-alert-company').forEach((el, i) => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      openDealModal(unpaid[i]);
+    });
+  });
 }
 function toggleUnpaidAlert() {
   unpaidAlertOpen = !unpaidAlertOpen;
@@ -1571,15 +1581,21 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
     </td>`;
   }).join('');
   const actualRow=document.createElement('tr');
+  actualRow.className='tl-rank-row';
+  actualRow.style.cursor='pointer';
   actualRow.innerHTML=`
-    <td class="td-co" style="color:#16a34a">売上（確定）</td>
-    <td class="td-rank"><span class="tl-rank-badge" style="background:#16a34a;width:18px;height:18px;font-size:9px">✓</span></td>
-    <td class="td-name" style="color:var(--text3)">確定実績</td>
-    ${actualCells}`;
+    <td class="td-co" style="background:#f0fdf4;cursor:pointer" colspan="3">
+      <span class="tl-rank-badge" style="background:#16a34a">✓</span>
+      <span class="tl-rank-row-label" style="color:#16a34a">売上（確定）</span>
+      <span class="tl-rank-row-desc">入金済み確定実績</span>
+      <span class="tl-rank-row-cnt" id="uriage-cnt"></span>
+      <span class="tl-rank-row-arr" id="tl-arr-売上">▶</span>
+    </td>${actualCells}`;
+  actualRow.onclick=()=>toggleTimelineRank('tl-group-売上','tl-arr-売上');
   tbody.appendChild(actualRow);
 
-  // ランク別グループ（売上は粗利確定行に合算済みなので除外）
-  RANKS.filter(r=>r.v!=='売上').forEach(rank=>{
+  // ランク別グループ（売上はactualRowをヘッダーとして使うためヘッダー行をスキップ）
+  RANKS.forEach(rank=>{
     const list=byRank[rank.v]||[];
     if(list.length===0)return;
 
@@ -1598,8 +1614,12 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
       });
     });
 
-    // ランクヘッダー行
+    // ランクヘッダー行（売上はactualRowがヘッダー代わりなのでスキップ）
     const rankTotalAmt=toMan(list.reduce((s,d)=>s+(Number(d['粗利'])||0),0));
+    if(rank.v==='売上'){
+      const cntEl=document.getElementById('uriage-cnt');
+      if(cntEl) cntEl.textContent=list.length+'件 / '+fmt(rankTotalAmt)+'万円';
+    }
     const rankCells=fyMonths.map(m=>{
       const ym=yyyyMM(m.year,m.month);
       const isCur=ym===todayYM;
@@ -1610,18 +1630,20 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
       </td>`;
     }).join('');
 
-    const headerRow=document.createElement('tr');
-    headerRow.className='tl-rank-row';
-    headerRow.onclick=()=>toggleTimelineRank(groupId,arrId);
-    headerRow.innerHTML=`
-      <td class="td-co" style="background:${color}10;cursor:pointer" colspan="3">
-        <span class="tl-rank-badge" style="background:${color}">${rank.av}</span>
-        <span class="tl-rank-row-label" style="color:${color}">${rank.label}</span>
-        <span class="tl-rank-row-desc">${rank.desc}</span>
-        <span class="tl-rank-row-cnt">${list.length}件 / ${fmt(rankTotalAmt)}万円</span>
-        <span class="tl-rank-row-arr ${defaultOpen?'open':''}" id="${arrId}">▶</span>
-      </td>${rankCells}`;
-    tbody.appendChild(headerRow);
+    if(rank.v!=='売上'){
+      const headerRow=document.createElement('tr');
+      headerRow.className='tl-rank-row';
+      headerRow.onclick=()=>toggleTimelineRank(groupId,arrId);
+      headerRow.innerHTML=`
+        <td class="td-co" style="background:${color}10;cursor:pointer" colspan="3">
+          <span class="tl-rank-badge" style="background:${color}">${rank.av}</span>
+          <span class="tl-rank-row-label" style="color:${color}">${rank.label}</span>
+          <span class="tl-rank-row-desc">${rank.desc}</span>
+          <span class="tl-rank-row-cnt">${list.length}件 / ${fmt(rankTotalAmt)}万円</span>
+          <span class="tl-rank-row-arr ${defaultOpen?'open':''}" id="${arrId}">▶</span>
+        </td>${rankCells}`;
+      tbody.appendChild(headerRow);
+    }
 
     // 案件行（グループ）
     list.forEach(d=>{
@@ -1858,12 +1880,16 @@ async function saveDealModal(){
   const memo=document.getElementById('dm-memo').value;
   const reason=document.getElementById('dm-reason').value;
 
+  // ランクが「売上」になったら入金ステータスを入金済みに自動更新
+  const paymentStatus = rank === '売上' ? '入金済み' : (editingDeal['入金ステータス'] || '未入金');
+
   // メモリ更新（即時反映）
   editingDeal['確度ランク']=rank;
   editingDeal['売上予定月']=month;
   editingDeal['粗利']=amount;
   editingDeal['メモ']=memo;
   editingDeal['理由']=reason;
+  editingDeal['入金ステータス']=paymentStatus;
 
   // GAS更新（デモ以外）
   if(!isDemoMode&&editingDeal['案件ID']){
@@ -1875,7 +1901,8 @@ async function saveDealModal(){
         expectedMonth:month,
         grossProfit:amount,
         memo,
-        reason
+        reason,
+        paymentStatus
       });
     }catch(e){ console.warn('案件更新失敗:', e.message); }
   }
