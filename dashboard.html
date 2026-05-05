@@ -1379,7 +1379,7 @@ function renderUnpaidAlert(deals) {
 
   const unpaid = deals.filter(d => {
     const rank = d['確度ランク'];
-    if (rank !== '決定' && rank !== '売上') return false;
+    if (rank !== '決定') return false;
     if (d['入金ステータス'] !== '未入金') return false;
     const m = d['売上予定月'];
     return m && m < todayYM;
