@@ -438,14 +438,19 @@ function buildPersonOptions(details) {
   });
 }
 
+// よく使う商材チップの固定リスト（変更はここを編集）
+const FREQUENT_PRODUCTS = [
+  '社労士顧問～4人',
+  'HubCastライト_割引',
+  'IT導入補助金（直販）',
+  'リスキリング_完全受講_直販',
+  'リスキリング_完全受講_代理店80%',
+];
+
 function buildProductOptions(details) {
-  // よく使う → ストック固定価格商材をチップとして上部表示（上位8件）
-  const frequent = details.filter(p =>
-    p.kind === 'ストック' && p.priceType === '固定' && p.unitPrice > 0
-  ).slice(0, 8);
   const chips = document.getElementById('product-chips');
-  chips.innerHTML = frequent.map(p =>
-    `<div class="product-chip" data-v="${esc(p.name)}" onclick="selProductChip(this,'${esc(p.name)}')">${esc(p.name)}</div>`
+  chips.innerHTML = FREQUENT_PRODUCTS.map(name =>
+    `<div class="product-chip" data-v="${esc(name)}" onclick="selProductChip(this,'${esc(name)}')">${esc(name)}</div>`
   ).join('');
 
   // グループ：ストック（継続）/ スポット（固定）/ スポット（都度見積もり）
