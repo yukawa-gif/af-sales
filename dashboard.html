@@ -654,7 +654,7 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
           </span>
           <div style="display:flex;align-items:center;gap:10px;margin-left:auto">
             <span class="card-hint" id="incentive-period-hint"></span>
-            <span style="font-weight:800;color:var(--blue);font-size:14px"><span id="incentive-total">0</span>万円</span>
+            <span style="font-weight:800;color:var(--blue);font-size:14px">¥<span id="incentive-total">0</span></span>
             <span id="incentive-card-icon" style="font-size:12px;color:var(--text3)">▼</span>
           </div>
         </div>
@@ -662,7 +662,7 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
           <div id="incentive-list"></div>
           <div class="incentive-total-row">
             <span class="incentive-total-lbl">合計</span>
-            <span class="incentive-total-val"><span id="incentive-total-footer">0</span>万円</span>
+            <span class="incentive-total-val">¥<span id="incentive-total-footer">0</span></span>
           </div>
         </div>
       </div>
@@ -2294,7 +2294,7 @@ function renderIncentiveCard(person, isTeam){
 
   (dealsData||[]).forEach(d=>{
     if(!isTeam&&d['担当者']!==person) return;
-    if(d['確度ランク']==='失注') return;
+    if(d['確度ランク']!=='売上') return;
     const startYM=String(d['売上予定月']||'').slice(0,7);
     if(!startYM) return;
     const months=Math.max(1,Number(d['月数'])||1);
@@ -2360,7 +2360,7 @@ function renderIncentiveCard(person, isTeam){
         <div class="incentive-month-header${isCurrent?' current':''}" onclick="toggleIncentiveMonth('${safeId}')">
           <span>${parseInt(y)}年${parseInt(m)}月${isCurrent?' 〈今月〉':''}</span>
           <div style="display:flex;align-items:center;gap:8px">
-            <span>¥${fmt(Math.round(monthTotal/10000))}万</span>
+            <span>¥${fmt(monthTotal)}</span>
             <span id="${safeId}-icon" style="font-size:10px;color:var(--text3)">▶</span>
           </div>
         </div>
@@ -2369,15 +2369,15 @@ function renderIncentiveCard(person, isTeam){
             <div class="incentive-row">
               <span class="incentive-co">${esc(d['会社名']||'')}</span>
               <span class="incentive-prod">${esc(d['商材名']||'')}</span>
-              <span class="incentive-amt">¥${fmt(Math.round(amt/10000))}万</span>
+              <span class="incentive-amt">¥${fmt(amt)}</span>
             </div>`).join('')}
         </div>
       </div>`;
   }).join('');
 
-  totalEl.textContent=fmt(Math.round(grandTotal/10000));
+  totalEl.textContent=fmt(grandTotal);
   const footerEl=document.getElementById('incentive-total-footer');
-  if(footerEl) footerEl.textContent=fmt(Math.round(grandTotal/10000));
+  if(footerEl) footerEl.textContent=fmt(grandTotal);
 }
 
 // ============================================================
