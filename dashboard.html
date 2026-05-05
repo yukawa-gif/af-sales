@@ -1174,13 +1174,18 @@ function render(person){
     return fyMonths.some(m=>yyyyMM(m.year,m.month)===ym);
   });
 
-  // ヨミ合計（粗利ベース）
-  const yomiDeals=personDeals.filter(d=>['売上','決定','A','B'].includes(d['確度ランク']));
+  // 売上ランク案件を実績として集計（案件マスタ基準）
+  const uriageTotal=toMan(personDeals
+    .filter(d=>d['確度ランク']==='売上')
+    .reduce((s,d)=>s+(Number(d['粗利'])||0),0));
+
+  // ヨミ合計（売上は実績に移動したので除外）
+  const yomiDeals=personDeals.filter(d=>['決定','A','B'].includes(d['確度ランク']));
   const yomiTotal=toMan(yomiDeals.reduce((s,d)=>s+(Number(d['粗利'])||0),0));
-  const forecast=actualTotal+yomiTotal;
+  const forecast=uriageTotal+yomiTotal;
 
   // ランク別集計（粗利ベース）
-  const byRankTotal={売上:actualTotal,決定:0,A:0,B:0,C:0,失注:0};
+  const byRankTotal={売上:uriageTotal,決定:0,A:0,B:0,C:0,失注:0};
   personDeals.forEach(d=>{
     const rank=d['確度ランク'];
     if(byRankTotal[rank]!==undefined) byRankTotal[rank]+=toMan(Number(d['粗利'])||0);
@@ -1217,14 +1222,16 @@ function render(person){
   }else{
     monthlyTarget=getMonthlyGP(personGoal);
   }
-  const thisMonthActual=Math.round(actualByMonth[todayYM]||0);
+  const thisMonthActual=toMan(personDeals
+    .filter(d=>d['確度ランク']==='売上'&&String(d['売上予定月']||'').slice(0,7)===todayYM)
+    .reduce((s,d)=>s+(Number(d['粗利'])||0),0));
 
-  renderAlert(annualTarget,actualTotal,yomiTotal);
+  renderAlert(annualTarget,uriageTotal,yomiTotal);
   renderUnpaidAlert(personDeals);
   renderTimeline(personDeals,actualByMonth,person,isTeam);
   renderPersonDetail(personDeals,isTeam);
   renderKPITable(kpiSums,kpiGoal);
-  renderProgress(annualTarget,actualTotal,yomiTotal,forecast,col,monthlyTarget,thisMonthActual);
+  renderProgress(annualTarget,uriageTotal,yomiTotal,forecast,col,monthlyTarget,thisMonthActual);
   renderIncentiveCard(person,isTeam);
   pendingChartArgs = [personDeals, person, isTeam];
   if (chartPanelOpen) {
