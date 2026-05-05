@@ -107,6 +107,22 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
 .alert-ok{background:var(--green-bg);border-color:var(--green);color:#14532d}
 .alert-warn{background:var(--amber-bg);border-color:var(--amber);color:#92400e}
 .alert-danger{background:var(--red-bg);border-color:var(--red);color:#7f1d1d}
+.unpaid-alert{background:var(--red-bg);border:1px solid #fca5a5;border-left:3px solid var(--red);
+  border-radius:var(--r);padding:12px 16px;margin-bottom:14px}
+.unpaid-alert-header{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none}
+.unpaid-alert-title{font-size:13px;font-weight:700;color:#7f1d1d;display:flex;align-items:center;gap:6px}
+.unpaid-alert-badge{background:var(--red);color:#fff;font-size:11px;font-weight:800;
+  padding:1px 8px;border-radius:20px}
+.unpaid-alert-toggle{font-size:11px;color:#7f1d1d;opacity:.7}
+.unpaid-alert-list{margin-top:10px;border-top:1px solid #fca5a5;padding-top:10px;
+  display:flex;flex-direction:column;gap:4px}
+.unpaid-alert-row{display:flex;align-items:center;gap:8px;font-size:12px;color:#7f1d1d;
+  padding:4px 0;border-bottom:1px solid rgba(252,165,165,.3)}
+.unpaid-alert-row:last-child{border-bottom:none}
+.unpaid-alert-person{background:#fee2e2;border-radius:4px;padding:1px 6px;font-weight:600;white-space:nowrap}
+.unpaid-alert-month{font-weight:700;white-space:nowrap;min-width:52px}
+.unpaid-alert-company{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.unpaid-alert-amount{font-weight:700;white-space:nowrap;min-width:70px;text-align:right}
 
 /* ─── 担当者別詳細パネル ─── */
 .detail-card{background:var(--surface);border:1px solid var(--border);
@@ -475,6 +491,7 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
 
   <!-- アラート -->
   <div id="alert-area"></div>
+  <div id="unpaid-alert-area"></div>
 
 
   <!-- 月別推移タイムライン -->
@@ -1203,6 +1220,7 @@ function render(person){
   const thisMonthActual=Math.round(actualByMonth[todayYM]||0);
 
   renderAlert(annualTarget,actualTotal,yomiTotal);
+  renderUnpaidAlert(personDeals);
   renderTimeline(personDeals,actualByMonth,person,isTeam);
   renderPersonDetail(personDeals,isTeam);
   renderKPITable(kpiSums,kpiGoal);
@@ -1348,6 +1366,60 @@ function renderAlert(target,actual,yomi){
   else if(pct<expPct-5){msg='📌 進捗がやや遅れています。実績 '+pct+'%（期待値 '+expPct+'%）';cls='alert-warn';}
   else return;
   area.innerHTML=`<div class="alert ${cls}">${msg}</div>`;
+}
+
+// ============================================================
+// 未入金アラートウィジェット
+// ============================================================
+let unpaidAlertOpen = false;
+function renderUnpaidAlert(deals) {
+  const area = document.getElementById('unpaid-alert-area');
+  area.innerHTML = '';
+
+  const unpaid = deals.filter(d => {
+    const rank = d['確度ランク'];
+    if (rank !== '決定' && rank !== '売上') return false;
+    if (d['入金ステータス'] !== '未入金') return false;
+    const m = d['売上予定月'];
+    return m && m < todayYM;
+  });
+
+  if (unpaid.length === 0) return;
+
+  unpaid.sort((a, b) => (a['売上予定月'] < b['売上予定月'] ? -1 : 1));
+
+  const rows = unpaid.map(d => {
+    const gp = Number(d['粗利']) || 0;
+    return `<div class="unpaid-alert-row">
+      <span class="unpaid-alert-month">${d['売上予定月']}</span>
+      <span class="unpaid-alert-person">${d['担当者'] || ''}</span>
+      <span class="unpaid-alert-company">${d['会社名'] || ''}</span>
+      <span class="unpaid-alert-amount">${fmtMan(gp)}</span>
+    </div>`;
+  }).join('');
+
+  area.innerHTML = `
+    <div class="unpaid-alert">
+      <div class="unpaid-alert-header" onclick="toggleUnpaidAlert()">
+        <div class="unpaid-alert-title">
+          <i data-lucide="alert-circle" style="width:14px;height:14px"></i>
+          未入金アラート
+          <span class="unpaid-alert-badge">${unpaid.length}件</span>
+        </div>
+        <span class="unpaid-alert-toggle" id="unpaid-toggle-icon">${unpaidAlertOpen ? '▲' : '▼'} 詳細</span>
+      </div>
+      <div class="unpaid-alert-list" id="unpaid-alert-list" style="${unpaidAlertOpen ? '' : 'display:none'}">
+        ${rows}
+      </div>
+    </div>`;
+  lucide.createIcons();
+}
+function toggleUnpaidAlert() {
+  unpaidAlertOpen = !unpaidAlertOpen;
+  const list = document.getElementById('unpaid-alert-list');
+  const icon = document.getElementById('unpaid-toggle-icon');
+  if (list) list.style.display = unpaidAlertOpen ? '' : 'none';
+  if (icon) icon.textContent = (unpaidAlertOpen ? '▲' : '▼') + ' 詳細';
 }
 
 // ============================================================
