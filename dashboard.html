@@ -962,6 +962,7 @@ const mgOpenState=Object.fromEntries(MG_DEFS.map(mg=>[
 // ============================================================
 let masterData=null,goalsData=null,actualData=[],dealsData=[];
 let currentPerson=null;
+let goalsSavedAt=0; // 目標保存タイムスタンプ（バックグラウンドフェッチによる上書きを防ぐ）
 let isDemoMode=false,realActual=[],realDeals=[],realGoals=null;
 let personColorMap={};
 let kpiPeriod='month'; // 'today'|'week'|'month'|'fy'
@@ -1080,7 +1081,8 @@ function applyDashboardData(cache){
     pd.forEach((p,i)=>{personColorMap[p.name]=PERSON_COLORS[i%PERSON_COLORS.length]});
     buildSidebar(pd);
   }
-  if(cache.goals&&cache.goals.success)   goalsData=cache.goals.goals;
+  // 30秒以内に保存した場合はバックグラウンドフェッチによる上書きを防ぐ
+  if(cache.goals&&cache.goals.success&&Date.now()-goalsSavedAt>30000) goalsData=cache.goals.goals;
   if(cache.actual&&cache.actual.success) actualData=cache.actual.data||[];
   if(cache.deals&&cache.deals.success)   dealsData=cache.deals.deals||[];
 }
@@ -1226,7 +1228,21 @@ function render(person){
     .filter(d=>d['確度ランク']==='売上'&&String(d['売上予定月']||'').slice(0,7)===todayYM)
     .reduce((s,d)=>s+(Number(d['粗利'])||0),0));
 
-  renderAlert(annualTarget,uriageTotal,yomiTotal);
+  // 翌月データ
+  const nextDate=new Date(today.getFullYear(),today.getMonth()+1,1);
+  const nextYM=yyyyMM(nextDate.getFullYear(),nextDate.getMonth()+1);
+  const getNextGP=p=>p?.months?p.months[nextYM]||0:0;
+  const nextMonthTarget=isTeam
+    ?(goalsData?.persons||[]).reduce((s,p)=>s+getNextGP(p),0)
+    :getNextGP(personGoal);
+  const nextMonthYomi=toMan(personDeals
+    .filter(d=>['決定','A','B'].includes(d['確度ランク'])&&String(d['売上予定月']||'').slice(0,7)===nextYM)
+    .reduce((s,d)=>s+(Number(d['粗利'])||0),0));
+  const nextMonthActual=toMan(personDeals
+    .filter(d=>d['確度ランク']==='売上'&&String(d['売上予定月']||'').slice(0,7)===nextYM)
+    .reduce((s,d)=>s+(Number(d['粗利'])||0),0));
+
+  renderAlert(monthlyTarget,thisMonthActual,nextMonthTarget,nextMonthActual+nextMonthYomi);
   renderUnpaidAlert(personDeals);
   renderTimeline(personDeals,actualByMonth,person,isTeam);
   renderPersonDetail(personDeals,isTeam);
@@ -1356,23 +1372,30 @@ function renderPipelineSummary(byRankTotal){
 // ============================================================
 // アラート
 // ============================================================
-function renderAlert(target,actual,yomi){
+function renderAlert(thisTarget,thisActual,nextTarget,nextYomi){
   const area=document.getElementById('alert-area');
   area.innerHTML='';
-  if(target<=0)return;
-  const forecast=actual+yomi;
-  const pct=Math.round(actual/target*100);
-  const fcPct=Math.round(forecast/target*100);
-  const fyStart=new Date(currentFY,7,1);
-  const elapsed=Math.max(1,(today.getFullYear()-fyStart.getFullYear())*12+(today.getMonth()-fyStart.getMonth())+1);
-  const expPct=Math.round(elapsed/12*100);
-  let msg='',cls='';
-  if(pct>=100){msg='🎉 年間目標達成！ 累計 '+fmt(actual)+'万円（'+pct+'%）';cls='alert-ok';}
-  else if(fcPct>=100){msg='✅ ヨミ含む着地見込 '+fmt(forecast)+'万円（'+fcPct+'%）— 目標達成圏内';cls='alert-ok';}
-  else if(pct<expPct-20){msg='⚠️ 進捗遅れ。期待値 '+expPct+'% に対し実績 '+pct+'%。残り目標 '+fmt(target-actual)+'万円';cls='alert-danger';}
-  else if(pct<expPct-5){msg='📌 進捗がやや遅れています。実績 '+pct+'%（期待値 '+expPct+'%）';cls='alert-warn';}
-  else return;
-  area.innerHTML=`<div class="alert ${cls}">${msg}</div>`;
+  if(thisTarget<=0&&nextTarget<=0)return;
+
+  const thisM=today.getMonth()+1;
+  const nextM=new Date(today.getFullYear(),today.getMonth()+1,1).getMonth()+1;
+  const daysInMonth=new Date(today.getFullYear(),today.getMonth()+1,0).getDate();
+  const elapsedPct=Math.round(today.getDate()/daysInMonth*100);
+
+  const thisPct=thisTarget>0?Math.round(thisActual/thisTarget*100):null;
+  const nextPct=nextTarget>0?Math.round(nextYomi/nextTarget*100):null;
+
+  let cls='alert-ok';
+  if(thisPct!==null&&thisPct<elapsedPct-20) cls='alert-danger';
+  else if(thisPct!==null&&thisPct<elapsedPct-5) cls='alert-warn';
+  else if(nextPct!==null&&nextPct<50) cls='alert-warn';
+
+  const icon=cls==='alert-danger'?'⚠️':cls==='alert-warn'?'📌':'✅';
+  const parts=[];
+  if(thisTarget>0) parts.push(`当月（${thisM}月）: 実績 ${fmt(thisActual)}万円 / 目標 ${fmt(thisTarget)}万円（${thisPct}%）`);
+  if(nextTarget>0) parts.push(`翌月（${nextM}月）: ヨミ ${fmt(nextYomi)}万円 / 目標 ${fmt(nextTarget)}万円（${nextPct!==null?nextPct:'-'}%）`);
+
+  area.innerHTML=`<div class="alert ${cls}">${icon} ${parts.join(' ／ ')}</div>`;
 }
 
 // ============================================================
@@ -2053,6 +2076,18 @@ async function saveGoalModal(){
 
   const goals={persons:Object.values(personMap)};
   goalsData=goals;
+  goalsSavedAt=Date.now();
+
+  // localStorageキャッシュも即時更新（リロード後も反映されるよう）
+  try{
+    const raw=localStorage.getItem(CACHE_KEY);
+    if(raw){
+      const c=JSON.parse(raw);
+      c.goals={success:true,goals};
+      c.timestamp=Date.now();
+      localStorage.setItem(CACHE_KEY,JSON.stringify(c));
+    }
+  }catch(e){}
 
   if(!isDemoMode){
     try{
