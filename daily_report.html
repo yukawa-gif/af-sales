@@ -405,27 +405,27 @@ function formatWeekRange(mondayStr) {
 }
 
 // 当月の週リストを取得（月曜始まり、月内に1日以上ある週のみ）
+// UTC統一で計算することでJSTタイムゾーンオフセットによる日付ズレを防ぐ
 function getWeeksOfMonth(yyyy, mm) {
   const weeks = [];
-  const firstDay = new Date(yyyy, mm - 1, 1);
-  const lastDay  = new Date(yyyy, mm, 0);
+  const firstDay = new Date(Date.UTC(yyyy, mm - 1, 1));
+  const lastDay  = new Date(Date.UTC(yyyy, mm, 0));
 
-  // 月の第1日を含む週の月曜
   let cur = new Date(firstDay);
-  const dow = cur.getDay();
-  cur.setDate(cur.getDate() + (dow === 0 ? -6 : 1 - dow));
+  const dow = cur.getUTCDay();
+  cur.setUTCDate(cur.getUTCDate() + (dow === 0 ? -6 : 1 - dow));
 
   let weekNum = 1;
   while (cur <= lastDay) {
     const fri = new Date(cur);
-    fri.setDate(fri.getDate() + 4);
+    fri.setUTCDate(fri.getUTCDate() + 4);
     weeks.push({
       num: weekNum++,
       startStr: cur.toISOString().slice(0,10),
-      label: `第${weekNum-1}週 (${cur.getMonth()+1}/${cur.getDate()}〜${fri.getMonth()+1}/${fri.getDate()})`,
+      label: `第${weekNum-1}週 (${cur.getUTCMonth()+1}/${cur.getUTCDate()}〜${fri.getUTCMonth()+1}/${fri.getUTCDate()})`,
     });
     cur = new Date(cur);
-    cur.setDate(cur.getDate() + 7);
+    cur.setUTCDate(cur.getUTCDate() + 7);
   }
   return weeks;
 }
