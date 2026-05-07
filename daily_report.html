@@ -26,6 +26,8 @@
     --red-bg:#fef2f2;
     --amber:#b45309;
     --amber-bg:#fffbeb;
+    --purple:#7c3aed;
+    --purple-bg:#f5f3ff;
     --r:10px;
     --r-sm:6px;
     --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.05);
@@ -56,10 +58,11 @@
   /* 曜日別バー */
   .day-bars{display:flex;gap:6px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
   .day-col{flex:1;text-align:center}
-  .day-bar-wrap{height:48px;display:flex;align-items:flex-end;justify-content:center;gap:3px}
-  .day-bar{width:10px;border-radius:3px 3px 0 0;min-height:2px;transition:.3s}
+  .day-bar-wrap{height:48px;display:flex;align-items:flex-end;justify-content:center;gap:2px}
+  .day-bar{width:8px;border-radius:3px 3px 0 0;min-height:2px;transition:.3s}
   .day-bar.calls{background:#93c5fd}
   .day-bar.meetings{background:#6ee7b7}
+  .day-bar.referrals{background:#c4b5fd}
   .day-label{font-size:10px;color:var(--text3);margin-top:4px;font-family:'DM Mono',monospace}
   .day-label.today{font-weight:700;color:var(--blue)}
   .legend{display:flex;gap:14px;margin-top:8px;justify-content:flex-end}
@@ -67,11 +70,15 @@
   .legend-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
 
   /* KPI入力 */
-  .kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+  .kpi-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px}
   .kpi-item{background:var(--surface2);border-radius:var(--r-sm);padding:12px 14px;border:1px solid var(--border)}
   .kpi-label{font-size:11px;color:var(--text3);margin-bottom:6px;font-weight:500}
   .kpi-input{width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:22px;font-weight:700;font-family:'DM Mono',monospace;text-align:right;background:var(--surface);color:var(--text);outline:none;transition:.12s}
   .kpi-input:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(29,78,216,.12)}
+
+  /* コメント欄 */
+  .comment-textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--surface);color:var(--text);resize:vertical;min-height:88px;outline:none;transition:.12s;line-height:1.7}
+  .comment-textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(29,78,216,.12)}
 
   /* ボタン */
   .btn{padding:9px 20px;border-radius:var(--r-sm);font-size:13px;font-weight:500;cursor:pointer;font-family:'Noto Sans JP',sans-serif;border:1px solid var(--border);background:var(--surface);color:var(--text);transition:.12s}
@@ -84,13 +91,28 @@
 
   /* モーダル */
   .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;display:flex;align-items:center;justify-content:center;padding:16px}
-  .modal-box{background:var(--surface);border-radius:var(--r);padding:28px 24px;width:100%;max-width:400px;box-shadow:var(--shadow-lg)}
+  .modal-box{background:var(--surface);border-radius:var(--r);padding:28px 24px;width:100%;max-width:440px;box-shadow:var(--shadow-lg);max-height:92vh;overflow-y:auto}
   .modal-title{font-size:17px;font-weight:700;margin-bottom:6px}
   .modal-sub{font-size:13px;color:var(--text3);margin-bottom:22px;line-height:1.7}
   .fg{margin-bottom:14px}
   .fl{display:block;font-size:12px;font-weight:500;color:var(--text2);margin-bottom:5px}
   .fi{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:18px;font-family:'DM Mono',monospace;font-weight:700;background:var(--surface);color:var(--text);transition:.12s;outline:none;text-align:right}
   .fi:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(29,78,216,.12)}
+
+  /* 週別配分テーブル */
+  .week-dist-section{margin-top:16px;padding-top:14px;border-top:1px solid var(--border)}
+  .week-dist-label{font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px}
+  .week-dist-table{width:100%;border-collapse:collapse;font-size:12px}
+  .week-dist-table th{font-size:10px;color:var(--text3);font-weight:700;padding:4px 6px;text-align:center;border-bottom:1px solid var(--border)}
+  .week-dist-table th:first-child{text-align:left;padding-left:0}
+  .week-dist-table td{padding:5px 4px;text-align:center;vertical-align:middle}
+  .week-dist-table td:first-child{text-align:left;font-size:11px;color:var(--text3);padding-left:0;white-space:nowrap}
+  .week-dist-table tr.total-row td{border-top:1px solid var(--border);padding-top:6px;font-size:11px;color:var(--text3)}
+  .wdi{width:52px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:13px;font-family:'DM Mono',monospace;font-weight:700;text-align:center;background:var(--surface);color:var(--text);outline:none;transition:.12s}
+  .wdi:focus{border-color:var(--blue)}
+  .wdi.err{border-color:var(--red);background:var(--red-bg)}
+  .dist-hint{font-size:11px;color:var(--text3);margin-top:6px;line-height:1.5}
+  .dist-err-msg{font-size:11px;color:var(--red);margin-top:4px}
 
   /* Geminiアドバイス */
   .advice-card{background:linear-gradient(135deg,#eff6ff 0%,#f0fdf4 100%);border:1px solid #bfdbfe;border-radius:var(--r);padding:20px 22px;margin-top:14px}
@@ -129,6 +151,8 @@
 
   @media(max-width:500px){
     .wrap{padding:16px 12px 48px}
+    .kpi-grid{grid-template-columns:1fr 1fr 1fr}
+    .wdi{width:44px;font-size:12px}
   }
 </style>
 </head>
@@ -157,22 +181,63 @@
   <button onclick="togglePersonPicker()" style="margin-top:8px;width:100%;padding:6px;border:1px solid var(--border);border-radius:var(--r-sm);background:transparent;cursor:pointer;font-size:12px;color:var(--text3);font-family:'Noto Sans JP',sans-serif">閉じる</button>
 </div>
 
-<!-- 週次目標設定モーダル -->
+<!-- KPI月次目標設定モーダル -->
 <div id="target-modal" class="modal-overlay" style="display:none">
   <div class="modal-box">
-    <div class="modal-title">今週の目標を設定</div>
-    <div class="modal-sub" id="target-modal-sub">今週1週間の行動目標を入力してください。<br>後からいつでも変更できます。</div>
-    <div class="fg">
-      <label class="fl">架電件数の目標（週合計）</label>
-      <input class="fi" type="number" id="target-calls" placeholder="例：50" min="0">
+    <div class="modal-title">KPI月次目標設定</div>
+    <div class="modal-sub" id="target-modal-sub">当月の行動目標を入力してください。週別に自動配分されます。</div>
+
+    <!-- 月次目標入力 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:6px">
+      <div>
+        <label class="fl" style="color:var(--blue-text)">架電件数/月</label>
+        <input class="fi" type="number" id="target-monthly-calls" placeholder="400" min="0" oninput="onMonthlyChange()">
+      </div>
+      <div>
+        <label class="fl" style="color:var(--green)">面談件数/月</label>
+        <input class="fi" type="number" id="target-monthly-meetings" placeholder="80" min="0" oninput="onMonthlyChange()">
+      </div>
+      <div>
+        <label class="fl" style="color:var(--purple)">紹介件数/月</label>
+        <input class="fi" type="number" id="target-monthly-referrals" placeholder="8" min="0" oninput="onMonthlyChange()">
+      </div>
     </div>
-    <div class="fg">
-      <label class="fl">有効面談件数の目標（週合計）</label>
-      <input class="fi" type="number" id="target-meetings" placeholder="例：10" min="0">
+
+    <!-- 週別配分テーブル -->
+    <div id="week-dist-wrap" style="display:none" class="week-dist-section">
+      <div class="week-dist-label">週別配分（合計が月次目標と必ず一致すること）</div>
+      <table class="week-dist-table">
+        <thead>
+          <tr>
+            <th style="text-align:left">週</th>
+            <th style="color:var(--blue-text)">架電</th>
+            <th style="color:var(--green)">面談</th>
+            <th style="color:var(--purple)">紹介</th>
+          </tr>
+        </thead>
+        <tbody id="week-dist-body"></tbody>
+        <tfoot>
+          <tr class="total-row">
+            <td>合計</td>
+            <td id="dist-total-calls">0</td>
+            <td id="dist-total-meetings">0</td>
+            <td id="dist-total-referrals">0</td>
+          </tr>
+          <tr>
+            <td style="color:var(--text3);font-size:10px">月次目標</td>
+            <td id="dist-monthly-calls" style="font-size:11px;color:var(--text3)">0</td>
+            <td id="dist-monthly-meetings" style="font-size:11px;color:var(--text3)">0</td>
+            <td id="dist-monthly-referrals" style="font-size:11px;color:var(--text3)">0</td>
+          </tr>
+        </tfoot>
+      </table>
+      <div id="dist-error" class="dist-err-msg" style="display:none"></div>
+      <div class="dist-hint">※ 各週の値を自由に変更できます。合計が月次目標と一致しないと保存できません。</div>
     </div>
-    <div style="display:flex;gap:8px;margin-top:6px">
-      <button class="btn" id="target-skip-btn" onclick="closeTargetModal()" style="flex:1">後で設定</button>
-      <button class="btn btn-primary" onclick="saveWeeklyTarget()" style="flex:2">設定する</button>
+
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn" id="target-skip-btn" onclick="closeTargetModal()" style="flex:1">キャンセル</button>
+      <button class="btn btn-primary" id="target-save-btn" onclick="saveKPITarget()" style="flex:2">保存する</button>
     </div>
   </div>
 </div>
@@ -221,16 +286,26 @@
             <div class="progress-fill" id="meetings-bar" style="width:0%;background:var(--green)"></div>
           </div>
         </div>
+        <div class="progress-section" style="margin-bottom:0">
+          <div class="progress-label-row">
+            <span class="progress-label">紹介件数</span>
+            <span class="progress-value" id="referrals-value-text">― / ― 件</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="referrals-bar" style="width:0%;background:var(--purple)"></div>
+          </div>
+        </div>
         <div class="day-bars" id="day-bars"></div>
         <div class="legend">
           <div class="legend-item"><div class="legend-dot" style="background:#93c5fd"></div>架電</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#6ee7b7"></div>有効面談</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#6ee7b7"></div>面談</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#c4b5fd"></div>紹介</div>
         </div>
       </div>
 
       <!-- 目標未設定 -->
       <div id="weekly-no-target" style="display:none;text-align:center;padding:16px 0;color:var(--text3);font-size:13px;line-height:2">
-        今週の目標がまだ設定されていません<br>
+        今月のKPI目標がまだ設定されていません<br>
         <button class="btn btn-primary btn-sm" style="margin-top:8px;padding:7px 18px;font-size:12px" onclick="openTargetModal(true)">目標を設定する</button>
       </div>
     </div>
@@ -249,6 +324,14 @@
           <div class="kpi-label">有効面談件数</div>
           <input class="kpi-input" type="number" id="r-meetings" value="0" min="0">
         </div>
+        <div class="kpi-item" style="border-top:3px solid var(--purple)">
+          <div class="kpi-label">紹介件数</div>
+          <input class="kpi-input" type="number" id="r-referrals" value="0" min="0">
+        </div>
+      </div>
+      <div class="fg" style="margin-bottom:12px">
+        <label class="fl">振り返り・コメント</label>
+        <textarea class="comment-textarea" id="r-comment" placeholder="本日の気づき、課題、明日やること など自由に記入してください"></textarea>
       </div>
       <p style="font-size:11px;color:var(--text3);text-align:center;margin-bottom:8px">
         ※ 本日の累計件数を入力してください（1日1回上書き保存）
@@ -296,7 +379,7 @@ let currentPerson = '';
 let weeklyData = null;
 const todayDate = new Date().toISOString().slice(0,10);
 
-// ─── 週ユーティリティ ───
+// ─── 週・月ユーティリティ ───
 function getMondayOfWeek(dateStr) {
   const d = new Date(dateStr);
   const day = d.getDay();
@@ -319,6 +402,41 @@ function formatWeekRange(mondayStr) {
   const e = new Date(mondayStr);
   e.setDate(e.getDate() + 4);
   return `${s.getMonth()+1}/${s.getDate()}〜${e.getMonth()+1}/${e.getDate()}`;
+}
+
+// 当月の週リストを取得（月曜始まり、月内に1日以上ある週のみ）
+function getWeeksOfMonth(yyyy, mm) {
+  const weeks = [];
+  const firstDay = new Date(yyyy, mm - 1, 1);
+  const lastDay  = new Date(yyyy, mm, 0);
+
+  // 月の第1日を含む週の月曜
+  let cur = new Date(firstDay);
+  const dow = cur.getDay();
+  cur.setDate(cur.getDate() + (dow === 0 ? -6 : 1 - dow));
+
+  let weekNum = 1;
+  while (cur <= lastDay) {
+    const fri = new Date(cur);
+    fri.setDate(fri.getDate() + 4);
+    weeks.push({
+      num: weekNum++,
+      startStr: cur.toISOString().slice(0,10),
+      label: `第${weekNum-1}週 (${cur.getMonth()+1}/${cur.getDate()}〜${fri.getMonth()+1}/${fri.getDate()})`,
+    });
+    cur = new Date(cur);
+    cur.setDate(cur.getDate() + 7);
+  }
+  return weeks;
+}
+
+// 均等配分（端数は最終週/日に）
+function distributeEvenly(total, count) {
+  if (count <= 0) return [];
+  const base = Math.floor(total / count);
+  const arr  = new Array(count).fill(base);
+  arr[count - 1] = total - base * (count - 1);
+  return arr;
 }
 
 // ─── 初期化 ───
@@ -370,12 +488,11 @@ async function loadWeeklyData() {
   document.getElementById('weekly-data').style.display = 'none';
   document.getElementById('weekly-no-target').style.display = 'none';
   try {
-    const res = await fetch(`${GAS_URL}?mode=weeklyData&person=${encodeURIComponent(currentPerson)}&weekStart=${monday}`);
+    const res  = await fetch(`${GAS_URL}?mode=weeklyData&person=${encodeURIComponent(currentPerson)}&weekStart=${monday}`);
     const data = await res.json();
     if (data.success) {
       weeklyData = data;
       renderWeeklyCard(data);
-      // 月曜かつ目標未設定なら自動でモーダルを表示
       if (new Date().getDay() === 1 && !data.target) {
         openTargetModal(true);
       }
@@ -397,18 +514,23 @@ function renderWeeklyCard(data) {
   document.getElementById('weekly-data').style.display = '';
   document.getElementById('weekly-no-target').style.display = 'none';
 
-  const totalCalls    = (daily||[]).reduce((s,d) => s + d.calls, 0);
-  const totalMeetings = (daily||[]).reduce((s,d) => s + d.meetings, 0);
-  const callPct    = target.calls    > 0 ? Math.min(100, Math.round(totalCalls    / target.calls    * 100)) : 0;
-  const meetingPct = target.meetings > 0 ? Math.min(100, Math.round(totalMeetings / target.meetings * 100)) : 0;
+  const totalCalls     = (daily||[]).reduce((s,d) => s + (d.calls||0), 0);
+  const totalMeetings  = (daily||[]).reduce((s,d) => s + (d.meetings||0), 0);
+  const totalReferrals = (daily||[]).reduce((s,d) => s + (d.referrals||0), 0);
 
-  const callColor    = callPct    >= 100 ? '#15803d' : callPct    >= 70 ? '#1d4ed8' : '#f59e0b';
-  const meetingColor = meetingPct >= 100 ? '#15803d' : meetingPct >= 70 ? '#1d4ed8' : '#f59e0b';
+  const pct = (v, t) => t > 0 ? Math.min(100, Math.round(v / t * 100)) : 0;
+  const col  = (p) => p >= 100 ? '#15803d' : p >= 70 ? '#1d4ed8' : '#f59e0b';
 
-  document.getElementById('calls-value-text').textContent    = `${totalCalls} / ${target.calls} 件`;
-  document.getElementById('meetings-value-text').textContent = `${totalMeetings} / ${target.meetings} 件`;
-  document.getElementById('calls-bar').style.cssText    = `width:${callPct}%;background:${callColor}`;
-  document.getElementById('meetings-bar').style.cssText = `width:${meetingPct}%;background:${meetingColor}`;
+  const callPct    = pct(totalCalls,    target.calls    || 0);
+  const meetingPct = pct(totalMeetings, target.meetings || 0);
+  const refPct     = pct(totalReferrals,target.referrals|| 0);
+
+  document.getElementById('calls-value-text').textContent     = `${totalCalls} / ${target.calls||0} 件`;
+  document.getElementById('meetings-value-text').textContent  = `${totalMeetings} / ${target.meetings||0} 件`;
+  document.getElementById('referrals-value-text').textContent = `${totalReferrals} / ${target.referrals||0} 件`;
+  document.getElementById('calls-bar').style.cssText     = `width:${callPct}%;background:${col(callPct)}`;
+  document.getElementById('meetings-bar').style.cssText  = `width:${meetingPct}%;background:${col(meetingPct)}`;
+  document.getElementById('referrals-bar').style.cssText = `width:${refPct}%;background:var(--purple)`;
 
   // 曜日別バー
   const monday   = getMondayOfWeek(todayDate);
@@ -416,19 +538,24 @@ function renderWeeklyCard(data) {
   const dailyMap = {};
   (daily||[]).forEach(d => { dailyMap[d.date] = d; });
 
-  const maxCalls = Math.max(1, ...days.map(d => (dailyMap[d.date]?.calls||0)));
-  const BAR_H    = 44;
+  const maxVal = Math.max(1, ...days.map(d => {
+    const dd = dailyMap[d.date] || {};
+    return Math.max(dd.calls||0, dd.meetings||0, dd.referrals||0);
+  }));
+  const BAR_H = 44;
 
   document.getElementById('day-bars').innerHTML = days.map(({date, label}) => {
-    const d       = dailyMap[date] || {calls:0, meetings:0};
-    const callH   = Math.round(d.calls    / maxCalls * BAR_H);
-    const meetH   = Math.round(d.meetings / maxCalls * BAR_H);
+    const d    = dailyMap[date] || {calls:0, meetings:0, referrals:0};
+    const cH   = Math.round((d.calls||0)     / maxVal * BAR_H);
+    const mH   = Math.round((d.meetings||0)  / maxVal * BAR_H);
+    const rH   = Math.round((d.referrals||0) / maxVal * BAR_H);
     const isToday = date === todayDate;
     return `
       <div class="day-col">
         <div class="day-bar-wrap">
-          <div class="day-bar calls"    style="height:${Math.max(2,callH)}px"></div>
-          <div class="day-bar meetings" style="height:${Math.max(2,meetH)}px"></div>
+          <div class="day-bar calls"     style="height:${Math.max(2,cH)}px"></div>
+          <div class="day-bar meetings"  style="height:${Math.max(2,mH)}px"></div>
+          <div class="day-bar referrals" style="height:${Math.max(2,rH)}px"></div>
         </div>
         <div class="day-label ${isToday?'today':''}">${label}</div>
       </div>`;
@@ -450,48 +577,171 @@ function applyPersonChange(name) {
   loadWeeklyData();
 }
 
-// ─── 週次目標モーダル ───
+// ─── KPI月次目標モーダル ───
+let weekDist = []; // [{startStr, calls, meetings, referrals}, ...]
+
 function openTargetModal(required) {
   document.getElementById('target-skip-btn').style.display = required ? 'none' : '';
-  document.getElementById('target-modal-sub').textContent  = required
-    ? '今週1週間の行動目標を入力してください。\n後からいつでも変更できます。'
-    : '今週の目標を変更します。';
-  if (weeklyData?.target) {
-    document.getElementById('target-calls').value    = weeklyData.target.calls    || '';
-    document.getElementById('target-meetings').value = weeklyData.target.meetings || '';
+
+  // 既存の目標を復元
+  const t = weeklyData?.target;
+  if (t) {
+    document.getElementById('target-monthly-calls').value     = t.monthlyCalls     || t.calls    || '';
+    document.getElementById('target-monthly-meetings').value  = t.monthlyMeetings  || t.meetings || '';
+    document.getElementById('target-monthly-referrals').value = t.monthlyReferrals || t.referrals|| '';
   } else {
-    document.getElementById('target-calls').value    = '';
-    document.getElementById('target-meetings').value = '';
+    document.getElementById('target-monthly-calls').value     = '';
+    document.getElementById('target-monthly-meetings').value  = '';
+    document.getElementById('target-monthly-referrals').value = '';
   }
-  document.getElementById('target-modal').style.display = 'flex';
+  document.getElementById('week-dist-wrap').style.display = 'none';
+  document.getElementById('target-modal').style.display   = 'flex';
+
+  if (t) onMonthlyChange();
 }
 
 function closeTargetModal() {
   document.getElementById('target-modal').style.display = 'none';
 }
 
-async function saveWeeklyTarget() {
-  if (!currentPerson) { toast('担当者を選択してください'); return; }
-  const calls    = parseInt(document.getElementById('target-calls').value)    || 0;
-  const meetings = parseInt(document.getElementById('target-meetings').value) || 0;
-  if (!calls && !meetings) { toast('目標を入力してください'); return; }
+function onMonthlyChange() {
+  const calls     = parseInt(document.getElementById('target-monthly-calls').value)     || 0;
+  const meetings  = parseInt(document.getElementById('target-monthly-meetings').value)  || 0;
+  const referrals = parseInt(document.getElementById('target-monthly-referrals').value) || 0;
 
-  const monday  = getMondayOfWeek(todayDate);
+  if (calls === 0 && meetings === 0 && referrals === 0) {
+    document.getElementById('week-dist-wrap').style.display = 'none';
+    return;
+  }
+
+  const now   = new Date(todayDate);
+  const weeks = getWeeksOfMonth(now.getFullYear(), now.getMonth() + 1);
+
+  // 既存の weekDist があれば保持、なければ均等配分
+  if (weekDist.length !== weeks.length) {
+    weekDist = weeks.map((w, i) => ({
+      startStr:  w.startStr,
+      label:     w.label,
+      calls:     distributeEvenly(calls,     weeks.length)[i],
+      meetings:  distributeEvenly(meetings,  weeks.length)[i],
+      referrals: distributeEvenly(referrals, weeks.length)[i],
+    }));
+  } else {
+    // 月次目標が変わったので再配分（手動編集はリセット）
+    weekDist = weeks.map((w, i) => ({
+      startStr:  w.startStr,
+      label:     w.label,
+      calls:     distributeEvenly(calls,     weeks.length)[i],
+      meetings:  distributeEvenly(meetings,  weeks.length)[i],
+      referrals: distributeEvenly(referrals, weeks.length)[i],
+    }));
+  }
+
+  // 月次目標表示更新
+  document.getElementById('dist-monthly-calls').textContent     = calls;
+  document.getElementById('dist-monthly-meetings').textContent  = meetings;
+  document.getElementById('dist-monthly-referrals').textContent = referrals;
+
+  renderWeekDistTable();
+  document.getElementById('week-dist-wrap').style.display = '';
+}
+
+function renderWeekDistTable() {
+  const tbody = document.getElementById('week-dist-body');
+  tbody.innerHTML = weekDist.map((w, i) => `
+    <tr>
+      <td>${w.label}</td>
+      <td><input class="wdi" type="number" min="0" value="${w.calls}"
+        oninput="onWeekDistChange(${i},'calls',this.value)"></td>
+      <td><input class="wdi" type="number" min="0" value="${w.meetings}"
+        oninput="onWeekDistChange(${i},'meetings',this.value)"></td>
+      <td><input class="wdi" type="number" min="0" value="${w.referrals}"
+        oninput="onWeekDistChange(${i},'referrals',this.value)"></td>
+    </tr>`).join('');
+  updateDistTotals();
+}
+
+function onWeekDistChange(idx, key, val) {
+  weekDist[idx][key] = parseInt(val) || 0;
+  updateDistTotals();
+}
+
+function updateDistTotals() {
+  const totalC = weekDist.reduce((s,w) => s + w.calls, 0);
+  const totalM = weekDist.reduce((s,w) => s + w.meetings, 0);
+  const totalR = weekDist.reduce((s,w) => s + w.referrals, 0);
+
+  document.getElementById('dist-total-calls').textContent     = totalC;
+  document.getElementById('dist-total-meetings').textContent  = totalM;
+  document.getElementById('dist-total-referrals').textContent = totalR;
+
+  const mC = parseInt(document.getElementById('target-monthly-calls').value)     || 0;
+  const mM = parseInt(document.getElementById('target-monthly-meetings').value)  || 0;
+  const mR = parseInt(document.getElementById('target-monthly-referrals').value) || 0;
+
+  const errs = [];
+  if (mC > 0 && totalC !== mC) errs.push(`架電: ${totalC}件（目標${mC}件、差分${totalC - mC > 0 ? '+' : ''}${totalC - mC}）`);
+  if (mM > 0 && totalM !== mM) errs.push(`面談: ${totalM}件（目標${mM}件、差分${totalM - mM > 0 ? '+' : ''}${totalM - mM}）`);
+  if (mR > 0 && totalR !== mR) errs.push(`紹介: ${totalR}件（目標${mR}件、差分${totalR - mR > 0 ? '+' : ''}${totalR - mR}）`);
+
+  const errEl = document.getElementById('dist-error');
+  if (errs.length > 0) {
+    errEl.textContent = '⚠ 合計が一致していません: ' + errs.join(' / ');
+    errEl.style.display = '';
+    document.getElementById('target-save-btn').disabled = true;
+    document.getElementById('target-save-btn').style.opacity = '0.5';
+  } else {
+    errEl.style.display = 'none';
+    document.getElementById('target-save-btn').disabled = false;
+    document.getElementById('target-save-btn').style.opacity = '';
+  }
+}
+
+async function saveKPITarget() {
+  if (!currentPerson) { toast('担当者を選択してください'); return; }
+
+  const calls     = parseInt(document.getElementById('target-monthly-calls').value)     || 0;
+  const meetings  = parseInt(document.getElementById('target-monthly-meetings').value)  || 0;
+  const referrals = parseInt(document.getElementById('target-monthly-referrals').value) || 0;
+
+  if (!calls && !meetings && !referrals) { toast('目標を入力してください'); return; }
+
+  const now   = new Date(todayDate);
+  const month = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
   const payload = {
-    action: 'setWeeklyTarget',
-    person: currentPerson,
-    weekStart: monday,
-    callTarget: calls,
-    meetingTarget: meetings,
+    action:   'setMonthlyKPITarget',
+    person:   currentPerson,
+    month,
+    monthly:  { calls, meetings, referrals },
+    weeks:    weekDist.map(w => ({
+      weekStart: w.startStr,
+      calls:     w.calls,
+      meetings:  w.meetings,
+      referrals: w.referrals,
+    })),
   };
 
   try {
     await fetch(GAS_URL, {method:'POST', body:JSON.stringify(payload), mode:'no-cors'});
     toast('目標を保存しました');
     closeTargetModal();
-    weeklyData = weeklyData || {daily:[]};
-    weeklyData.target = {calls, meetings};
-    renderWeeklyCard(weeklyData);
+
+    // ローカル反映：当週の目標を weeklyData に反映
+    const monday = getMondayOfWeek(todayDate);
+    const thisWeek = weekDist.find(w => w.startStr === monday);
+    if (thisWeek) {
+      weeklyData = weeklyData || {daily:[]};
+      weeklyData.target = {
+        calls:          thisWeek.calls,
+        meetings:       thisWeek.meetings,
+        referrals:      thisWeek.referrals,
+        monthlyCalls:   calls,
+        monthlyMeetings:meetings,
+        monthlyReferrals:referrals,
+      };
+      renderWeeklyCard(weeklyData);
+    }
   } catch(e) {
     toast('保存に失敗しました');
   }
@@ -503,46 +753,66 @@ async function submitReport() {
   const btn = document.getElementById('submit-btn');
   btn.disabled = true; btn.textContent = '送信中...';
 
-  const calls    = parseInt(document.getElementById('r-calls').value)    || 0;
-  const meetings = parseInt(document.getElementById('r-meetings').value) || 0;
-  const payload  = {action:'addActivity', person:currentPerson, date:todayDate, calls, meetings};
+  const calls     = parseInt(document.getElementById('r-calls').value)     || 0;
+  const meetings  = parseInt(document.getElementById('r-meetings').value)  || 0;
+  const referrals = parseInt(document.getElementById('r-referrals').value) || 0;
+  const comment   = document.getElementById('r-comment').value.trim();
+
+  const payload = {
+    action: 'addActivity',
+    person: currentPerson,
+    date:   todayDate,
+    calls,
+    meetings,
+    referrals,
+    comment,
+  };
 
   try {
     await fetch(GAS_URL, {method:'POST', body:JSON.stringify(payload), mode:'no-cors'});
   } catch(e) { console.warn('GAS送信失敗:', e); }
 
   btn.disabled = false; btn.textContent = '送信する';
-  showDone(calls, meetings);
+  showDone(calls, meetings, referrals, comment);
 }
 
-function showDone(calls, meetings) {
+function showDone(calls, meetings, referrals, comment) {
   document.getElementById('page-1').style.display   = 'none';
   document.getElementById('page-done').style.display = '';
 
   const dateStr = new Date().toLocaleDateString('ja-JP', {month:'long', day:'numeric', weekday:'short'});
   document.getElementById('done-sub').textContent = `${currentPerson} — ${dateStr}`;
 
-  // 本日の数値
   const target     = weeklyData?.target;
-  const prevTotal  = (weeklyData?.daily||[]).reduce((s,d) => ({calls:s.calls+d.calls, meetings:s.meetings+d.meetings}), {calls:0, meetings:0});
-  const newCalls   = prevTotal.calls + calls;
-  const newMeetings= prevTotal.meetings + meetings;
-  const callPct    = target?.calls    > 0 ? Math.min(100, Math.round(newCalls    / target.calls    * 100)) : null;
-  const meetingPct = target?.meetings > 0 ? Math.min(100, Math.round(newMeetings / target.meetings * 100)) : null;
+  const prevTotal  = (weeklyData?.daily||[]).reduce(
+    (s,d) => ({calls:s.calls+(d.calls||0), meetings:s.meetings+(d.meetings||0), referrals:s.referrals+(d.referrals||0)}),
+    {calls:0, meetings:0, referrals:0}
+  );
+  const newCalls     = prevTotal.calls     + calls;
+  const newMeetings  = prevTotal.meetings  + meetings;
+  const newReferrals = prevTotal.referrals + referrals;
+
+  const pctStr = (v, t) => t > 0 ? `<div style="font-size:11px;color:var(--text3);margin-top:4px">今週計 ${v}件 / ${Math.min(100,Math.round(v/t*100))}%</div>` : '';
 
   document.getElementById('done-today').innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-      <div style="text-align:center;padding:14px;background:var(--blue-bg);border-radius:var(--r-sm)">
-        <div style="font-size:30px;font-weight:700;font-family:'DM Mono';color:var(--blue)">${calls}</div>
-        <div style="font-size:11px;color:var(--blue-text);margin-top:2px">本日の架電</div>
-        ${callPct!==null ? `<div style="font-size:11px;color:var(--text3);margin-top:4px">今週計 ${newCalls}件 / ${callPct}%</div>` : ''}
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+      <div style="text-align:center;padding:12px 8px;background:var(--blue-bg);border-radius:var(--r-sm)">
+        <div style="font-size:26px;font-weight:700;font-family:'DM Mono';color:var(--blue)">${calls}</div>
+        <div style="font-size:11px;color:var(--blue-text);margin-top:2px">架電</div>
+        ${pctStr(newCalls, target?.calls)}
       </div>
-      <div style="text-align:center;padding:14px;background:var(--green-bg);border-radius:var(--r-sm)">
-        <div style="font-size:30px;font-weight:700;font-family:'DM Mono';color:var(--green)">${meetings}</div>
-        <div style="font-size:11px;color:var(--green);margin-top:2px">本日の有効面談</div>
-        ${meetingPct!==null ? `<div style="font-size:11px;color:var(--text3);margin-top:4px">今週計 ${newMeetings}件 / ${meetingPct}%</div>` : ''}
+      <div style="text-align:center;padding:12px 8px;background:var(--green-bg);border-radius:var(--r-sm)">
+        <div style="font-size:26px;font-weight:700;font-family:'DM Mono';color:var(--green)">${meetings}</div>
+        <div style="font-size:11px;color:var(--green);margin-top:2px">面談</div>
+        ${pctStr(newMeetings, target?.meetings)}
       </div>
-    </div>`;
+      <div style="text-align:center;padding:12px 8px;background:var(--purple-bg);border-radius:var(--r-sm)">
+        <div style="font-size:26px;font-weight:700;font-family:'DM Mono';color:var(--purple)">${referrals}</div>
+        <div style="font-size:11px;color:var(--purple);margin-top:2px">紹介</div>
+        ${pctStr(newReferrals, target?.referrals)}
+      </div>
+    </div>
+    ${comment ? `<div style="background:var(--surface2);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:8px"><div style="font-size:10px;color:var(--text3);margin-bottom:4px">振り返り</div>${escHtml(comment)}</div>` : ''}`;
 }
 
 // ─── Geminiアドバイス ───
@@ -574,8 +844,10 @@ async function loadAdvice() {
 function resetAll() {
   document.getElementById('page-done').style.display = 'none';
   document.getElementById('page-1').style.display    = '';
-  document.getElementById('r-calls').value    = '0';
-  document.getElementById('r-meetings').value = '0';
+  document.getElementById('r-calls').value     = '0';
+  document.getElementById('r-meetings').value  = '0';
+  document.getElementById('r-referrals').value = '0';
+  document.getElementById('r-comment').value   = '';
   loadWeeklyData();
 }
 

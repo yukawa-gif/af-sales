@@ -279,18 +279,19 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
 .ai-key-reset:hover{color:rgba(255,255,255,.7);text-decoration:underline}
 
 /* ─── KPIテーブル ─── */
-.kpi-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.kpi-tbl{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
 .kpi-tbl th{background:#f8fafc;color:var(--text3);font-weight:700;font-size:10px;
-  padding:9px 16px;text-align:center;border-bottom:2px solid var(--border);
-  letter-spacing:.06em;text-transform:uppercase}
-.kpi-tbl th:first-child{text-align:left;padding-left:0;min-width:80px}
-.kpi-tbl td{padding:12px 16px;text-align:center;border-bottom:1px solid var(--border)}
-.kpi-tbl td:first-child{text-align:left;padding-left:0;
-  font-weight:600;color:var(--text2);font-size:13px}
+  padding:6px 4px;text-align:center;border-bottom:2px solid var(--border)}
+.kpi-tbl th.period-header{font-size:11px;font-weight:800;color:var(--text2);
+  border-bottom:1px solid var(--border);padding:6px 4px}
+.kpi-tbl th:first-child{text-align:left;padding-left:0;width:72px}
+.kpi-tbl td{padding:10px 4px;text-align:center;border-bottom:1px solid var(--border);vertical-align:middle}
+.kpi-tbl td:first-child{text-align:left;padding-left:0;font-weight:600;color:var(--text2);font-size:12px}
 .kpi-tbl tr:last-child td{border-bottom:none}
-.kpi-tbl .row-actual{font-size:24px;font-weight:800;letter-spacing:-.02em}
-.kpi-tbl .row-target{font-size:14px;color:var(--text2)}
-.kpi-rate{font-size:10px;color:var(--text3);font-weight:500;margin-left:3px}
+.kpi-cell-actual{font-size:20px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+.kpi-cell-target{font-size:11px;color:var(--text3);margin-top:2px}
+.kpi-cell-pct{font-size:10px;font-weight:700;margin-top:1px}
+.kpi-tbl .sep-col{width:1px;background:var(--border);padding:0}
 
 
 /* ─── 年間進捗 ─── */
@@ -1198,28 +1199,44 @@ function render(person){
     if(byRankTotal[rank]!==undefined) byRankTotal[rank]+=toMan(Number(d['粗利'])||0);
   });
 
-  // KPI集計（期間フィルタ適用）
-  const kpiActual=filterActualByPeriod(personActual, kpiPeriod);
-  const kpiKeys=['ヒアリング','自分でアポ','テレアポ経由','紹介会社'];
-  const kpiSums={};
-  kpiKeys.forEach(k=>{kpiSums[k]=0});
-  kpiActual.forEach(r=>{kpiKeys.forEach(k=>{kpiSums[k]+=Number(r[k])||0})});
-  kpiSums['有効面談件数']=kpiSums['ヒアリング']||0;
-  kpiSums['自アポ']     =kpiSums['自分でアポ']||0;
-  kpiSums['テレアポ']   =kpiSums['テレアポ経由']||0;
-  kpiSums['紹介']       =kpiSums['紹介会社']||0;
-  // 後方互換（旧キー）
-  kpiSums['面談件数']=kpiSums['有効面談件数'];
-  kpiSums['架電件数']=kpiSums['テレアポ'];
+  // KPI集計 - 今月・今週・今日の3期間を同時計算
+  const kpiSumFor = period => {
+    const filtered = filterActualByPeriod(personActual, period);
+    return {
+      meetings:  filtered.reduce((s,r)=>s+(Number(r['ヒアリング']  ||r['meetings'] ||0)),0),
+      calls:     filtered.reduce((s,r)=>s+(Number(r['テレアポ経由']||r['calls']    ||0)),0),
+      referrals: filtered.reduce((s,r)=>s+(Number(r['紹介会社']    ||r['referrals']||0)),0),
+    };
+  };
+  const kpiMonth = kpiSumFor('month');
+  const kpiWeek  = kpiSumFor('week');
+  const kpiToday = kpiSumFor('today');
 
-  // KPI目標（チーム全体は全員合計）
-  let kpiGoal=personGoal;
-  if(isTeam){
-    const allP=goalsData?.persons||[];
-    const tm=allP.reduce((s,p)=>s+((p.kpi||{}).meeting||0),0);
-    const tc=allP.reduce((s,p)=>s+((p.kpi||{}).call||0),0);
-    kpiGoal={kpi:{meeting:tm,call:tc}};
-  }
+  // KPI月次目標（チーム全体は全員合計）
+  const allP=goalsData?.persons||[];
+  const getKpi=(p,k)=>(p?.kpi||{})[k]||0;
+  const monthlyKpi = isTeam ? {
+    meetings:  allP.reduce((s,p)=>s+getKpi(p,'meeting') +getKpi(p,'meetings') ,0),
+    calls:     allP.reduce((s,p)=>s+getKpi(p,'call')    +getKpi(p,'calls')    ,0),
+    referrals: allP.reduce((s,p)=>s+getKpi(p,'referral')+getKpi(p,'referrals'),0),
+  } : {
+    meetings:  getKpi(personGoal,'meeting') +getKpi(personGoal,'meetings'),
+    calls:     getKpi(personGoal,'call')    +getKpi(personGoal,'calls'),
+    referrals: getKpi(personGoal,'referral')+getKpi(personGoal,'referrals'),
+  };
+
+  // 週次・日次目標は月次から均等計算
+  const nw = getNumWeeksInMonth(today.getFullYear(), today.getMonth()+1);
+  const weeklyKpi = {
+    meetings:  monthlyKpi.meetings  > 0 ? Math.round(monthlyKpi.meetings  / nw) : 0,
+    calls:     monthlyKpi.calls     > 0 ? Math.round(monthlyKpi.calls     / nw) : 0,
+    referrals: monthlyKpi.referrals > 0 ? Math.round(monthlyKpi.referrals / nw) : 0,
+  };
+  const dailyKpi = {
+    meetings:  weeklyKpi.meetings  > 0 ? Math.round(weeklyKpi.meetings  / 5) : 0,
+    calls:     weeklyKpi.calls     > 0 ? Math.round(weeklyKpi.calls     / 5) : 0,
+    referrals: weeklyKpi.referrals > 0 ? Math.round(weeklyKpi.referrals / 5) : 0,
+  };
 
   // 今月目標・今月実績（months があれば当月値を使用、なければ monthlyTarget にフォールバック）
   const getMonthlyGP=p=>p?.months?p.months[todayYM]||0:Math.round(p?.monthlyTarget||0);
@@ -1251,7 +1268,7 @@ function render(person){
   renderUnpaidAlert(personDeals);
   renderTimeline(personDeals,actualByMonth,person,isTeam);
   renderPersonDetail(personDeals,isTeam);
-  renderKPITable(kpiSums,kpiGoal);
+  renderKPITable(kpiMonth,kpiWeek,kpiToday,monthlyKpi,weeklyKpi,dailyKpi);
   renderProgress(annualTarget,uriageTotal,yomiTotal,forecast,col,monthlyTarget,thisMonthActual);
   renderIncentiveCard(person,isTeam);
   pendingChartArgs = [personDeals, person, isTeam];
@@ -2270,40 +2287,64 @@ function setKPIPeriod(period){
   if(currentPerson) render(currentPerson);
 }
 
-// ============================================================
-// KPIテーブル
-// ============================================================
-function renderKPITable(sums,personGoal){
-  renderKPIPeriodBtns();
+// 当月の週数を計算
+function getNumWeeksInMonth(yyyy,mm){
+  const firstDay=new Date(yyyy,mm-1,1);
+  const lastDay=new Date(yyyy,mm,0);
+  let cur=new Date(firstDay);
+  const dow=cur.getDay();
+  cur.setDate(cur.getDate()+(dow===0?-6:1-dow));
+  let count=0;
+  while(cur<=lastDay){count++;cur.setDate(cur.getDate()+7);}
+  return count||4;
+}
 
-  const periodLabel={'today':'今日','week':'今週','month':'今月','fy':'今期累計'};
-  const showTarget=kpiPeriod==='month'||kpiPeriod==='fy';
+// ============================================================
+// KPIテーブル（今月・今週・今日 × 目標|実績）
+// ============================================================
+function renderKPITable(kpiMonth,kpiWeek,kpiToday,monthlyKpi,weeklyKpi,dailyKpi){
+  const btnWrap=document.getElementById('kpi-period-btns');
+  if(btnWrap) btnWrap.style.display='none';
 
-  const kpiDef=[
-    {label:'有効面談件数',key:'有効面談件数',gk:'meeting'},
-    {label:'自アポ',      key:'自アポ',      gk:null},
-    {label:'テレアポ',    key:'テレアポ',    gk:'call'},
-    {label:'紹介',        key:'紹介',        gk:null},
+  const defs=[
+    {label:'面談件数',key:'meetings'},
+    {label:'架電件数',key:'calls'},
+    {label:'紹介件数',key:'referrals'},
   ];
-  const rows=kpiDef.map(k=>{
-    const tgt=showTarget&&personGoal&&k.gk?((personGoal.kpi||{})[k.gk]||0):0;
-    const val=sums[k.key]||0;
-    const pct=tgt>0?Math.round(val/tgt*100):null;
-    return `<tr>
-      <td>${k.label}</td>
-      ${showTarget?`<td class="row-target">${tgt>0?fmt(tgt):'—'}</td>`:''}
-      <td class="row-actual">${fmt(val)}${pct!=null?`<span class="kpi-rate">(${pct}%)</span>`:''}
-      </td>
-    </tr>`;
-  }).join('');
+  const accent={meetings:'#15803d',calls:'#1d4ed8',referrals:'#7c3aed'};
+
+  const cell=(actual,target,key)=>{
+    const pct=target>0?Math.round(actual/target*100):null;
+    const col=pct===null?'var(--text)':pct>=100?'var(--green)':pct>=70?'var(--blue)':'var(--amber)';
+    return `<td style="padding:8px 4px">
+      <div class="kpi-cell-actual" style="color:${accent[key]||col}">${actual}</div>
+      <div class="kpi-cell-target">${target>0?'目標 '+target:'—'}</div>
+      ${pct!==null?`<div class="kpi-cell-pct" style="color:${col}">${pct}%</div>`:''}
+    </td>`;
+  };
+
+  const rows=defs.map(d=>`
+    <tr>
+      <td style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap;padding-left:0">${d.label}</td>
+      ${cell(kpiMonth[d.key],monthlyKpi[d.key],d.key)}
+      <td class="sep-col"></td>
+      ${cell(kpiWeek[d.key], weeklyKpi[d.key], d.key)}
+      <td class="sep-col"></td>
+      ${cell(kpiToday[d.key],dailyKpi[d.key],  d.key)}
+    </tr>`).join('');
 
   document.getElementById('kpi-table-wrap').innerHTML=`
     <table class="kpi-tbl">
-      <thead><tr>
-        <th></th>
-        ${showTarget?'<th>月間目標</th>':''}
-        <th>${periodLabel[kpiPeriod]||'実績'}</th>
-      </tr></thead>
+      <thead>
+        <tr>
+          <th></th>
+          <th class="period-header">今月</th>
+          <th class="sep-col"></th>
+          <th class="period-header">今週</th>
+          <th class="sep-col"></th>
+          <th class="period-header">今日</th>
+        </tr>
+      </thead>
       <tbody>${rows}</tbody>
     </table>`;
 }
