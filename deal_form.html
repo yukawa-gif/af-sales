@@ -111,6 +111,10 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;background:var(--bg);
   color:var(--text2);transition:.15s;user-select:none}
 .product-chip:hover{border-color:var(--blue);color:var(--blue)}
 .product-chip.sel{border-color:var(--blue);background:var(--blue);color:#fff}
+.product-chips-header{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.product-chips-label{font-size:11px;color:var(--text3);font-weight:600}
+.product-chips-badge{font-size:10px;color:var(--text3);background:var(--border);
+  border-radius:10px;padding:1px 7px}
 .product-other-label{font-size:11px;color:var(--text3);margin-bottom:4px;display:block}
 
 /* サジェスト */
@@ -215,6 +219,10 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;background:var(--bg);
 
           <div class="fg">
             <label class="fl">商材<span class="req">*</span></label>
+            <div class="product-chips-header">
+              <span class="product-chips-label">よく使う TOP10</span>
+              <span class="product-chips-badge" id="top-products-period">直近30日</span>
+            </div>
             <div class="product-chips" id="product-chips"></div>
             <span class="product-other-label">その他の商材</span>
             <select class="fsel" id="productName" onchange="onProductChange()">
@@ -419,7 +427,7 @@ async function fetchMasterData(){
 function applyMasterData(data){
   masterData = data;
   buildPersonOptions(data.personDetails || []);
-  buildProductOptions(data.productDetails || []);
+  buildProductOptions(data.productDetails || [], data.topProducts || []);
   customerList = (data.customers || []).map(c => ({
     code:    c['顧客ID']    || c['顧客コード'] || c.code    || '',
     company: c['企業名']    || c.company || '',
@@ -438,20 +446,15 @@ function buildPersonOptions(details) {
   });
 }
 
-// よく使う商材チップの固定リスト（変更はここを編集）
-const FREQUENT_PRODUCTS = [
-  '社労士顧問～4人',
-  'HubCastライト_割引',
-  'IT導入補助金（直販）',
-  'リスキリング_完全受講_直販',
-  'リスキリング_完全受講_代理店80%',
-];
-
-function buildProductOptions(details) {
+function buildProductOptions(details, topProducts) {
   const chips = document.getElementById('product-chips');
-  chips.innerHTML = FREQUENT_PRODUCTS.map(name =>
-    `<div class="product-chip" data-v="${esc(name)}" onclick="selProductChip(this,'${esc(name)}')">${esc(name)}</div>`
-  ).join('');
+  if (topProducts.length > 0) {
+    chips.innerHTML = topProducts.map(name =>
+      `<div class="product-chip" data-v="${esc(name)}" onclick="selProductChip(this,'${esc(name)}')">${esc(name)}</div>`
+    ).join('');
+  } else {
+    chips.innerHTML = '<span style="font-size:12px;color:var(--text3)">データ取得中...</span>';
+  }
 
   // グループ：ストック（継続）/ スポット（固定）/ スポット（都度見積もり）
   const groups = { 'ストック（継続契約）': [], 'スポット（固定価格）': [], 'スポット（都度見積もり）': [] };
