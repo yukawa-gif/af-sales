@@ -66,8 +66,9 @@ function getCustomers(d) {
   return { success: true, data, total, page, pageSize };
 }
 
-function getCustomerStats() {
-  const all      = getAllCustomers_();
+function getCustomerStats(afcStaff) {
+  let all = getAllCustomers_();
+  if (afcStaff) all = all.filter(c => c.afcStaff === afcStaff);
   const total    = all.length;
   const active   = all.filter(c => c.status === '取引中' || c.status === '既存').length;
   const prospect = all.filter(c => c.status === '見込み').length;
