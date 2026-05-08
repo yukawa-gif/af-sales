@@ -204,6 +204,13 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;background:var(--bg);
           </div>
 
           <div class="fg">
+            <label class="fl">計上会社<span class="req">*</span></label>
+            <select class="fsel" id="billingCompany">
+              <option value="">選択してください</option>
+            </select>
+          </div>
+
+          <div class="fg">
             <label class="fl">会社名<span class="req">*</span></label>
             <div class="suggest-wrap">
               <input class="fi" type="text" id="companyName"
@@ -287,6 +294,33 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;background:var(--bg);
               <label class="fl">月数</label>
               <input class="fi" type="number" id="months" min="1" max="24" inputmode="numeric"
                 placeholder="1" value="1" oninput="calcAmount()">
+            </div>
+          </div>
+
+          <!-- B行：複合商材（顧問料＋給与計算 等） -->
+          <div id="b-row-wrap" style="display:none;margin-top:6px">
+            <div style="font-size:11px;color:var(--amber);background:var(--amber-bg);
+              padding:4px 8px;border-radius:5px;margin-bottom:6px">
+              ＋ 変動部分（給与計算・追加稼働など）／ 月数は上と共有
+            </div>
+            <div class="calc-row">
+              <div class="calc-field">
+                <label class="fl">売上B（単価）</label>
+                <input class="fi" type="number" id="b-sales" min="0" inputmode="numeric"
+                  placeholder="0" value="0" oninput="calcAmount()">
+              </div>
+              <span class="calc-op">−</span>
+              <div class="calc-field">
+                <label class="fl">費用B（単価）</label>
+                <input class="fi" type="number" id="b-cost" min="0" inputmode="numeric"
+                  placeholder="0" value="0" oninput="calcAmount()">
+              </div>
+              <span class="calc-op">×</span>
+              <div class="calc-field fn">
+                <label class="fl">件数B</label>
+                <input class="fi" type="number" id="b-qty" min="1" inputmode="numeric"
+                  placeholder="1" value="1" oninput="calcAmount()">
+              </div>
             </div>
           </div>
 
@@ -428,6 +462,7 @@ function applyMasterData(data){
   masterData = data;
   buildPersonOptions(data.personDetails || []);
   buildProductOptions(data.productDetails || [], data.topProducts || []);
+  buildCompanyOptions(data.companies || []);
   customerList = (data.customers || []).map(c => ({
     code:    c['顧客ID']    || c['顧客コード'] || c.code    || '',
     company: c['企業名']    || c.company || '',
@@ -481,6 +516,18 @@ function buildProductOptions(details, topProducts) {
     });
     sel.appendChild(og);
   });
+}
+
+function buildCompanyOptions(companies) {
+  const sel = document.getElementById('billingCompany');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">選択してください</option>';
+  companies.filter(c => c.status === '有効').forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.name; opt.textContent = c.name;
+    sel.appendChild(opt);
+  });
+  if (current) sel.value = current;
 }
 
 function selProductChip(el, name) {
@@ -582,6 +629,12 @@ function applyProduct(name) {
   document.getElementById('cost').value   = isQuote ? '' : (p.cost || '');
   document.getElementById('months').value = p.months || 1;
 
+  const isComposite = (p.bUnitPrice || 0) > 0 || (p.bCost || 0) > 0;
+  document.getElementById('b-row-wrap').style.display = isComposite ? 'block' : 'none';
+  document.getElementById('b-sales').value = isComposite ? (p.bUnitPrice || 0) : 0;
+  document.getElementById('b-cost').value  = isComposite ? (p.bCost || 0) : 0;
+  document.getElementById('b-qty').value   = 1;
+
   calcAmount();
 }
 
@@ -597,13 +650,20 @@ function calcAmount() {
 
   if (months > 24) { months = 24; document.getElementById('months').value = 24; }
 
+  const bVisible = document.getElementById('b-row-wrap').style.display !== 'none';
+  const bSales   = bVisible ? (Number(document.getElementById('b-sales').value) || 0) : 0;
+  const bCost    = bVisible ? (Number(document.getElementById('b-cost').value)  || 0) : 0;
+  const bQty     = bVisible ? (parseInt(document.getElementById('b-qty').value, 10) || 1) : 0;
+
   const hasVal = (unitSales > 0 || unitCost > 0);
   document.getElementById('amount-card').style.display = hasVal ? 'block' : 'none';
   if (!hasVal) return;
 
-  const monthlyGp    = (unitSales - unitCost) * courses * qty;
-  const totalSales   = unitSales * courses * qty * months;
-  const totalGp      = monthlyGp * months;
+  const monthlyGpA = (unitSales - unitCost) * courses * qty;
+  const monthlyGpB = bVisible ? (bSales - bCost) * bQty : 0;
+  const monthlyGp  = monthlyGpA + monthlyGpB;
+  const totalSales = unitSales * courses * qty * months;
+  const totalGp    = monthlyGp * months;
 
   document.getElementById('disp-gp').textContent         = '¥' + monthlyGp.toLocaleString();
   document.getElementById('disp-total-sales').textContent = '¥' + totalSales.toLocaleString();
@@ -678,16 +738,18 @@ function getSelectedProduct() {
 // バリデーション
 // ============================================================
 function validate() {
-  const person      = getSelectedPerson();
-  const companyName = document.getElementById('companyName').value.trim();
-  const productName = getSelectedProduct();
-  const expMonth    = document.getElementById('expectedMonth').value;
-  const sales       = document.getElementById('sales').value;
+  const person         = getSelectedPerson();
+  const billingCompany = document.getElementById('billingCompany').value;
+  const companyName    = document.getElementById('companyName').value.trim();
+  const productName    = getSelectedProduct();
+  const expMonth       = document.getElementById('expectedMonth').value;
+  const sales          = document.getElementById('sales').value;
 
-  if (!person)      return '担当者を選択してください';
-  if (!companyName) return '会社名を入力してください';
-  if (!productName) return '商材を選択してください';
-  if (!expMonth)    return '売上予定月を入力してください';
+  if (!person)         return '担当者を選択してください';
+  if (!billingCompany) return '計上会社を選択してください';
+  if (!companyName)    return '会社名を入力してください';
+  if (!productName)    return '商材を選択してください';
+  if (!expMonth)       return '売上予定月を入力してください';
 
   if (masterData) {
     const p = masterData.productDetails.find(d => d.name === productName);
@@ -716,17 +778,24 @@ async function submit() {
   const qty         = parseInt(document.getElementById('qty').value, 10)     || 1;
   const months      = Math.min(parseInt(document.getElementById('months').value, 10) || 1, 24);
 
+  const bVisible   = document.getElementById('b-row-wrap').style.display !== 'none';
+  const bUnitSales = bVisible ? (Number(document.getElementById('b-sales').value) || 0) : 0;
+  const bUnitCost  = bVisible ? (Number(document.getElementById('b-cost').value)  || 0) : 0;
+  const bQty       = bVisible ? (parseInt(document.getElementById('b-qty').value, 10) || 1) : 0;
+
   const payload = {
-    action:        'addDeal',
+    action:         'addDeal',
     person,
-    companyName:   document.getElementById('companyName').value.trim(),
-    customerId:    document.getElementById('customerId').value,
+    billingCompany: document.getElementById('billingCompany').value,
+    companyName:    document.getElementById('companyName').value.trim(),
+    customerId:     document.getElementById('customerId').value,
     productName,
-    rankLabel:     document.getElementById('rankLabel').value,
+    rankLabel:      document.getElementById('rankLabel').value,
     unitSales, unitCost, courses, qty, months,
-    expectedMonth: document.getElementById('expectedMonth').value,
-    memo:          document.getElementById('memo').value.trim(),
-    reason:        document.getElementById('reason').value.trim()
+    bUnitSales, bUnitCost, bQty,
+    expectedMonth:  document.getElementById('expectedMonth').value,
+    memo:           document.getElementById('memo').value.trim(),
+    reason:         document.getElementById('reason').value.trim()
   };
 
   try {
@@ -739,7 +808,8 @@ async function submit() {
     localStorage.setItem('deal_last_person', person);
 
     // インセンティブ表示用再計算
-    const gp = (unitSales - unitCost) * courses * qty; // 月次粗利
+    const gpB = bQty > 0 ? (bUnitSales - bUnitCost) * bQty : 0;
+    const gp  = (unitSales - unitCost) * courses * qty + gpB; // 月次粗利（A+B）
     const p  = masterData?.productDetails?.find(d => d.name === productName) ?? null;
     const incentiveRate = p ? (p.incentiveRate || 0) : 0;
     const incentive = Math.floor(gp * months * incentiveRate);
@@ -779,6 +849,10 @@ function reset() {
   document.getElementById('courses').value = '1';
   document.getElementById('qty').value     = '1';
   document.getElementById('months').value  = '1';
+  document.getElementById('b-row-wrap').style.display = 'none';
+  document.getElementById('b-sales').value = '0';
+  document.getElementById('b-cost').value  = '0';
+  document.getElementById('b-qty').value   = '1';
   document.getElementById('memo').value   = '';
   document.getElementById('reason').value = '';
   document.getElementById('s-incentive').style.display  = 'none';
