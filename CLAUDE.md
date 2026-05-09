@@ -359,6 +359,68 @@ python -m http.server 8080
 
 ---
 
+## 2026-05-09 実装内容
+
+### GAS updateDeal() AA〜AD列対応
+
+`updateDeal(d)` に以下のフィールドを追加（GASエディタで変更・再デプロイ必要）：
+
+```javascript
+// updateDeal(d) 内の sheet.getRange(...).setValues([row]) の該当行に追記
+// AA列(row[26]):計上会社 / AB列(row[27]):B売上単価 / AC列(row[28]):B費用単価 / AD列(row[29]):B件数
+
+function updateDeal(d) {
+  const sheet = ss.getSheetByName('案件マスタ');
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) !== String(d.id)) continue;
+    const row = rows[i];
+    if (d.rankLabel    !== undefined) row[7]  = d.rankLabel;
+    if (d.expectedMonth!== undefined) row[9]  = d.expectedMonth;   // I列 or 対応列に合わせて要確認
+    if (d.grossProfit  !== undefined) row[11] = Number(d.grossProfit);
+    if (d.memo         !== undefined) row[22] = d.memo;
+    if (d.reason       !== undefined) row[24] = d.reason;
+    if (d.paymentStatus!== undefined) row[23] = d.paymentStatus;
+    // AA〜AD列（インデックス26〜29）
+    if (d.billingCompany !== undefined) row[26] = d.billingCompany;
+    if (d.bUnitSales     !== undefined) row[27] = Number(d.bUnitSales) || 0;
+    if (d.bUnitCost      !== undefined) row[28] = Number(d.bUnitCost)  || 0;
+    if (d.bQty           !== undefined) row[29] = Number(d.bQty)       || 0;
+    row[25] = new Date(); // Z列: 最終更新日
+    sheet.getRange(i + 1, 1, 1, row.length).setValues([row]);
+    return { success: true };
+  }
+  return { success: false, error: 'not found' };
+}
+```
+
+> ※ 列インデックスは現行 GAS の実装に合わせて確認すること。列番号がずれている場合は修正する。
+
+### getDeals() の返却フィールド追加
+
+`getDeals()` で案件マスタを読む際、AA〜AD列を以下の日本語キーで返す：
+
+```javascript
+'計上会社': row[26] || '',
+'B売上単価': Number(row[27]) || 0,
+'B費用単価': Number(row[28]) || 0,
+'B件数':     Number(row[29]) || 0,
+```
+
+### dashboard.html に追加した機能
+
+#### 案件編集モーダルに計上会社・B行フィールド追加
+- 編集モーダル内に「計上会社」セレクトを追加（masterData.companies から動的生成）
+- B行フィールド（B売上単価・B費用単価・B件数）を追加（B件数 > 0 の案件のみ表示）
+- saveDealModal() が billingCompany / bUnitSales / bUnitCost / bQty を updateDeal に送信
+
+#### 会社フィルター
+- 月別推移タイムラインの上部に会社フィルターを追加
+- ボタン：全社 / 株式会社（4社合計）/ 社労士（2社合計）/ 個社6社
+- フィルター選択時は deals の '計上会社' 列で絞り込み、グループ合計行は常に表示
+
+---
+
 ## 次の作業（TODO）
 
 1. ~~**商材DB再設計**：スプレッドシートの「設定\_商材」を新列構成に変更~~ ✅ 完了
@@ -366,7 +428,7 @@ python -m http.server 8080
 3. ~~**deal_form.html**：月数を種別から自動設定、インセンティブ計算を簡略化~~ ✅ 完了
 4. ~~**dashboard.html**：インセンティブカードのストック型対応（12ヶ月分をチェック）~~ ✅ 完了
 5. ~~**deal_form.html**：計上会社フィールド・B行（複合商材）追加~~ ✅ 完了
-6. **updateDeal() の AA〜AD列対応**：編集時に計上会社・B行が保存されるよう修正
-7. **dashboard.html**：月別推移グラフに会社フィルター追加（全社/株式会社/社労士/個社）
+6. ~~**updateDeal() の AA〜AD列対応**：編集時に計上会社・B行が保存されるよう修正~~ ✅ 完了（GASは別途デプロイ要）
+7. ~~**dashboard.html**：月別推移グラフに会社フィルター追加（全社/株式会社/社労士/個社）~~ ✅ 完了
 8. **データ統一作業**：全担当者のExcelデータを9項目に統一 → `importFromSheet()` で一括インポート
 9. **新・顧客マスタの構築**：案件マスタを中心に顧客データを再設計（別プロジェクトで実施）
