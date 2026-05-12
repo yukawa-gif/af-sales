@@ -1965,10 +1965,13 @@ function initProducts() {
 // ============================================================
 // 使い方：
 //   1. スプレッドシートに「インポート用」シートを作成
-//   2. A列:担当者 B列:会社名 C列:確度ランク D列:売上予定月
-//      E列:売上(円) F列:費用(円) G列:粗利(円) H列:商材名 I列:メモ
-//   3. 2行目以降にデータを貼り付け（1行目はヘッダー）
-//   4. この関数を実行
+//   2. 1行目はヘッダー行（内容は何でもOK）、2行目以降にデータを貼り付け
+//   3. 列順（13列）：
+//      A:担当者 B:会社名 C:確度ランク D:売上予定月
+//      E:売上(円) F:費用(円) G:粗利(円) H:商材名 I:メモ
+//      J:計上会社 K:B売上単価(円) L:B費用単価(円) M:B件数
+//      ※ J〜M列は省略可（空欄なら空文字・0として登録）
+//   4. この関数をGASエディタから実行
 // ============================================================
 function importFromSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1979,25 +1982,33 @@ function importFromSheet() {
   if (vals.length <= 1) { Logger.log('データがありません'); return; }
 
   const dest = ss.getSheetByName(SHEET_DEALS);
-  const lastRow = dest.getLastRow();
-  const existingIds = lastRow > 1
-    ? dest.getRange(2, 1, lastRow - 1, 1).getValues().flat().map(String)
-    : [];
 
   const VALID_RANKS = ['売上', '決定', 'A', 'B', 'C', '失注'];
   let added = 0, skipped = 0, errors = [];
 
+  // 重複チェック用に既存データを一度だけ読み込む
+  const iPersonIdx  = DEAL_HEADERS.indexOf('担当者');
+  const iCompanyIdx = DEAL_HEADERS.indexOf('会社名');
+  const iMonthIdx   = DEAL_HEADERS.indexOf('売上予定月');
+  const existingRows = dest.getLastRow() > 1
+    ? dest.getDataRange().getValues().slice(1)
+    : [];
+
   vals.slice(1).forEach((r, i) => {
-    const rowNum = i + 2;
-    const person   = String(r[0]||'').trim();
-    const company  = String(r[1]||'').trim();
-    const rank     = String(r[2]||'').trim();
-    const expMonth = String(r[3]||'').trim();
-    const sales    = Number(r[4])||0;
-    const cost     = Number(r[5])||0;
-    const gp       = Number(r[6])||0;
-    const product  = String(r[7]||'').trim();
-    const memo     = String(r[8]||'').trim();
+    const rowNum       = i + 2;
+    const person       = String(r[0]||'').trim();
+    const company      = String(r[1]||'').trim();
+    const rank         = String(r[2]||'').trim();
+    const expMonth     = String(r[3]||'').trim();
+    const sales        = Number(r[4])||0;
+    const cost         = Number(r[5])||0;
+    const gp           = Number(r[6])||0;
+    const product      = String(r[7]||'').trim();
+    const memo         = String(r[8]||'').trim();
+    const billingCo    = String(r[9]||'').trim();
+    const bUnitSales   = Number(r[10])||0;
+    const bUnitCost    = Number(r[11])||0;
+    const bQty         = Number(r[12])||0;
 
     // バリデーション
     if (!person || !company || !expMonth) {
@@ -2014,16 +2025,11 @@ function importFromSheet() {
     }
 
     // 重複チェック（同担当者・同会社・同月）
-    const iPersonIdx  = DEAL_HEADERS.indexOf('担当者');
-    const iCompanyIdx = DEAL_HEADERS.indexOf('会社名');
-    const iMonthIdx   = DEAL_HEADERS.indexOf('売上予定月');
-    const isDuplicate = dest.getLastRow() > 1 && (() => {
-      const v = dest.getDataRange().getValues().slice(1);
-      return v.some(dr =>
-        String(dr[iPersonIdx])===person && String(dr[iCompanyIdx])===company &&
-        String(dr[iMonthIdx]).slice(0,7)===expMonth
-      );
-    })();
+    const isDuplicate = existingRows.some(dr =>
+      String(dr[iPersonIdx])===person &&
+      String(dr[iCompanyIdx])===company &&
+      String(dr[iMonthIdx]).slice(0,7)===expMonth
+    );
     if (isDuplicate) {
       errors.push('行'+rowNum+': 重複スキップ（'+person+'/'+company+'/'+expMonth+'）');
       skipped++; return;
@@ -2036,7 +2042,6 @@ function importFromSheet() {
     const phase = (rank === '売上' || rank === '決定') ? '完了' : 'ヒアリング中';
     const payStatus = rank === '売上' ? '入金済み' : '未入金';
 
-    // DEAL_HEADERS に基づいて行配列を構築（列追加に強い）
     const rowMap = {
       '案件ID': id, '登録日': today, '担当者': person, '顧客ID': '',
       '会社名': company, '商材名': product, 'フェーズ': phase, '確度ランク': rank,
@@ -2044,9 +2049,12 @@ function importFromSheet() {
       '売上予定額': sales, '費用（合計）': cost, '粗利': gp,
       'インセンティブ': 0, '売上予定月': expMonth,
       '入金ステータス': payStatus, '入金確認日': '', 'メモ': memo,
-      '引継担当者': '', '引継日': '', '担当者コード': '', '理由': '', '最終更新日': today
+      '引継担当者': '', '引継日': '', '担当者コード': '', '理由': '', '最終更新日': today,
+      '計上会社': billingCo, 'B売上単価': bUnitSales, 'B費用単価': bUnitCost, 'B件数': bQty
     };
-    dest.appendRow(DEAL_HEADERS.map(h => rowMap[h] !== undefined ? rowMap[h] : ''));
+    const newRow = DEAL_HEADERS.map(h => rowMap[h] !== undefined ? rowMap[h] : '');
+    dest.appendRow(newRow);
+    existingRows.push(newRow); // 同一インポート内での重複防止
     added++;
   });
 
