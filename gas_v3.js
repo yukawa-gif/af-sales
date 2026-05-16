@@ -71,8 +71,10 @@ function doGet(e) {
     .createTextOutput(JSON.stringify(mObj))
     .setMimeType(ContentService.MimeType.JSON);
 }
-  if (mode === 'goals')         return getGoals(e && e.parameter && e.parameter.fy);
-  if (mode === 'goals_history') return getGoalsHistory(e && e.parameter && e.parameter.fy);
+  if (mode === 'goals')           return getGoals(e && e.parameter && e.parameter.fy);
+  if (mode === 'goals_history')   return getGoalsHistory(e && e.parameter && e.parameter.fy);
+  if (mode === 'generateTestData') return generateTestData();
+  if (mode === 'clearTestData')    return clearTestData();
   if (mode === 'customers') return getCustomerList();
   if (mode === 'customer')  return getCustomerDetail(e && e.parameter && e.parameter.code);
   if (mode === 'deals')     return getDeals(e && e.parameter && e.parameter.person);
@@ -458,6 +460,116 @@ function handoverDeal(id, newPerson, handoverDate) {
     }
   }
   return json({ success: false, error: '見つかりません: ' + id });
+}
+
+// ============================================================
+// テストデータ生成（管理者用：GETで呼び出し）
+// ============================================================
+function generateTestData() {
+  const sheet = getOrCreateDealSheet();
+  clearTestData(); // 既存テストデータを先にクリア
+
+  const today = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd');
+  const thisYM = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM');
+  const nextD  = new Date(); nextD.setMonth(nextD.getMonth() + 1);
+  const nextYM = Utilities.formatDate(nextD, 'Asia/Tokyo', 'yyyy-MM');
+
+  // 列順: A案件ID B登録日 C担当者 D顧客ID E会社名 F商材名 Gフェーズ H確度ランク
+  //       I売上単価 J費用単価 Kコース数 L件数 M月数 N売上予定額 O費用合計 P粗利
+  //       Qインセンティブ R売上予定月 S入金ステータス T入金確認日 Uメモ
+  //       V引継担当者 W引継日 X担当者コード Y理由 Z最終更新日
+  //       AA計上会社 ABB売上単価 ACB費用単価 ADB件数
+  const rows = [
+    // TEST-001: 正常な売上確定（ストック12ヶ月・インセンティブあり）
+    ['TEST-001', today, 'テスト担当者', '', '株式会社LOTY', 'HubCast_直販',
+     '売上', '売上', 35000, 13000, 1, 1, 12,
+     35000*12, 13000*12, (35000-13000)*12, Math.floor((35000-13000)*12*0.05),
+     thisYM, '入金済み', today, '[TEST]001_正常売上_ストック12',
+     '', '', '', '', today, '', 0, 0, 0],
+
+    // TEST-002: 表記揺れ検証（' loTy ' → normalizeCompanyで株式会社LOTYと同一扱いになるか）
+    ['TEST-002', today, 'テスト担当者', '', ' loTy ', 'HubCast_直販',
+     'ヒアリング中', 'A', 35000, 13000, 1, 1, 12,
+     35000*12, 13000*12, (35000-13000)*12, 0,
+     nextYM, '未入金', '', '[TEST]002_表記揺れ(loTy)',
+     '', '', '', '', today, '', 0, 0, 0],
+
+    // TEST-003: ストック按分テスト（件数2・月数12で月次粗利が半分になるか）
+    ['TEST-003', today, 'テスト担当者', '', 'ストックテスト株式会社', 'HubCast_直販',
+     'ヒアリング中', 'B', 35000, 13000, 1, 2, 12,
+     35000*2*12, 13000*2*12, (35000-13000)*2*12, 0,
+     thisYM, '未入金', '', '[TEST]003_ストック按分（件数2）',
+     '', '', '', '', today, '', 0, 0, 0],
+
+    // TEST-004: スポット商材（月数1）
+    ['TEST-004', today, 'テスト担当者', '', 'スポットテスト株式会社', 'IT支援研修事業',
+     'クロージング中', 'A', 1000000, 0, 1, 1, 1,
+     1000000, 0, 1000000, Math.floor(1000000*0.03),
+     nextYM, '未入金', '', '[TEST]004_スポット商材（月数1）',
+     '', '', '', '', today, '', 0, 0, 0],
+
+    // TEST-005: 売上-費用=粗利 計算整合性テスト
+    ['TEST-005', today, 'テスト担当者', '', '計算検証株式会社', 'リスキリング補助_直販',
+     '提案中', 'B', 200000, 0, 1, 1, 1,
+     200000, 0, 200000, 0,
+     nextYM, '未入金', '', '[TEST]005_計算整合性チェック',
+     '', '', '', '', today, '', 0, 0, 0],
+
+    // TEST-006: B行テスト（計上会社・B売上単価・B費用単価・B件数あり）
+    ['TEST-006', today, 'テスト担当者', '', 'B行テスト株式会社', 'HubCast_代理店',
+     'クロージング中', 'A', 35000, 27000, 1, 3, 12,
+     35000*3*12, 27000*3*12, (35000-27000)*3*12, 0,
+     nextYM, '未入金', '', '[TEST]006_B行テスト',
+     '', '', '', '', today, 'エー・ファクトリー株式会社', 40000, 30000, 2],
+
+    // TEST-007: インセンティブ計算テスト（決定ランク）
+    ['TEST-007', today, 'テスト担当者', '', 'インセンティブテスト社', 'HubCast_直販',
+     '売上', '決定', 35000, 13000, 1, 1, 12,
+     35000*12, 13000*12, (35000-13000)*12, Math.floor((35000-13000)*12*0.05),
+     thisYM, '未入金', '', '[TEST]007_インセンティブ計算',
+     '', '', '', '', today, '', 0, 0, 0],
+
+    // TEST-008: 複数コース数×件数のテスト
+    ['TEST-008', today, 'テスト担当者', '', '複数件数テスト社', 'HubCast_直販',
+     '提案中', 'C', 35000, 13000, 2, 3, 12,
+     35000*2*3*12, 13000*2*3*12, (35000-13000)*2*3*12, 0,
+     nextYM, '未入金', '', '[TEST]008_複数コース×件数',
+     '', '', '', '', today, '', 0, 0, 0],
+
+    // TEST-009: 失注案件（パイプライン集計から除外されるか）
+    ['TEST-009', today, 'テスト担当者', '', '失注テスト株式会社', 'HubCast_直販',
+     '失注', '失注', 35000, 13000, 1, 1, 12,
+     35000*12, 13000*12, (35000-13000)*12, 0,
+     nextYM, '未入金', '', '[TEST]009_失注案件',
+     '', '', '', '商談が長引いた', today, '', 0, 0, 0],
+
+    // TEST-010: 大文字・空白混じり表記揺れ（株式会社　LOTY → lotyと同一か）
+    ['TEST-010', today, 'テスト担当者', '', '株式会社　LOTY', '現地長期補助_直販',
+     'ヒアリング中', 'C', 600000, 0, 1, 1, 1,
+     600000, 0, 600000, 0,
+     nextYM, '未入金', '', '[TEST]010_表記揺れ（全角スペース入り）',
+     '', '', '', '', today, '', 0, 0, 0],
+  ];
+
+  rows.forEach(r => sheet.appendRow(r));
+  return json({ success: true, count: rows.length });
+}
+
+// ============================================================
+// テストデータ削除（管理者用：GETで呼び出し）
+// ============================================================
+function clearTestData() {
+  const sheet = getOrCreateDealSheet();
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return json({ success: true, count: 0 });
+
+  const ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  const toDelete = [];
+  for (let i = ids.length - 1; i >= 0; i--) {
+    if (String(ids[i][0]).startsWith('TEST-')) toDelete.push(i + 2);
+  }
+  toDelete.forEach(r => sheet.deleteRow(r));
+  return json({ success: true, count: toDelete.length });
 }
 
 // ============================================================
