@@ -149,10 +149,52 @@
   .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#1a1917;color:#fff;padding:10px 20px;border-radius:99px;font-size:13px;font-weight:500;z-index:999;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
   .toast.show{opacity:1}
 
-  @media(max-width:500px){
-    .wrap{padding:16px 12px 48px}
+  /* ─── スマートフォン最適化 ─── */
+  @media(max-width:600px){
+    body{padding-bottom:90px}
+    .wrap{max-width:100%;padding:12px 12px 100px}
+    /* ヘッダー：ボタンをコンパクトに */
+    .header{padding:0 12px;height:auto;min-height:56px;flex-wrap:wrap;gap:6px;padding-top:8px;padding-bottom:8px}
+    .header-sub{display:none}
+    #header-person-name{font-size:14px}
+    #today-date{display:none}
+    .btn.btn-sm{padding:6px 10px;font-size:12px;min-height:36px}
+    /* KPIグリッド：3列はそのままだがタッチ領域拡大 */
+    .kpi-grid{gap:8px}
+    .kpi-item{padding:10px 10px}
+    .kpi-label{font-size:10px}
+    .kpi-input{font-size:26px;padding:8px 6px;min-height:52px}
+    /* コメント欄 */
+    .comment-textarea{font-size:15px;min-height:80px}
+    /* 週別配分テーブル：文字小さく */
+    .week-dist-table{font-size:11px}
+    .wdi{width:40px;font-size:12px;padding:4px 4px}
+    /* プログレスバー */
+    .progress-label{font-size:11px}
+    /* 送信ボタン：ボトム固定 */
+    .submit-bottom{
+      position:fixed;bottom:0;left:0;right:0;
+      padding:12px 16px;background:var(--surface);
+      border-top:1px solid var(--border);
+      box-shadow:0 -2px 12px rgba(0,0,0,.1);
+      z-index:50
+    }
+    .btn-primary.submit-main{
+      width:100%;padding:16px;font-size:17px;border-radius:var(--r-sm);
+      min-height:54px
+    }
+    /* フォームセレクト */
+    .fsel{font-size:16px;padding:11px 12px;min-height:48px}
+    /* カード */
+    .card{padding:16px 14px}
+    /* 曜日バー */
+    .day-bars{gap:4px}
+    .day-bar{width:6px}
+  }
+  @media(max-width:380px){
     .kpi-grid{grid-template-columns:1fr 1fr 1fr}
-    .wdi{width:44px;font-size:12px}
+    .kpi-input{font-size:22px}
+    .btn.btn-sm{padding:5px 8px;font-size:11px}
   }
 </style>
 </head>
@@ -336,9 +378,16 @@
       <p style="font-size:11px;color:var(--text3);text-align:center;margin-bottom:8px">
         ※ 本日の累計件数を入力してください（1日1回上書き保存）
       </p>
+      <!-- デスクトップ用送信ボタン（モバイルでは非表示） -->
       <button class="btn btn-primary" id="submit-btn" onclick="submitReport()"
         style="width:100%;padding:13px;font-size:14px;font-weight:700;border-radius:var(--r)">
         送信する
+      </button>
+    </div>
+    <!-- モバイル用ボトム固定送信ボタン -->
+    <div class="submit-bottom" style="display:none" id="submit-bottom-bar">
+      <button class="btn btn-primary submit-main" onclick="submitReport()" id="submit-btn-mobile">
+        今日の活動を記録する
       </button>
     </div>
 
@@ -747,11 +796,23 @@ async function saveKPITarget() {
   }
 }
 
+// ─── モバイル判定・ボトムバー表示 ───
+function initMobileLayout() {
+  const bar = document.getElementById('submit-bottom-bar');
+  if (!bar) return;
+  const isMobile = window.innerWidth <= 600;
+  bar.style.display = isMobile ? '' : 'none';
+}
+window.addEventListener('resize', initMobileLayout);
+document.addEventListener('DOMContentLoaded', initMobileLayout);
+
 // ─── 日報送信 ───
 async function submitReport() {
   if (!currentPerson) { toast('担当者を選択してください'); togglePersonPicker(); return; }
   const btn = document.getElementById('submit-btn');
+  const btnMob = document.getElementById('submit-btn-mobile');
   btn.disabled = true; btn.textContent = '送信中...';
+  if (btnMob) { btnMob.disabled = true; btnMob.textContent = '送信中...'; }
 
   const calls     = parseInt(document.getElementById('r-calls').value)     || 0;
   const meetings  = parseInt(document.getElementById('r-meetings').value)  || 0;
