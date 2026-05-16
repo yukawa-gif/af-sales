@@ -44,6 +44,17 @@ const DEAL_HEADERS = [
 ];
 
 // ============================================================
+// 会社名正規化（法人格・空白除去・小文字統一）
+// "株式会社loty" と "loty" を同一とみなすための共通ヘルパー
+// ============================================================
+function normalizeCompany_(s) {
+  return String(s || '').trim()
+    .replace(/株式会社|有限会社|合同会社|一般社団法人|一般財団法人|特定非営利活動法人/g, '')
+    .replace(/[\s　（()）・]/g, '')
+    .toLowerCase();
+}
+
+// ============================================================
 // GETリクエスト
 // ============================================================
 function doGet(e) {
@@ -177,10 +188,14 @@ function doPost(e) {
 // ============================================================
 // 案件登録
 // ============================================================
+const VALID_DEAL_RANKS = ['売上', '決定', 'A', 'B', 'C', '失注'];
+
 function addDeal(d) {
-  if (!d.person || !String(d.person).trim())         return json({ success: false, error: '担当者が空です' });
+  if (!d.person || !String(d.person).trim())           return json({ success: false, error: '担当者が空です' });
   if (!d.companyName || !String(d.companyName).trim()) return json({ success: false, error: '会社名が空です' });
   if (!d.expectedMonth || !String(d.expectedMonth).trim()) return json({ success: false, error: '売上予定月が空です' });
+  if (!/^\d{4}-\d{2}$/.test(String(d.expectedMonth).trim())) return json({ success: false, error: '売上予定月の形式が不正です（例: 2026-04）' });
+  if (d.rankLabel && !VALID_DEAL_RANKS.includes(String(d.rankLabel).trim())) return json({ success: false, error: '確度ランクが無効です: ' + d.rankLabel });
 
   const sheet = getOrCreateDealSheet();
   const today = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd');
@@ -825,6 +840,26 @@ function setGeminiApiKey() {
 }
 
 // ============================================================
+// パイプライン集計（担当者 × 確度ランク）
+// ============================================================
+function buildPipelineByPerson_(deals) {
+  const ranks = ['売上', '決定', 'A', 'B', 'C', '失注'];
+  const byPerson = {};
+  deals.forEach(function(d) {
+    const person = String(d['担当者'] || '');
+    const rank   = String(d['確度ランク'] || '');
+    const gp     = Number(d['粗利']) || 0;
+    if (!person) return;
+    if (!byPerson[person]) {
+      byPerson[person] = {};
+      ranks.forEach(function(r) { byPerson[person][r] = 0; });
+    }
+    if (byPerson[person][rank] !== undefined) byPerson[person][rank] += gp;
+  });
+  return byPerson;
+}
+
+// ============================================================
 // 全データ一括取得（キャッシュ対応用）
 // ============================================================
 function getAllData() {
@@ -861,12 +896,16 @@ function getAllData() {
     // deals
     const dealsResult = JSON.parse(getDeals(null).getContent());
 
+    // パイプライン by 担当者（確度ランク × 担当者別 粗利集計）
+    const pipelineByPerson = buildPipelineByPerson_(dealsResult.deals || []);
+
     return json({
       success: true,
       master: masterResult,
       goals: { success: true, goals: goalsVal },
       actual: { success: true, data: actualRows, count: actualRows.length },
       deals: dealsResult,
+      pipelineByPerson,
       cachedAt: new Date().toISOString()
     });
   } catch(err) {
@@ -1106,11 +1145,15 @@ function getDealsForCustomer(customerId, companyName) {
   const headers = vals[0];
   const cidIdx  = headers.indexOf('顧客ID');
   const cmpIdx  = headers.indexOf('会社名');
+  const normTarget = normalizeCompany_(companyName);
 
   return vals.slice(1).filter(r => {
     if (r[0] === '') return false;
     if (customerId && String(r[cidIdx]).trim() === customerId.trim()) return true;
-    if (companyName && String(r[cmpIdx]).trim() === companyName.trim()) return true;
+    if (companyName) {
+      const normRow = normalizeCompany_(r[cmpIdx]);
+      if (normRow && normTarget && (normRow === normTarget || normRow.includes(normTarget) || normTarget.includes(normRow))) return true;
+    }
     return false;
   }).map(r => {
     const o = {};
@@ -1133,19 +1176,13 @@ function getActivitiesForCompany(companyName) {
   const companyIdx = headers.indexOf('企業名');
   if (companyIdx < 0) return [];
 
-  function normalize(s) {
-    return String(s).trim()
-      .replace(/株式会社|有限会社|合同会社/g, '').replace(/[\s　]/g, '')
-      .toLowerCase();
-  }
-
-  const normTarget = normalize(companyName);
+  const normTarget = normalizeCompany_(companyName);
   if (!normTarget) return [];
 
   return vals.slice(1)
     .filter(r => r[1])
     .filter(r => {
-      const normRow = normalize(r[companyIdx]);
+      const normRow = normalizeCompany_(r[companyIdx]);
       if (!normRow) return false;
       return normRow === normTarget
         || normRow.includes(normTarget)

@@ -528,6 +528,34 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
     </div>
   </div>
 
+  <!-- パイプライン by 担当者（チーム全体選択時のみ表示） -->
+  <div class="card" id="pipeline-person-card" style="margin-bottom:16px;display:none">
+    <div class="card-header" onclick="togglePipelinePersonCard()" style="cursor:pointer;user-select:none">
+      <span class="card-title" style="display:flex;align-items:center;gap:7px">
+        <i data-lucide="users" style="width:15px;height:15px;color:var(--blue)"></i> 担当者別パイプライン
+      </span>
+      <span class="card-hint" style="margin-left:auto">粗利（万円）/ 失注除く</span>
+      <span id="pipeline-person-icon" style="margin-left:8px;font-size:12px;color:var(--text3)">▼</span>
+    </div>
+    <div id="pipeline-person-body" style="display:none;overflow-x:auto">
+      <table id="pipeline-person-tbl" style="width:100%;border-collapse:collapse;font-size:12px;min-width:560px"></table>
+    </div>
+  </div>
+
+  <!-- 担当者別目標サマリー（チーム全体選択時のみ表示） -->
+  <div class="card" id="goals-person-card" style="margin-bottom:16px;display:none">
+    <div class="card-header" onclick="toggleGoalsPersonCard()" style="cursor:pointer;user-select:none">
+      <span class="card-title" style="display:flex;align-items:center;gap:7px">
+        <i data-lucide="target" style="width:15px;height:15px;color:var(--blue)"></i> 担当者別目標 × 実績
+      </span>
+      <span class="card-hint" style="margin-left:auto">通期目標・今月目標・ヨミ（万円）</span>
+      <span id="goals-person-icon" style="margin-left:8px;font-size:12px;color:var(--text3)">▼</span>
+    </div>
+    <div id="goals-person-body" style="display:none;overflow-x:auto">
+      <table id="goals-person-tbl" style="width:100%;border-collapse:collapse;font-size:12px"></table>
+    </div>
+  </div>
+
   <!-- 目標達成率グラフ -->
   <div class="card" style="margin-bottom:16px" id="chart-card">
     <div class="card-header" onclick="toggleChartPanel()" style="cursor:pointer;user-select:none">
@@ -994,7 +1022,7 @@ const mgOpenState=Object.fromEntries(MG_DEFS.map(mg=>[
 // ============================================================
 // 状態
 // ============================================================
-let masterData=null,goalsData=null,actualData=[],dealsData=[];
+let masterData=null,goalsData=null,actualData=[],dealsData=[],pipelineByPersonData={};
 let currentPerson=null;
 let goalsSavedAt=0; // 目標保存タイムスタンプ（バックグラウンドフェッチによる上書きを防ぐ）
 let isDemoMode=false,realActual=[],realDeals=[],realGoals=null;
@@ -1100,6 +1128,7 @@ async function fetchDashboardData(){
       goals:  d.goals,
       actual: d.actual,
       deals:  d.deals,
+      pipelineByPerson: d.pipelineByPerson || {},
     };
     try{ localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); }catch(e){}
     return cache;
@@ -1121,6 +1150,7 @@ function applyDashboardData(cache){
   if(cache.goals&&cache.goals.success&&Date.now()-goalsSavedAt>30000) goalsData=cache.goals.goals;
   if(cache.actual&&cache.actual.success) actualData=cache.actual.data||[];
   if(cache.deals&&cache.deals.success)   dealsData=cache.deals.deals||[];
+  if(cache.pipelineByPerson) pipelineByPersonData=cache.pipelineByPerson;
 }
 
 // ============================================================
@@ -1305,6 +1335,8 @@ function render(person){
   renderAlert(monthlyTarget,thisMonthActual,nextMonthTarget,nextMonthActual+nextMonthYomi);
   renderUnpaidAlert(personDeals);
   renderTimeline(personDeals,actualByMonth,person,isTeam);
+  renderPipelineByPerson(personDeals,isTeam);
+  renderGoalsByPerson(personDeals,isTeam);
   renderPersonDetail(personDeals,isTeam);
   renderKPITable(kpiMonth,kpiWeek,kpiToday,monthlyKpi,weeklyKpi,dailyKpi);
   renderProgress(annualTarget,uriageTotal,yomiTotal,forecast,col,monthlyTarget,thisMonthActual);
@@ -1427,6 +1459,156 @@ function renderPipelineSummary(byRankTotal){
       <div class="ps-label">${cfg.label}</div>
       <div class="ps-value" style="color:${cfg.color}">${fmtMan((cfg.key==='売上'?byRankTotal[cfg.key]*10000:(byRankTotal[cfg.key]||0)*10000))}</div>
     </div>`).join('');
+}
+
+// ============================================================
+// パイプライン by 担当者テーブル（チーム全体時）
+// ============================================================
+let pipelinePersonOpen = false;
+function togglePipelinePersonCard() {
+  pipelinePersonOpen = !pipelinePersonOpen;
+  document.getElementById('pipeline-person-body').style.display = pipelinePersonOpen ? '' : 'none';
+  document.getElementById('pipeline-person-icon').textContent = pipelinePersonOpen ? '▲' : '▼';
+}
+let goalsPersonOpen = false;
+function toggleGoalsPersonCard() {
+  goalsPersonOpen = !goalsPersonOpen;
+  document.getElementById('goals-person-body').style.display = goalsPersonOpen ? '' : 'none';
+  document.getElementById('goals-person-icon').textContent = goalsPersonOpen ? '▲' : '▼';
+}
+
+function renderPipelineByPerson(personDeals, isTeam) {
+  const card = document.getElementById('pipeline-person-card');
+  if (!isTeam) { card.style.display = 'none'; return; }
+  card.style.display = '';
+
+  const ranks = ['売上', '決定', 'A', 'B', 'C'];
+  const persons = (masterData?.personDetails || []).filter(p => p.status === '在籍中' && p.role !== 'P');
+
+  const byPerson = {};
+  persons.forEach(p => {
+    byPerson[p.name] = {};
+    ranks.forEach(r => { byPerson[p.name][r] = 0; });
+  });
+  personDeals.filter(d => d['確度ランク'] !== '失注').forEach(d => {
+    const person = d['担当者'];
+    const rank   = d['確度ランク'];
+    const gp = toMan(Number(d['粗利']) || 0);
+    if (byPerson[person] && byPerson[person][rank] !== undefined) byPerson[person][rank] += gp;
+  });
+
+  const rankCfgs = ranks.map(r => ({ r, color: RANK_COLOR[r] || '#6b7280', label: (RANKS.find(x => x.v === r) || {}).label || r }));
+  const totalRow = {}; ranks.forEach(r => { totalRow[r] = 0; });
+
+  const rows = persons.map(p => {
+    const data = byPerson[p.name] || {};
+    const total = ranks.reduce((s, r) => s + (data[r] || 0), 0);
+    ranks.forEach(r => { totalRow[r] += data[r] || 0; });
+    const col = personColorMap[p.name] || '#6b7280';
+    const cells = rankCfgs.map(c => {
+      const v = data[c.r] || 0;
+      return `<td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums;${v > 0 ? 'color:' + c.color + ';font-weight:700' : 'color:var(--text3)'}">${v > 0 ? fmt(v) : '—'}</td>`;
+    }).join('');
+    return `<tr>
+      <td style="padding:7px 8px;font-weight:600;border-bottom:1px solid var(--border)">
+        <span style="display:inline-flex;align-items:center;gap:6px">
+          <span style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0"></span>${esc(p.name)}
+        </span>
+      </td>${cells}
+      <td style="text-align:right;padding:7px 8px;font-weight:800;border-bottom:1px solid var(--border)">${total > 0 ? fmt(total) + '万' : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  const grandTotal = ranks.reduce((s, r) => s + totalRow[r], 0);
+  const footCells = rankCfgs.map(c => {
+    const v = totalRow[c.r] || 0;
+    return `<td style="text-align:right;padding:7px 8px;font-weight:800;border-top:2px solid var(--border);${v > 0 ? 'color:' + c.color : 'color:var(--text3)'}">${v > 0 ? fmt(v) : '—'}</td>`;
+  }).join('');
+
+  document.getElementById('pipeline-person-tbl').innerHTML =
+    `<thead><tr>
+      <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:700;color:var(--text3);background:#f8fafc;border-bottom:2px solid var(--border)">担当者</th>
+      ${rankCfgs.map(c => `<th style="text-align:right;padding:6px 8px;font-size:10px;font-weight:700;color:${c.color};background:#f8fafc;border-bottom:2px solid var(--border)">${c.label}</th>`).join('')}
+      <th style="text-align:right;padding:6px 8px;font-size:10px;font-weight:700;color:var(--text2);background:#f8fafc;border-bottom:2px solid var(--border)">合計</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr style="background:#f8fafc">
+      <td style="padding:7px 8px;font-size:11px;font-weight:700;color:var(--text2);border-top:2px solid var(--border)">合計</td>
+      ${footCells}
+      <td style="text-align:right;padding:7px 8px;font-weight:800;border-top:2px solid var(--border);color:var(--blue)">${grandTotal > 0 ? fmt(grandTotal) + '万' : '—'}</td>
+    </tr></tfoot>`;
+}
+
+// ============================================================
+// 担当者別目標 × 実績サマリー（チーム全体時）
+// ============================================================
+function renderGoalsByPerson(personDeals, isTeam) {
+  const card = document.getElementById('goals-person-card');
+  if (!isTeam) { card.style.display = 'none'; return; }
+  card.style.display = '';
+
+  const persons = (masterData?.personDetails || []).filter(p => p.status === '在籍中' && p.role !== 'P');
+  const allGoals = goalsData?.persons || [];
+
+  const rows = persons.map(p => {
+    const col   = personColorMap[p.name] || '#6b7280';
+    const pg    = allGoals.find(g => g.name === p.name) || {};
+    const annual = Math.round(pg.salesTarget || 0);
+    const monthTgt = pg.months ? (pg.months[todayYM] || 0) : Math.round(pg.monthlyTarget || 0);
+
+    // 今月実績（売上ランク）
+    const monthActual = toMan(personDeals
+      .filter(d => d['担当者'] === p.name && d['確度ランク'] === '売上' && String(d['売上予定月'] || '').slice(0, 7) === todayYM)
+      .reduce((s, d) => s + (Number(d['粗利']) || 0), 0));
+
+    // 通期実績（売上）
+    const fyActual = toMan(personDeals
+      .filter(d => d['担当者'] === p.name && d['確度ランク'] === '売上')
+      .reduce((s, d) => s + (Number(d['粗利']) || 0), 0));
+
+    // ヨミ（決定+A+B）
+    const yomi = toMan(personDeals
+      .filter(d => d['担当者'] === p.name && ['決定', 'A', 'B'].includes(d['確度ランク']))
+      .reduce((s, d) => s + (Number(d['粗利']) || 0), 0));
+
+    const fyPct  = annual > 0 ? Math.round(fyActual / annual * 100) : null;
+    const moPct  = monthTgt > 0 ? Math.round(monthActual / monthTgt * 100) : null;
+    const pctStyle = pct => pct === null ? 'color:var(--text3)' : pct >= 100 ? 'color:var(--green);font-weight:800' : pct >= 70 ? 'color:var(--amber);font-weight:700' : 'color:var(--red);font-weight:700';
+
+    return `<tr>
+      <td style="padding:7px 8px;font-weight:600;border-bottom:1px solid var(--border)">
+        <span style="display:inline-flex;align-items:center;gap:6px">
+          <span style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0"></span>${esc(p.name)}
+        </span>
+      </td>
+      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border)">${annual > 0 ? fmt(annual) + '万' : '—'}</td>
+      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border);font-weight:700">${fyActual > 0 ? fmt(fyActual) + '万' : '—'}</td>
+      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border);${pctStyle(fyPct)}">${fyPct !== null ? fyPct + '%' : '—'}</td>
+      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border)">${monthTgt > 0 ? fmt(monthTgt) + '万' : '—'}</td>
+      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border);font-weight:700">${monthActual > 0 ? fmt(monthActual) + '万' : '—'}</td>
+      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border);${pctStyle(moPct)}">${moPct !== null ? moPct + '%' : '—'}</td>
+      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border);color:var(--blue);font-weight:700">${yomi > 0 ? fmt(yomi) + '万' : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('goals-person-tbl').innerHTML =
+    `<thead><tr style="background:#f8fafc">
+      <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:700;color:var(--text3);border-bottom:2px solid var(--border)">担当者</th>
+      <th colspan="3" style="text-align:center;padding:6px 8px;font-size:10px;font-weight:700;color:var(--text2);border-bottom:2px solid var(--border);border-right:1px solid var(--border)">通期</th>
+      <th colspan="3" style="text-align:center;padding:6px 8px;font-size:10px;font-weight:700;color:var(--text2);border-bottom:2px solid var(--border);border-right:1px solid var(--border)">今月 (${todayYM})</th>
+      <th style="text-align:right;padding:6px 8px;font-size:10px;font-weight:700;color:var(--blue);border-bottom:2px solid var(--border)">ヨミ合計</th>
+    </tr>
+    <tr style="background:#f8fafc">
+      <th style="padding:4px 8px;border-bottom:1px solid var(--border)"></th>
+      <th style="text-align:right;padding:4px 8px;font-size:10px;color:var(--text3);border-bottom:1px solid var(--border)">目標</th>
+      <th style="text-align:right;padding:4px 8px;font-size:10px;color:var(--text3);border-bottom:1px solid var(--border)">実績</th>
+      <th style="text-align:right;padding:4px 8px;font-size:10px;color:var(--text3);border-bottom:1px solid var(--border);border-right:1px solid var(--border)">達成率</th>
+      <th style="text-align:right;padding:4px 8px;font-size:10px;color:var(--text3);border-bottom:1px solid var(--border)">目標</th>
+      <th style="text-align:right;padding:4px 8px;font-size:10px;color:var(--text3);border-bottom:1px solid var(--border)">実績</th>
+      <th style="text-align:right;padding:4px 8px;font-size:10px;color:var(--text3);border-bottom:1px solid var(--border);border-right:1px solid var(--border)">達成率</th>
+      <th style="text-align:right;padding:4px 8px;font-size:10px;color:var(--text3);border-bottom:1px solid var(--border)">決定+A+B</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>`;
 }
 
 // ============================================================
@@ -1992,12 +2174,22 @@ function openGmail(){
 
 async function saveDealModal(){
   if(!editingDeal)return;
-  const btn=document.getElementById('dm-save');
-  btn.disabled=true;btn.textContent='保存中...';
 
+  // ── フロントエンドバリデーション ──────────────────────────
   const rank=document.getElementById('dm-rank').value;
   const month=document.getElementById('dm-month').value;
   const amount=Number(document.getElementById('dm-amount').value)||0;
+  if(!rank){alert('確度ランクを選択してください。');return;}
+  if(!month){alert('粗利予定月を選択してください。');return;}
+  if(rank==='売上'&&amount<=0){
+    if(!confirm('確度ランクが「売上」ですが粗利が0円です。このまま保存しますか？'))return;
+  }
+  if(rank==='決定'&&amount<=0){
+    if(!confirm('確度ランクが「決定」ですが粗利が0円です。このまま保存しますか？'))return;
+  }
+
+  const btn=document.getElementById('dm-save');
+  btn.disabled=true;btn.textContent='保存中...';
   const memo=document.getElementById('dm-memo').value;
   const reason=document.getElementById('dm-reason').value;
   const billingCompany=document.getElementById('dm-billing-company').value;
