@@ -1011,6 +1011,12 @@ function getAllData() {
     // パイプライン by 担当者（確度ランク × 担当者別 粗利集計）
     const pipelineByPerson = buildPipelineByPerson_(dealsResult.deals || []);
 
+    // 確度マッピング（確度ランク → 着地確率）
+    const confidenceMap = getConfidenceMapping_();
+
+    // 全担当者の今週行動KPI集計
+    const weeklyKpi = getWeeklyKPISummaryAll_(getThisWeekMonday_());
+
     return json({
       success: true,
       master: masterResult,
@@ -1018,11 +1024,90 @@ function getAllData() {
       actual: { success: true, data: actualRows, count: actualRows.length },
       deals: dealsResult,
       pipelineByPerson,
+      confidenceMap,
+      weeklyKpi,
       cachedAt: new Date().toISOString()
     });
   } catch(err) {
     return json({ success: false, error: err.message });
   }
+}
+
+// ============================================================
+// 確度マッピング読み込み（「確度マッピング」シートまたはデフォルト値）
+// シート構成: A列=確度ランク名, B列=確率(0〜100の整数または0.0〜1.0の小数)
+// ============================================================
+function getConfidenceMapping_() {
+  const defaults = { 売上: 1.0, 決定: 0.9, A: 0.8, B: 0.5, C: 0.2, 失注: 0 };
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sh = ss.getSheetByName('確度マッピング');
+    if (!sh || sh.getLastRow() <= 1) return defaults;
+    const rows = sh.getDataRange().getValues().slice(1);
+    rows.forEach(function(r) {
+      const rank = String(r[0]).trim();
+      let pct = Number(r[1]);
+      if (!rank || isNaN(pct)) return;
+      // 1より大きい値はパーセント表記とみなして0〜1に変換
+      if (pct > 1) pct = pct / 100;
+      defaults[rank] = pct;
+    });
+  } catch(e) {}
+  return defaults;
+}
+
+// ============================================================
+// 今週月曜日の日付文字列を返す（yyyy-MM-dd）
+// ============================================================
+function getThisWeekMonday_() {
+  const today = new Date();
+  const day = today.getDay(); // 0=Sun, 1=Mon, ...
+  const diff = day === 0 ? -6 : 1 - day;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + diff);
+  return Utilities.formatDate(monday, 'Asia/Tokyo', 'yyyy-MM-dd');
+}
+
+// ============================================================
+// 全担当者の今週行動KPI集計（架電・面談・紹介 の 実績 vs 目標）
+// ============================================================
+function getWeeklyKPISummaryAll_(weekStart) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const persons = getPersonDetails().filter(function(p) { return p.status === '在籍中'; });
+  const goalSheet = ss.getSheetByName(SHEET_WEEKLY_GOALS);
+  const actSheet  = ss.getSheetByName(SHEET_ACTIVITIES);
+  const weekDates = getWeekDateRange(weekStart);
+
+  return persons.map(function(p) {
+    const person = p.name;
+
+    // 週次目標を取得
+    var target = { calls: 0, meetings: 0, referrals: 0 };
+    if (goalSheet && goalSheet.getLastRow() > 1) {
+      const gRows = goalSheet.getDataRange().getValues().slice(1);
+      const gRow = gRows.find(function(r) {
+        return String(r[0]).trim() === person && toDateStr(r[1]) === weekStart;
+      });
+      if (gRow) {
+        target = { calls: Number(gRow[2])||0, meetings: Number(gRow[3])||0, referrals: Number(gRow[4])||0 };
+      }
+    }
+
+    // 週次実績を集計
+    var actual = { calls: 0, meetings: 0, referrals: 0 };
+    if (actSheet && actSheet.getLastRow() > 1) {
+      const aRows = actSheet.getDataRange().getValues().slice(1);
+      aRows.forEach(function(r) {
+        if (String(r[0]).trim() === person && weekDates.includes(toDateStr(r[1]))) {
+          actual.calls     += Number(r[2]) || 0;
+          actual.meetings  += Number(r[3]) || 0;
+          actual.referrals += Number(r[4]) || 0;
+        }
+      });
+    }
+
+    return { person: person, role: p.role, target: target, actual: actual };
+  });
 }
 
 // ============================================================

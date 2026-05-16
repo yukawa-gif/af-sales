@@ -161,6 +161,45 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;background:var(--bg);
   font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;
   background:var(--surface);border:1.5px solid var(--border);color:var(--text);transition:.15s}
 .again-btn:hover{border-color:#aaa}
+
+/* ─── スマートフォン最適化 ─── */
+@media(max-width:768px){
+  body{font-size:15px;padding-bottom:90px}
+  .wrap{max-width:100%;padding:10px 12px 100px}
+  .topbar{padding:0 12px;gap:8px}
+  .topbar-sub{display:none}
+  .topbar-date{display:none}
+  /* 2カラム → 1カラム */
+  .form-grid{grid-template-columns:1fr;gap:10px}
+  .lower-grid{grid-template-columns:1fr;gap:10px}
+  /* 計算式行をラップ可能に */
+  .calc-row{flex-wrap:wrap}
+  .calc-field{flex:1 1 80px;min-width:72px}
+  .calc-op{font-size:13px}
+  /* フォーム要素のタッチ領域拡大 */
+  .fi,.fsel,.fta{padding:11px 12px;font-size:16px;min-height:48px}
+  /* ランクボタン大型化 */
+  .rank-btn{width:52px;height:52px;font-size:16px}
+  .rank-row{gap:12px}
+  /* 商材チップ押しやすく */
+  .product-chip{padding:9px 16px;font-size:13px}
+  /* 送信ボタンをボトム固定 */
+  .submit-btn{
+    position:fixed;bottom:0;left:0;right:0;
+    border-radius:0;margin:0;padding:18px;font-size:17px;
+    z-index:50;box-shadow:0 -2px 12px rgba(0,0,0,.15)
+  }
+  /* カードのパディング調整 */
+  .card{padding:14px 14px}
+  /* 金額カードを縦並びに */
+  .amount-items{flex-direction:column}
+  .amount-item{border-right:none;border-bottom:1px solid #dbeafe}
+  .amount-item:last-child{border-bottom:none}
+}
+@media(max-width:400px){
+  .rank-btn{width:46px;height:46px;font-size:14px}
+  .rank-row{gap:8px;flex-wrap:wrap}
+}
 </style>
 </head>
 <body>
