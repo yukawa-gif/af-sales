@@ -63,14 +63,19 @@ function doGet(e) {
   if (mode === 'ai')        return getAIAdvice(e && e.parameter);
   if (mode === 'data')      return getData();
   if (mode === 'master') {
-  var m = getMaster();           // まず既存関数を呼ぶ
-  var mObj = JSON.parse(m.getContent());
-  mObj.topProducts = getTopProducts();
-  mObj.companies   = getCompanies();
-  return ContentService
-    .createTextOutput(JSON.stringify(mObj))
-    .setMimeType(ContentService.MimeType.JSON);
-}
+    const cache = CacheService.getScriptCache();
+    const cachedMaster = cache.get(MASTER_CACHE_KEY);
+    if (cachedMaster) {
+      return ContentService.createTextOutput(cachedMaster).setMimeType(ContentService.MimeType.JSON);
+    }
+    var m = getMaster();
+    var mObj = JSON.parse(m.getContent());
+    mObj.topProducts = getTopProducts();
+    mObj.companies   = getCompanies();
+    const masterPayload = JSON.stringify(mObj);
+    try { cache.put(MASTER_CACHE_KEY, masterPayload, 300); } catch(_) {} // 5分キャッシュ
+    return ContentService.createTextOutput(masterPayload).setMimeType(ContentService.MimeType.JSON);
+  }
   if (mode === 'goals')           return getGoals(e && e.parameter && e.parameter.fy);
   if (mode === 'goals_history')   return getGoalsHistory(e && e.parameter && e.parameter.fy);
   if (mode === 'generateTestData') return generateTestData();
@@ -122,6 +127,15 @@ function getTopProducts() {
   props.setProperty('TOP_PRODUCTS', JSON.stringify(top10));
   props.setProperty('TOP_PRODUCTS_DATE', today);
   return top10;
+}
+
+// ============================================================
+// CacheService ヘルパー
+// ============================================================
+const MASTER_CACHE_KEY = 'master_response_v1';
+
+function invalidateMasterCache_() {
+  try { CacheService.getScriptCache().remove(MASTER_CACHE_KEY); } catch(_) {}
 }
 
 // ============================================================
@@ -369,65 +383,69 @@ function updateDeal(d) {
 
   for (let i = 0; i < vals.length; i++) {
     if (String(vals[i][0]).trim() === d.id.trim()) {
-      const row = i + 2;
-      const setCol = (key, val) => {
+      const rowNum = i + 2;
+      const rowData = vals[i]; // メモリ上の行データを直接編集し、最後に1回だけ書き込む
+      const setField = (key, val) => {
         if (val === undefined || val === null) return;
-        const col = DEAL_HEADERS.indexOf(key) + 1;
-        if (col > 0) sheet.getRange(row, col).setValue(val);
+        const idx = DEAL_HEADERS.indexOf(key);
+        if (idx >= 0) rowData[idx] = val;
       };
 
       // 常に更新可能なフィールド
-      setCol('確度ランク', d.rankLabel);
-      setCol('売上予定月', d.expectedMonth);
-      setCol('メモ', d.memo);
-      setCol('会社名', d.companyName);
-      setCol('顧客ID', d.customerId);
-      setCol('フェーズ', d.phase);
-      setCol('理由', d.reason);
-      setCol('入金ステータス', d.paymentStatus);
-      setCol('計上会社', d.billingCompany);
-      if (d.bUnitSales !== undefined) setCol('B売上単価', Number(d.bUnitSales) || 0);
-      if (d.bUnitCost  !== undefined) setCol('B費用単価', Number(d.bUnitCost)  || 0);
-      if (d.bQty       !== undefined) setCol('B件数',     Number(d.bQty)       || 0);
+      setField('確度ランク', d.rankLabel);
+      setField('売上予定月', d.expectedMonth);
+      setField('メモ', d.memo);
+      setField('会社名', d.companyName);
+      setField('顧客ID', d.customerId);
+      setField('フェーズ', d.phase);
+      setField('理由', d.reason);
+      setField('入金ステータス', d.paymentStatus);
+      setField('計上会社', d.billingCompany);
+      if (d.bUnitSales !== undefined) setField('B売上単価', Number(d.bUnitSales) || 0);
+      if (d.bUnitCost  !== undefined) setField('B費用単価', Number(d.bUnitCost)  || 0);
+      if (d.bQty       !== undefined) setField('B件数',     Number(d.bQty)       || 0);
 
       const today = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd');
 
       // ダッシュボードモーダルからの粗利直接更新
       if (d.grossProfit !== undefined) {
-        setCol('粗利', Number(d.grossProfit));
-        setCol('最終更新日', today);
+        setField('粗利', Number(d.grossProfit));
+        setField('最終更新日', today);
+        sheet.getRange(rowNum, 1, 1, rowData.length).setValues([rowData]);
         return json({ success: true });
       }
 
       // フォームからの単価・コース数・件数・月数更新（全再計算）
       if (d.unitSales !== undefined || d.unitCost !== undefined ||
           d.courses !== undefined || d.qty !== undefined || d.months !== undefined) {
-        const unitSales = Number(d.unitSales !== undefined ? d.unitSales : vals[i][DEAL_HEADERS.indexOf('売上（単価）')]);
-        const unitCost  = Number(d.unitCost  !== undefined ? d.unitCost  : vals[i][DEAL_HEADERS.indexOf('費用（単価）')]);
-        const courses   = Math.max(1, Number(d.courses !== undefined ? d.courses : vals[i][DEAL_HEADERS.indexOf('コース数')]) || 1);
-        const qty       = Math.max(1, Number(d.qty     !== undefined ? d.qty     : vals[i][DEAL_HEADERS.indexOf('件数')])   || 1);
-        const months    = Math.max(1, Math.min(24, Number(d.months !== undefined ? d.months : vals[i][DEAL_HEADERS.indexOf('月数')]) || 1));
+        const unitSales = Number(d.unitSales !== undefined ? d.unitSales : rowData[DEAL_HEADERS.indexOf('売上（単価）')]);
+        const unitCost  = Number(d.unitCost  !== undefined ? d.unitCost  : rowData[DEAL_HEADERS.indexOf('費用（単価）')]);
+        const courses   = Math.max(1, Number(d.courses !== undefined ? d.courses : rowData[DEAL_HEADERS.indexOf('コース数')]) || 1);
+        const qty       = Math.max(1, Number(d.qty     !== undefined ? d.qty     : rowData[DEAL_HEADERS.indexOf('件数')])   || 1);
+        const months    = Math.max(1, Math.min(24, Number(d.months !== undefined ? d.months : rowData[DEAL_HEADERS.indexOf('月数')]) || 1));
         const totalSales  = unitSales * courses * qty * months;
         const totalCost   = unitCost  * courses * qty * months;
         const grossProfit = (unitSales - unitCost) * courses * qty * months;
         const monthlyGP   = (unitSales - unitCost) * courses * qty;
-        const pDetail = getProductDetail(String(vals[i][DEAL_HEADERS.indexOf('商材名')]));
+        const pDetail = getProductDetail(String(rowData[DEAL_HEADERS.indexOf('商材名')]));
         const incentiveRate = pDetail ? pDetail.incentiveRate : 0;
         const incentive = calcIncentive(monthlyGP, months, incentiveRate);
-        setCol('売上（単価）', unitSales);
-        setCol('費用（単価）', unitCost);
-        setCol('コース数', courses);
-        setCol('件数', qty);
-        setCol('月数', months);
-        setCol('売上予定額', totalSales);
-        setCol('費用（合計）', totalCost);
-        setCol('粗利', grossProfit);
-        setCol('インセンティブ', incentive);
-        setCol('最終更新日', today);
+        setField('売上（単価）', unitSales);
+        setField('費用（単価）', unitCost);
+        setField('コース数', courses);
+        setField('件数', qty);
+        setField('月数', months);
+        setField('売上予定額', totalSales);
+        setField('費用（合計）', totalCost);
+        setField('粗利', grossProfit);
+        setField('インセンティブ', incentive);
+        setField('最終更新日', today);
+        sheet.getRange(rowNum, 1, 1, rowData.length).setValues([rowData]);
         return json({ success: true, grossProfit, incentive });
       }
 
-      setCol('最終更新日', today);
+      setField('最終更新日', today);
+      sheet.getRange(rowNum, 1, 1, rowData.length).setValues([rowData]);
       return json({ success: true });
     }
   }
@@ -688,6 +706,7 @@ function addPerson(name, role, code) {
   if (existing.some(p => p.name === name)) return json({ success: false, error: '既に存在します: ' + name });
   const nextRow = sheet.getLastRow() + 1;
   sheet.getRange(nextRow, 1, 1, 4).setValues([[name, role, '在籍中', code]]);
+  invalidateMasterCache_();
   return json({ success: true, name: name, role: role, code: code });
 }
 
@@ -704,6 +723,7 @@ function setPersonStatus(name, status) {
   for (let i = 0; i < vals.length; i++) {
     if (String(vals[i][0]).trim() === name) {
       sheet.getRange(i + 2, 3).setValue(status);
+      invalidateMasterCache_();
       return json({ success: true, name: name, status: status });
     }
   }
@@ -723,6 +743,7 @@ function deletePerson(name) {
   for (let i = 0; i < vals.length; i++) {
     if (String(vals[i][0]).trim() === name) {
       sheet.deleteRow(i + 2);
+      invalidateMasterCache_();
       return json({ success: true, name: name });
     }
   }
@@ -747,6 +768,7 @@ function addProductToSheet(name, kind, unitPrice, cost, incentiveRate, priceType
     Number(incentiveRate) || 0,
     priceType     || '固定',
   ]]);
+  invalidateMasterCache_();
   return json({ success: true, name: name });
 }
 
@@ -1093,33 +1115,31 @@ function getWeeklyKPISummaryAll_(weekStart) {
   const actSheet  = ss.getSheetByName(SHEET_ACTIVITIES);
   const weekDates = getWeekDateRange(weekStart);
 
+  // シートデータをループ外で一括読み込み（担当者数×2回→各1回に削減）
+  const gRows = (goalSheet && goalSheet.getLastRow() > 1)
+    ? goalSheet.getDataRange().getValues().slice(1) : [];
+  const aRows = (actSheet && actSheet.getLastRow() > 1)
+    ? actSheet.getDataRange().getValues().slice(1) : [];
+
   return persons.map(function(p) {
     const person = p.name;
 
-    // 週次目標を取得
     var target = { calls: 0, meetings: 0, referrals: 0 };
-    if (goalSheet && goalSheet.getLastRow() > 1) {
-      const gRows = goalSheet.getDataRange().getValues().slice(1);
-      const gRow = gRows.find(function(r) {
-        return String(r[0]).trim() === person && toDateStr(r[1]) === weekStart;
-      });
-      if (gRow) {
-        target = { calls: Number(gRow[2])||0, meetings: Number(gRow[3])||0, referrals: Number(gRow[4])||0 };
-      }
+    const gRow = gRows.find(function(r) {
+      return String(r[0]).trim() === person && toDateStr(r[1]) === weekStart;
+    });
+    if (gRow) {
+      target = { calls: Number(gRow[2])||0, meetings: Number(gRow[3])||0, referrals: Number(gRow[4])||0 };
     }
 
-    // 週次実績を集計
     var actual = { calls: 0, meetings: 0, referrals: 0 };
-    if (actSheet && actSheet.getLastRow() > 1) {
-      const aRows = actSheet.getDataRange().getValues().slice(1);
-      aRows.forEach(function(r) {
-        if (String(r[0]).trim() === person && weekDates.includes(toDateStr(r[1]))) {
-          actual.calls     += Number(r[2]) || 0;
-          actual.meetings  += Number(r[3]) || 0;
-          actual.referrals += Number(r[4]) || 0;
-        }
-      });
-    }
+    aRows.forEach(function(r) {
+      if (String(r[0]).trim() === person && weekDates.includes(toDateStr(r[1]))) {
+        actual.calls     += Number(r[2]) || 0;
+        actual.meetings  += Number(r[3]) || 0;
+        actual.referrals += Number(r[4]) || 0;
+      }
+    });
 
     return { person: person, role: p.role, target: target, actual: actual };
   });

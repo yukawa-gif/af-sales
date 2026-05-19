@@ -92,15 +92,16 @@ function updateCustomer(d) {
   const data = sheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] !== d.id) continue;
-    const r = i + 1;
-    if (d.company  !== undefined) sheet.getRange(r, 2).setValue(d.company);
-    if (d.pref     !== undefined) sheet.getRange(r, 3).setValue(d.pref);
-    if (d.address  !== undefined) sheet.getRange(r, 4).setValue(d.address);
-    if (d.industry !== undefined) sheet.getRange(r, 5).setValue(d.industry);
-    if (d.afcStaff !== undefined) sheet.getRange(r, 6).setValue(d.afcStaff);
-    if (d.status   !== undefined) sheet.getRange(r, 7).setValue(d.status);
-    if (d.memo     !== undefined) sheet.getRange(r, 10).setValue(d.memo);
-    sheet.getRange(r, 9).setValue(new Date());
+    const row = data[i];
+    if (d.company  !== undefined) row[1] = d.company;
+    if (d.pref     !== undefined) row[2] = d.pref;
+    if (d.address  !== undefined) row[3] = d.address;
+    if (d.industry !== undefined) row[4] = d.industry;
+    if (d.afcStaff !== undefined) row[5] = d.afcStaff;
+    if (d.status   !== undefined) row[6] = d.status;
+    if (d.memo     !== undefined) row[9] = d.memo;
+    row[8] = new Date();
+    sheet.getRange(i + 1, 1, 1, row.length).setValues([row]);
     return { success: true };
   }
   throw new Error('顧客ID ' + d.id + ' が見つかりません');
@@ -163,15 +164,16 @@ function updateContact(d) {
   const data = sheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] !== d.id) continue;
-    const r = i + 1;
-    if (d.name           !== undefined) sheet.getRange(r,  4).setValue(d.name);
-    if (d.title          !== undefined) sheet.getRange(r,  5).setValue(d.title);
-    if (d.email          !== undefined) sheet.getRange(r,  6).setValue(d.email);
-    if (d.phone          !== undefined) sheet.getRange(r,  7).setValue(d.phone);
-    if (d.mailOk         !== undefined) sheet.getRange(r,  8).setValue(d.mailOk);
-    if (d.memo           !== undefined) sheet.getRange(r, 10).setValue(d.memo);
-    if (d.primaryChannel !== undefined) sheet.getRange(r, 11).setValue(d.primaryChannel);
-    if (d.snsId          !== undefined) sheet.getRange(r, 12).setValue(d.snsId);
+    const row = data[i];
+    if (d.name           !== undefined) row[3]  = d.name;
+    if (d.title          !== undefined) row[4]  = d.title;
+    if (d.email          !== undefined) row[5]  = d.email;
+    if (d.phone          !== undefined) row[6]  = d.phone;
+    if (d.mailOk         !== undefined) row[7]  = d.mailOk;
+    if (d.memo           !== undefined) row[9]  = d.memo;
+    if (d.primaryChannel !== undefined) row[10] = d.primaryChannel;
+    if (d.snsId          !== undefined) row[11] = d.snsId;
+    sheet.getRange(i + 1, 1, 1, row.length).setValues([row]);
     return { success: true };
   }
   throw new Error('担当者ID ' + d.id + ' が見つかりません');
