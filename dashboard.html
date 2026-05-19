@@ -1053,8 +1053,8 @@ const CACHE_TTL = 30 * 60 * 1000; // 30分（バックグラウンド更新す�
 // ============================================================
 // 通信ヘルパー
 // ============================================================
-// GET: タイムアウト15秒 + 最大2回リトライ（指数バックオフ）
-async function gasGet(params, { retries = 2, timeoutMs = 15000 } = {}) {
+// GET: タイムアウト30秒 + 最大2回リトライ（指数バックオフ）
+async function gasGet(params, { retries = 2, timeoutMs = 30000 } = {}) {
   const url = GAS_URL + '?' + new URLSearchParams(params).toString();
   let lastErr;
   for (let i = 0; i <= retries; i++) {

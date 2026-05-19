@@ -135,7 +135,10 @@ function getTopProducts() {
 const MASTER_CACHE_KEY = 'master_response_v1';
 
 function invalidateMasterCache_() {
-  try { CacheService.getScriptCache().remove(MASTER_CACHE_KEY); } catch(_) {}
+  try {
+    const cache = CacheService.getScriptCache();
+    cache.removeAll([MASTER_CACHE_KEY, MASTER_DATA_CACHE_KEY]);
+  } catch(_) {}
 }
 
 // ============================================================
@@ -1124,6 +1127,7 @@ function getWeeklyKPISummaryAll_(weekStart) {
   return persons.map(function(p) {
     const person = p.name;
 
+    // 週次目標を取得
     var target = { calls: 0, meetings: 0, referrals: 0 };
     const gRow = gRows.find(function(r) {
       return String(r[0]).trim() === person && toDateStr(r[1]) === weekStart;
@@ -1132,6 +1136,7 @@ function getWeeklyKPISummaryAll_(weekStart) {
       target = { calls: Number(gRow[2])||0, meetings: Number(gRow[3])||0, referrals: Number(gRow[4])||0 };
     }
 
+    // 週次実績を集計
     var actual = { calls: 0, meetings: 0, referrals: 0 };
     aRows.forEach(function(r) {
       if (String(r[0]).trim() === person && weekDates.includes(toDateStr(r[1]))) {
@@ -1171,7 +1176,16 @@ function getData() {
 // ============================================================
 // マスタデータ取得（営業・商材・顧客）
 // ============================================================
+const MASTER_DATA_CACHE_KEY = 'master_data_v1';
+
 function getMaster() {
+  // getAllData() などの内部呼び出しでもキャッシュが効くよう関数レベルでキャッシュ
+  const cache = CacheService.getScriptCache();
+  const cachedStr = cache.get(MASTER_DATA_CACHE_KEY);
+  if (cachedStr) {
+    return ContentService.createTextOutput(cachedStr).setMimeType(ContentService.MimeType.JSON);
+  }
+
   const personDetails = getPersonDetails();
   const persons = personDetails.filter(p => p.status === '在籍中').map(p => p.name);
 
@@ -1194,7 +1208,9 @@ function getMaster() {
   const products = productDetails.map(p => p.name);
 
   const customers = getOldCustomers();
-  return json({ success: true, persons, personDetails, products, productDetails, customers });
+  const payload = JSON.stringify({ success: true, persons, personDetails, products, productDetails, customers });
+  try { cache.put(MASTER_DATA_CACHE_KEY, payload, 300); } catch(_) {} // 5分キャッシュ
+  return ContentService.createTextOutput(payload).setMimeType(ContentService.MimeType.JSON);
 }
 
 // ============================================================
