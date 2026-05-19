@@ -230,7 +230,7 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;background:var(--bg);
           <div class="sec">案件情報</div>
 
           <div class="fg">
-            <label class="fl">担当者<span class="req">*</span></label>
+            <label class="fl">営業担当<span class="req">*</span></label>
             <div class="person-banner" id="person-banner" onclick="togglePersonSelect()" style="display:none">
               <span class="person-banner-name" id="person-banner-name"></span>
               <span class="person-banner-change">変更する</span>
@@ -515,7 +515,9 @@ function buildPersonOptions(details) {
   sel.innerHTML = '<option value="">選択してください</option>';
   details.filter(p => p.status === '在籍中').forEach(p => {
     const opt = document.createElement('option');
-    opt.value = p.name; opt.textContent = p.name;
+    // 個人コードをvalueに、名前を表示テキストに設定
+    opt.value = p.code || p.name;  // コード未設定の場合は名前をfallback
+    opt.textContent = p.name;
     sel.appendChild(opt);
   });
 }
@@ -577,10 +579,10 @@ function selProductChip(el, name) {
 }
 
 // ============================================================
-// 担当者：前回選択者をバナー表示
+// 営業担当：前回選択者をバナー表示（内部はコード管理・表示は名前）
 // ============================================================
 function restoreLastPerson() {
-  // URLパラメータに person があればそれを使う
+  // URLパラメータに person があればそれを使う（コードまたは名前）
   const params = new URLSearchParams(location.search);
   const urlPerson = params.get('person');
   if (urlPerson) {
@@ -588,31 +590,34 @@ function restoreLastPerson() {
     for (let i = 0; i < sel.options.length; i++) {
       if (sel.options[i].value === urlPerson) {
         sel.value = urlPerson;
+        const displayName = sel.options[i].textContent;
         localStorage.setItem('deal_last_person', urlPerson);
-        showPersonBanner(urlPerson);
+        showPersonBanner(displayName, urlPerson);
         return;
       }
     }
   }
-  // URLパラメータなし → 前回のlocalStorageから復元
+  // URLパラメータなし → 前回のlocalStorage（コード）から復元
   const lp = localStorage.getItem('deal_last_person');
   if (lp) {
     const sel = document.getElementById('person');
-    let found = false;
     for (let i = 0; i < sel.options.length; i++) {
-      if (sel.options[i].value === lp) { sel.value = lp; found = true; break; }
-    }
-    if (found) {
-      showPersonBanner(lp);
-      return;
+      if (sel.options[i].value === lp) {
+        sel.value = lp;
+        const displayName = sel.options[i].textContent;
+        showPersonBanner(displayName, lp);
+        return;
+      }
     }
   }
   // 前回なし or 見つからない → セレクトを直接表示
   showPersonSelect();
 }
 
-function showPersonBanner(name) {
+// name=表示名、code=個人コード（送信値）
+function showPersonBanner(name, code) {
   document.getElementById('person-banner-name').textContent = name;
+  document.getElementById('person-banner').dataset.personCode = code || '';
   document.getElementById('person-banner').style.display    = 'flex';
   document.getElementById('person-select-wrap').style.display = 'none';
 }
@@ -629,17 +634,21 @@ function togglePersonSelect() {
 }
 
 function onPersonChange() {
-  const name = document.getElementById('person').value;
-  if (!name) return;
-  localStorage.setItem('deal_last_person', name);
-  showPersonBanner(name);
+  const sel = document.getElementById('person');
+  const code = sel.value;
+  if (!code) return;
+  const displayName = sel.options[sel.selectedIndex].textContent;
+  localStorage.setItem('deal_last_person', code);
+  showPersonBanner(displayName, code);
 }
 
-// 送信時に担当者を確定取得するヘルパー
+// 送信時に個人コードを取得するヘルパー
 function getSelectedPerson() {
   const banner = document.getElementById('person-banner');
   if (banner.style.display !== 'none') {
-    return document.getElementById('person-banner-name').textContent.trim();
+    // バナー表示中はdatasetに保存したコードを返す
+    const code = banner.dataset.personCode;
+    if (code) return code;
   }
   return document.getElementById('person').value;
 }
@@ -784,7 +793,7 @@ function validate() {
   const expMonth       = document.getElementById('expectedMonth').value;
   const sales          = document.getElementById('sales').value;
 
-  if (!person)         return '担当者を選択してください';
+  if (!person)         return '営業担当を選択してください';
   if (!billingCompany) return '計上会社を選択してください';
   if (!companyName)    return '会社名を入力してください';
   if (!productName)    return '商材を選択してください';

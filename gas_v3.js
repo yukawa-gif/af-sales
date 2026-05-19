@@ -1,9 +1,9 @@
 // ============================================================
 // エー・ファクトリー 営業管理システム - Apps Script v3
-// 担当者・商材・案件をスプレッドシートで管理するバージョン
+// 営業・商材・案件をスプレッドシートで管理するバージョン
 // ============================================================
 // 【シート構成】
-//   「設定_担当者」シート：担当者名・役職・ステータス
+//   「設定_営業」シート  ：営業名・役職・ステータス・個人コード
 //   「設定_商材」シート  ：商材名・金額・案件種別・インセンティブ方式
 //   「案件マスタ」シート ：案件の全データ（新規追加）
 //   「営業実績」シート   ：日報データが自動蓄積
@@ -11,7 +11,7 @@
 
 const SHEET_RESULT        = '営業実績';
 const SHEET_CUSTOMERS     = '顧客DB';
-const SHEET_PERSONS       = '設定_担当者';
+const SHEET_PERSONS       = '設定_営業';
 const SHEET_PRODUCTS      = '設定_商材';
 const SHEET_GOALS         = '設定_目標';
 const SHEET_GOALS_HISTORY = '目標履歴';
@@ -159,7 +159,7 @@ function doPost(e) {
 
     // ── 書き込み系（LockService で保護） ───────────────────
     return withLock(() => {
-      if (action === 'addPerson')           return addPerson(d.name, d.role);
+      if (action === 'addPerson')           return addPerson(d.name, d.role, d.code || '');
       if (action === 'setPersonStatus')     return setPersonStatus(d.name, d.status);
       if (action === 'deletePerson')        return deletePerson(d.name);
       if (action === 'addProduct')          return addProductToSheet(d.name, d.kind, d.unitPrice, d.cost, d.incentiveRate, d.priceType);
@@ -193,7 +193,7 @@ function doPost(e) {
 const VALID_DEAL_RANKS = ['売上', '決定', 'A', 'B', 'C', '失注'];
 
 function addDeal(d) {
-  if (!d.person || !String(d.person).trim())           return json({ success: false, error: '担当者が空です' });
+  if (!d.person || !String(d.person).trim())           return json({ success: false, error: '営業担当（個人コード）が空です' });
   if (!d.companyName || !String(d.companyName).trim()) return json({ success: false, error: '会社名が空です' });
   if (!d.expectedMonth || !String(d.expectedMonth).trim()) return json({ success: false, error: '売上予定月が空です' });
   if (!/^\d{4}-\d{2}$/.test(String(d.expectedMonth).trim())) return json({ success: false, error: '売上予定月の形式が不正です（例: 2026-04）' });
@@ -257,12 +257,16 @@ sheet.appendRow([
 }
 
 // ============================================================
-// 案件一覧取得（担当者フィルタ対応）
+// 案件一覧取得（営業フィルタ対応）
 // ============================================================
 function getDeals(person) {
   const sheet = getOrCreateDealSheet();
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) return json({ success: true, deals: [], count: 0 });
+
+  // 個人コード→営業名の解決マップを構築
+  const personCodeMap = {};
+  getPersonDetails().forEach(p => { if (p.code) personCodeMap[p.code] = p.name; });
 
   const vals = sheet.getRange(1, 1, lastRow, DEAL_HEADERS.length).getValues();
   const headers = vals[0];
@@ -303,8 +307,16 @@ function getDeals(person) {
 
   let deals = vals.slice(1).filter(r => r[0]).map(r => {
     const o = {};
+    let rawPersonCode = '';
     headers.forEach((h, i) => {
-      if (h === '売上予定月') {
+      if (h === '担当者コード') {
+        // X列は後でC列の値で上書きするためスキップ
+        return;
+      } else if (h === '担当者') {
+        // C列: 個人コード→名前に解決（旧データ=名前文字列はそのまま）
+        rawPersonCode = String(r[i] || '').trim();
+        o[h] = personCodeMap[rawPersonCode] || rawPersonCode;
+      } else if (h === '売上予定月') {
         o[h] = normYM(r[i]);
       } else if (h === '登録日' || h === '入金確認日' || h === '引継日') {
         o[h] = normDate(r[i]);
@@ -314,6 +326,8 @@ function getDeals(person) {
         o[h] = r[i];
       }
     });
+    // C列の生コード（個人コード）を担当者コードとして公開
+    o['担当者コード'] = rawPersonCode;
     return o;
   });
 
@@ -619,7 +633,7 @@ function getProductDetail(name) {
 // 日報データ登録
 // ============================================================
 function addEntry(d) {
-  if (!d.person || !String(d.person).trim()) return json({ success: false, error: '担当者が空です' });
+  if (!d.person || !String(d.person).trim()) return json({ success: false, error: '営業担当（個人コード）が空です' });
   if (!d.date   || !String(d.date).trim())   return json({ success: false, error: '日付が空です' });
 
   const sheet = getOrCreateResultSheet();
@@ -662,29 +676,30 @@ function addEntry(d) {
 }
 
 // ============================================================
-// 担当者追加
+// 営業追加
 // ============================================================
-function addPerson(name, role) {
+function addPerson(name, role, code) {
   if (!name || !name.trim()) return json({ success: false, error: '名前が空です' });
   name = name.trim();
   role = (role || 'スタッフ').trim();
+  code = (code || '').trim();
   const sheet = getOrCreatePersonSheet();
-  const existing = getPersonDetails().map(p => p.name);
-  if (existing.includes(name)) return json({ success: false, error: '既に存在します: ' + name });
+  const existing = getPersonDetails();
+  if (existing.some(p => p.name === name)) return json({ success: false, error: '既に存在します: ' + name });
   const nextRow = sheet.getLastRow() + 1;
-  sheet.getRange(nextRow, 1, 1, 3).setValues([[name, role, '在籍中']]);
-  return json({ success: true, name: name, role: role });
+  sheet.getRange(nextRow, 1, 1, 4).setValues([[name, role, '在籍中', code]]);
+  return json({ success: true, name: name, role: role, code: code });
 }
 
 // ============================================================
-// 担当者ステータス変更
+// 営業ステータス変更
 // ============================================================
 function setPersonStatus(name, status) {
   if (!name) return json({ success: false, error: '名前が空です' });
   name = name.trim();
   const sheet = getOrCreatePersonSheet();
   const lastRow = sheet.getLastRow();
-  if (lastRow <= 1) return json({ success: false, error: '担当者が見つかりません' });
+  if (lastRow <= 1) return json({ success: false, error: '営業が見つかりません' });
   const vals = sheet.getRange(2, 1, lastRow - 1, 3).getValues();
   for (let i = 0; i < vals.length; i++) {
     if (String(vals[i][0]).trim() === name) {
@@ -696,14 +711,14 @@ function setPersonStatus(name, status) {
 }
 
 // ============================================================
-// 担当者削除
+// 営業削除
 // ============================================================
 function deletePerson(name) {
   if (!name) return json({ success: false, error: '名前が空です' });
   name = name.trim();
   const sheet = getOrCreatePersonSheet();
   const lastRow = sheet.getLastRow();
-  if (lastRow <= 1) return json({ success: false, error: '担当者が見つかりません' });
+  if (lastRow <= 1) return json({ success: false, error: '営業が見つかりません' });
   const vals = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
   for (let i = 0; i < vals.length; i++) {
     if (String(vals[i][0]).trim() === name) {
@@ -1134,7 +1149,7 @@ function getData() {
 }
 
 // ============================================================
-// マスタデータ取得（担当者・商材・顧客）
+// マスタデータ取得（営業・商材・顧客）
 // ============================================================
 function getMaster() {
   const personDetails = getPersonDetails();
@@ -1182,29 +1197,31 @@ function getCompanies() {
 }
 
 // ============================================================
-// 担当者詳細リスト取得
+// 営業詳細リスト取得
 // ============================================================
 function getPersonDetails() {
   const sheet = getOrCreatePersonSheet();
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) return [];
-  const vals = sheet.getRange(2, 1, lastRow - 1, 4).getValues();
+  // A:営業名 B:役職 C:ステータス D:個人コード E:メールアドレス
+  const vals = sheet.getRange(2, 1, lastRow - 1, 5).getValues();
   return vals
     .filter(r => String(r[0]).trim())
     .map(r => ({
       name:   String(r[0]).trim(),
       role:   String(r[1]).trim() || 'スタッフ',
       status: String(r[2]).trim() || '在籍中',
-      code:   String(r[3] || '').trim()
+      code:   String(r[3] || '').trim(),
+      email:  String(r[4] || '').trim()
     }));
 }
 
 // ============================================================
-// 顧客DBの担当者変更
+// 顧客DBの担当営業変更
 // ============================================================
 function changeCompanyPerson(code, newPerson) {
   try {
-    if (!code || !newPerson) return json({ success: false, error: 'コードまたは担当者名が空です' });
+    if (!code || !newPerson) return json({ success: false, error: 'コードまたは営業名が空です' });
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName(SHEET_CUSTOMERS);
     if (!sheet) return json({ success: false, error: '顧客DBが見つかりません' });
@@ -1509,13 +1526,13 @@ details[open] summary::before{content:'－ '}
     <div class="card">
       <div class="sec">基本情報</div>
       <div class="fg">
-        <label class="fl">担当者</label>
+        <label class="fl">営業担当</label>
         <select class="fsel" id="person">
           <option value="">選択してください</option>
           ${personOpts}
         </select>
         <details style="margin-top:6px">
-          <summary>担当者を追加する</summary>
+          <summary>営業担当を追加する</summary>
           <div class="add-row">
             <input class="add-input" id="add-person-input" placeholder="氏名を入力（例：山田 花子）">
             <button class="add-btn" onclick="addMaster('person')">追加</button>
@@ -1645,7 +1662,7 @@ async function submit() {
   const product = document.getElementById('product').value;
   const errEl   = document.getElementById('err');
   errEl.style.display = 'none';
-  if (!person)  { showErr('担当者を選択してください'); return; }
+  if (!person)  { showErr('営業担当を選択してください'); return; }
   if (!date)    { showErr('日付を入力してください'); return; }
   if (!product) { showErr('商材を選択してください'); return; }
   const btn = document.getElementById('sbtn');
@@ -1760,21 +1777,22 @@ function getOrCreateMasterSheet(name, headers) {
   return sheet;
 }
 
-// 担当者専用シート
+// 営業専用シート
 function getOrCreatePersonSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(SHEET_PERSONS);
   if (!sheet) sheet = ss.insertSheet(SHEET_PERSONS);
   const h1 = String(sheet.getRange(1,1).getValue()).trim();
   if (!h1) {
-    const headers = ['担当者名','役職','ステータス'];
-    const hr = sheet.getRange(1,1,1,3);
+    const headers = ['営業名','役職','ステータス','個人コード'];
+    const hr = sheet.getRange(1,1,1,4);
     hr.setValues([headers]);
     hr.setBackground('#2d6a4f').setFontColor('#fff').setFontWeight('bold');
     sheet.setFrozenRows(1);
     sheet.setColumnWidth(1, 160);
     sheet.setColumnWidth(2, 120);
     sheet.setColumnWidth(3, 100);
+    sheet.setColumnWidth(4, 120);
   }
   return sheet;
 }
@@ -2047,14 +2065,14 @@ function toDateStr(v) {
 // ============================================================
 function getCalendarEventsForWeek(personName, weekStart) {
   try {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('設定_担当者');
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PERSONS);
     if (!sheet) return [];
 
     const rows = sheet.getDataRange().getValues().slice(1);
     const personRow = rows.find(r => String(r[0]).trim() === personName);
-    if (!personRow || !personRow[3]) return []; // D列 = メールアドレス
+    if (!personRow || !personRow[4]) return []; // E列 = メールアドレス
 
-    const email = String(personRow[3]).trim();
+    const email = String(personRow[4]).trim();
     const cal   = CalendarApp.getCalendarById(email);
     if (!cal) return [];
 
@@ -2217,6 +2235,10 @@ function importFromSheet() {
 
   const dest = ss.getSheetByName(SHEET_DEALS);
 
+  // 営業名→個人コードの変換マップを構築
+  const personNameToCode = {};
+  getPersonDetails().forEach(p => { if (p.name && p.code) personNameToCode[p.name] = p.code; });
+
   const VALID_RANKS = ['売上', '決定', 'A', 'B', 'C', '失注'];
   let added = 0, skipped = 0, errors = [];
 
@@ -2230,7 +2252,9 @@ function importFromSheet() {
 
   vals.slice(1).forEach((r, i) => {
     const rowNum       = i + 2;
-    const person       = String(r[0]||'').trim();
+    const personName   = String(r[0]||'').trim();
+    // 営業名→個人コードに変換（コードが未設定なら名前をそのまま保存）
+    const person       = personNameToCode[personName] || personName;
     const company      = String(r[1]||'').trim();
     const rank         = String(r[2]||'').trim();
     const expMonth     = String(r[3]||'').trim();
@@ -2245,8 +2269,8 @@ function importFromSheet() {
     const bQty         = Number(r[12])||0;
 
     // バリデーション
-    if (!person || !company || !expMonth) {
-      errors.push('行'+rowNum+': 担当者・会社名・売上予定月は必須');
+    if (!personName || !company || !expMonth) {
+      errors.push('行'+rowNum+': 営業担当・会社名・売上予定月は必須');
       skipped++; return;
     }
     if (!VALID_RANKS.includes(rank)) {
@@ -2258,14 +2282,14 @@ function importFromSheet() {
       skipped++; return;
     }
 
-    // 重複チェック（同担当者・同会社・同月）
+    // 重複チェック（同営業コード・同会社・同月）
     const isDuplicate = existingRows.some(dr =>
       String(dr[iPersonIdx])===person &&
       String(dr[iCompanyIdx])===company &&
       String(dr[iMonthIdx]).slice(0,7)===expMonth
     );
     if (isDuplicate) {
-      errors.push('行'+rowNum+': 重複スキップ（'+person+'/'+company+'/'+expMonth+'）');
+      errors.push('行'+rowNum+': 重複スキップ（'+personName+'/'+company+'/'+expMonth+'）');
       skipped++; return;
     }
 

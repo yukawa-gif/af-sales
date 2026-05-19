@@ -518,7 +518,7 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
   </div>
   <div class="sidebar-divider"></div>
   <div class="sidebar-section">
-    <div class="sidebar-label">担当者</div>
+    <div class="sidebar-label">営業</div>
     <div id="person-list"></div>
   </div>
 </div>
@@ -563,7 +563,7 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
     <div id="wkpi-body" style="display:none;margin-top:14px">
       <table class="wkpi-table" id="wkpi-table">
         <thead><tr>
-          <th style="width:100px">担当者</th>
+          <th style="width:100px">営業</th>
           <th>架電</th><th>面談</th><th>紹介</th><th style="width:60px">総合</th>
         </tr></thead>
         <tbody id="wkpi-tbody"></tbody>
@@ -602,11 +602,11 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
     </div>
   </div>
 
-  <!-- パイプライン by 担当者（チーム全体選択時のみ表示） -->
+  <!-- パイプライン by 営業（チーム全体選択時のみ表示） -->
   <div class="card" id="pipeline-person-card" style="margin-bottom:16px;display:none">
     <div class="card-header" onclick="togglePipelinePersonCard()" style="cursor:pointer;user-select:none">
       <span class="card-title" style="display:flex;align-items:center;gap:7px">
-        <i data-lucide="users" style="width:15px;height:15px;color:var(--blue)"></i> 担当者別パイプライン
+        <i data-lucide="users" style="width:15px;height:15px;color:var(--blue)"></i> 営業別パイプライン
       </span>
       <span class="card-hint" style="margin-left:auto">粗利（万円）/ 失注除く</span>
       <span id="pipeline-person-icon" style="margin-left:8px;font-size:12px;color:var(--text3)">▼</span>
@@ -616,11 +616,11 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
     </div>
   </div>
 
-  <!-- 担当者別目標サマリー（チーム全体選択時のみ表示） -->
+  <!-- 営業別目標サマリー（チーム全体選択時のみ表示） -->
   <div class="card" id="goals-person-card" style="margin-bottom:16px;display:none">
     <div class="card-header" onclick="toggleGoalsPersonCard()" style="cursor:pointer;user-select:none">
       <span class="card-title" style="display:flex;align-items:center;gap:7px">
-        <i data-lucide="target" style="width:15px;height:15px;color:var(--blue)"></i> 担当者別目標 × 実績
+        <i data-lucide="target" style="width:15px;height:15px;color:var(--blue)"></i> 営業別目標 × 実績
       </span>
       <span class="card-hint" style="margin-left:auto">通期目標・今月目標・ヨミ（万円）</span>
       <span id="goals-person-icon" style="margin-left:8px;font-size:12px;color:var(--text3)">▼</span>
@@ -823,7 +823,7 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
           <span class="modal-info-val" id="dm-product"></span>
         </div>
         <div class="modal-info-row">
-          <span class="modal-info-label">AFC担当</span>
+          <span class="modal-info-label">AFC営業</span>
           <span class="modal-info-val" id="dm-person"></span>
         </div>
         <div class="modal-info-row" id="dm-contact-row" style="display:none">
@@ -901,7 +901,7 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
       <table class="goal-table">
         <thead>
           <tr>
-            <th rowspan="2" style="background:var(--bg);min-width:72px">担当者</th>
+            <th rowspan="2" style="background:var(--bg);min-width:72px">営業</th>
             <th colspan="5" class="h-q1">前期（8〜11月）</th>
             <th colspan="5" class="h-q2">中期（12〜3月）</th>
             <th colspan="5" class="h-q3">後期（4〜7月）</th>
@@ -1312,7 +1312,7 @@ function buildSidebar(details){
   teamDiv.innerHTML=`<div class="person-avatar" style="background:var(--navy)">全</div>
     <div class="person-info">
       <div class="person-name">チーム全体</div>
-      <div class="person-role">全担当者合計</div>
+      <div class="person-role">全営業合計</div>
     </div>`;
   teamDiv.onclick=()=>selectPerson('__all__');
   list.appendChild(teamDiv);
@@ -1673,7 +1673,7 @@ function renderPipelineByPerson(personDeals, isTeam) {
 
   document.getElementById('pipeline-person-tbl').innerHTML =
     `<thead><tr>
-      <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:700;color:var(--text3);background:#f8fafc;border-bottom:2px solid var(--border)">担当者</th>
+      <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:700;color:var(--text3);background:#f8fafc;border-bottom:2px solid var(--border)">営業</th>
       ${rankCfgs.map(c => `<th style="text-align:right;padding:6px 8px;font-size:10px;font-weight:700;color:${c.color};background:#f8fafc;border-bottom:2px solid var(--border)">${c.label}</th>`).join('')}
       <th style="text-align:right;padding:6px 8px;font-size:10px;font-weight:700;color:var(--text2);background:#f8fafc;border-bottom:2px solid var(--border)">合計</th>
     </tr></thead>
@@ -1739,7 +1739,7 @@ function renderGoalsByPerson(personDeals, isTeam) {
 
   document.getElementById('goals-person-tbl').innerHTML =
     `<thead><tr style="background:#f8fafc">
-      <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:700;color:var(--text3);border-bottom:2px solid var(--border)">担当者</th>
+      <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:700;color:var(--text3);border-bottom:2px solid var(--border)">営業</th>
       <th colspan="3" style="text-align:center;padding:6px 8px;font-size:10px;font-weight:700;color:var(--text2);border-bottom:2px solid var(--border);border-right:1px solid var(--border)">通期</th>
       <th colspan="3" style="text-align:center;padding:6px 8px;font-size:10px;font-weight:700;color:var(--text2);border-bottom:2px solid var(--border);border-right:1px solid var(--border)">今月 (${todayYM})</th>
       <th style="text-align:right;padding:6px 8px;font-size:10px;font-weight:700;color:var(--blue);border-bottom:2px solid var(--border)">ヨミ合計</th>
@@ -2694,7 +2694,7 @@ function renderGoalsHistory(history){
       <div style="overflow-x:auto;padding:8px">
         <table style="width:100%;border-collapse:collapse">
           <thead><tr>
-            <th style="text-align:left;padding:3px 8px;font-size:11px;color:var(--text3)">担当者</th>
+            <th style="text-align:left;padding:3px 8px;font-size:11px;color:var(--text3)">営業</th>
             ${monthHeaders}
             <th style="text-align:right;padding:3px 8px;font-size:11px;color:var(--text3)">年計</th>
           </tr></thead>
@@ -3086,11 +3086,11 @@ function renderAchievementChart(personDeals, person, isTeam) {
     });
 
     if (!labels.length) {
-      document.getElementById('chart-hint').textContent = '目標が設定されている担当者がいません';
+      document.getElementById('chart-hint').textContent = '目標が設定されている営業がいません';
       return;
     }
 
-    document.getElementById('chart-title').textContent = '担当者別 粗利目標達成率';
+    document.getElementById('chart-title').textContent = '営業別 粗利目標達成率';
     document.getElementById('chart-hint').textContent  = '実績（売上・決定）＋ ヨミ（A・B）';
 
     // チームは人数分の高さを確保

@@ -216,7 +216,7 @@
 
 <!-- 担当者ピッカー -->
 <div id="person-picker" style="display:none;position:fixed;top:56px;right:12px;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;box-shadow:var(--shadow-lg);min-width:220px">
-  <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px">担当者を選択</div>
+  <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px">営業担当を選択</div>
   <select id="r-person-picker" class="fsel" onchange="applyPersonChange(this.value)">
     <option value="">選択してください</option>
   </select>
@@ -513,7 +513,7 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('header-person-name').textContent = saved;
     loadWeeklyData();
   } else {
-    document.getElementById('header-person-name').textContent = '担当者未設定';
+    document.getElementById('header-person-name').textContent = '営業担当未設定';
     setTimeout(() => togglePersonPicker(), 300);
   }
 
@@ -747,7 +747,7 @@ function updateDistTotals() {
 }
 
 async function saveKPITarget() {
-  if (!currentPerson) { toast('担当者を選択してください'); return; }
+  if (!currentPerson) { toast('営業担当を選択してください'); return; }
 
   const calls     = parseInt(document.getElementById('target-monthly-calls').value)     || 0;
   const meetings  = parseInt(document.getElementById('target-monthly-meetings').value)  || 0;
@@ -808,7 +808,7 @@ document.addEventListener('DOMContentLoaded', initMobileLayout);
 
 // ─── 日報送信 ───
 async function submitReport() {
-  if (!currentPerson) { toast('担当者を選択してください'); togglePersonPicker(); return; }
+  if (!currentPerson) { toast('営業担当を選択してください'); togglePersonPicker(); return; }
   const btn = document.getElementById('submit-btn');
   const btnMob = document.getElementById('submit-btn-mobile');
   btn.disabled = true; btn.textContent = '送信中...';
