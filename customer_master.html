@@ -268,7 +268,7 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
         <span class="count-badge" id="cusCount"></span>
       </div>
       <div class="toolbar">
-        <input class="search-input" id="cusSearch" placeholder="🔍 企業名・AFC担当者で検索"
+        <input class="search-input" id="cusSearch" placeholder="🔍 企業名・営業名で検索"
           oninput="onSearchInput()">
         <select class="filter-select" id="cusStatusFilter" onchange="loadCustomers(0)">
           <option value="">すべてのステータス</option>
@@ -286,7 +286,7 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
             <tr>
               <th>企業名</th>
               <th>ステータス</th>
-              <th>AFC担当者</th>
+              <th>営業名</th>
               <th>業種</th>
               <th>都道府県</th>
             </tr>
@@ -511,12 +511,14 @@ let editingCustomerId  = null;
 let editingContactId   = null;
 let selectedPersonFilter = '';
 let searchDebounce     = null;
+let personCodeMap      = {};
 
 // ─── 初期化 ─────────────────────────────────────────────────────
 (async function init() {
   document.getElementById('topbarDate').textContent =
     new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'});
-  await Promise.all([loadCustomerStats(), loadCustomers(0), loadPersons()]);
+  await loadPersons();
+  await Promise.all([loadCustomerStats(), loadCustomers(0)]);
 })();
 
 // ─── 担当者フィルタ ──────────────────────────────────────────────
@@ -525,6 +527,7 @@ async function loadPersons() {
     const res = await fetch(GAS_URL + '?mode=master');
     const d = await res.json();
     if (d.success && d.personDetails) {
+      d.personDetails.forEach(p => { if (p.code) personCodeMap[p.code] = p.name; });
       const active = d.personDetails.filter(p => p.status === '在籍中');
       const list = document.getElementById('person-filter-list');
       list.innerHTML = active.map(p =>
@@ -710,7 +713,7 @@ function renderCustomers() {
           <option value="失注"   ${c.status==='失注'  ?'selected':''}>失注</option>
         </select>
       </td>
-      <td>${esc(c.afcStaff||'—')}</td>
+      <td>${esc(personCodeMap[c.afcStaff] || c.afcStaff || '—')}</td>
       <td style="font-size:11px;color:var(--text2)">${esc(c.industry||'—')}</td>
       <td>${esc(c.pref||'—')}</td>
     </tr>
