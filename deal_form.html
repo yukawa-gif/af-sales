@@ -451,17 +451,17 @@ async function init() {
 }
 
 async function loadMaster() {
-  // キャッシュから即時表示
-  const cached = loadMasterCache();
-  if(cached){
-    applyMasterData(cached);
+  // 期限切れでもキャッシュがあれば即時表示（dashboard と同じ戦略）
+  const cachedAny = loadMasterCacheAny();
+  if(cachedAny){
+    applyMasterData(cachedAny);
     document.getElementById('loading').style.display   = 'none';
     document.getElementById('form-area').style.display = 'block';
-    // バックグラウンドで最新データを取得
+    // バックグラウンドで最新データを取得して上書き
     fetchMasterData().then(fresh=>{ if(fresh) applyMasterData(fresh); }).catch(()=>{});
     return;
   }
-  // キャッシュなし → 通常ロード
+  // キャッシュなし（初回）→ GAS を待つ
   try{
     const data = await fetchMasterData();
     if(!data) throw new Error('マスタ取得失敗');
@@ -477,6 +477,16 @@ async function loadMaster() {
   }
 }
 
+// TTL 無視で即返す（期限切れ古いデータでも即表示に使う）
+function loadMasterCacheAny(){
+  try{
+    const raw=localStorage.getItem(MASTER_CACHE_KEY);
+    if(!raw) return null;
+    return JSON.parse(raw).data;
+  }catch(e){ return null; }
+}
+
+// TTL チェック付き（バックグラウンド更新判定用に残す）
 function loadMasterCache(){
   try{
     const raw=localStorage.getItem(MASTER_CACHE_KEY);
