@@ -144,11 +144,51 @@ function getTopProducts() {
 // ============================================================
 const GAS_ALL_CACHE_KEY    = 'getAllData_v1';
 const GAS_MASTER_CACHE_KEY = 'getMaster_v1';
+const GAS_CACHE_CHUNK      = 90000; // CacheService は 100KB/エントリ制限 → 90KB ずつ分割
+
+// チャンク分割してキャッシュに書き込む
+function putChunkedCache_(cache, key, value, ttl) {
+  try {
+    if (value.length <= GAS_CACHE_CHUNK) {
+      cache.put(key, value, ttl);
+      cache.remove(key + '_n'); // 旧チャンクメタを削除
+    } else {
+      const n = Math.ceil(value.length / GAS_CACHE_CHUNK);
+      const keys = [key + '_n'];
+      for (let i = 0; i < n; i++) {
+        cache.put(key + '_' + i, value.slice(i * GAS_CACHE_CHUNK, (i + 1) * GAS_CACHE_CHUNK), ttl);
+        keys.push(key + '_' + i);
+      }
+      cache.put(key + '_n', String(n), ttl);
+      cache.remove(key); // 旧単一キーを削除
+    }
+  } catch(e) {}
+}
+
+// チャンク分割されたキャッシュを読み込む
+function getChunkedCache_(cache, key) {
+  try {
+    const simple = cache.get(key);
+    if (simple) return simple;
+    const n = Number(cache.get(key + '_n') || '0');
+    if (!n) return null;
+    const parts = [];
+    for (let i = 0; i < n; i++) {
+      const c = cache.get(key + '_' + i);
+      if (!c) return null; // チャンク欠損 → キャッシュミス
+      parts.push(c);
+    }
+    return parts.join('');
+  } catch(e) { return null; }
+}
 
 function invalidateAllDataCache_() {
   try {
     const c = CacheService.getScriptCache();
-    c.removeAll([GAS_ALL_CACHE_KEY, GAS_MASTER_CACHE_KEY]);
+    const n = Number(c.get(GAS_ALL_CACHE_KEY + '_n') || '0');
+    const keys = [GAS_ALL_CACHE_KEY, GAS_MASTER_CACHE_KEY, GAS_ALL_CACHE_KEY + '_n'];
+    for (let i = 0; i < n; i++) keys.push(GAS_ALL_CACHE_KEY + '_' + i);
+    c.removeAll(keys);
   } catch(e) {}
 }
 
@@ -1021,17 +1061,15 @@ function buildPipelineByPerson_(deals) {
 // ============================================================
 function getAllData() {
   try {
-    // ── GAS CacheService チェック（失敗しても素通りする）──
+    // ── GAS CacheService チェック（チャンク分割対応）──
     let gasCache = null;
     try { gasCache = CacheService.getScriptCache(); } catch(e) {}
     if (gasCache) {
-      try {
-        const hit = gasCache.get(GAS_ALL_CACHE_KEY);
-        if (hit) {
-          return ContentService.createTextOutput(hit)
-            .setMimeType(ContentService.MimeType.JSON);
-        }
-      } catch(e) {}
+      const hit = getChunkedCache_(gasCache, GAS_ALL_CACHE_KEY);
+      if (hit) {
+        return ContentService.createTextOutput(hit)
+          .setMimeType(ContentService.MimeType.JSON);
+      }
     }
 
     // 各データを内部で直接取得（HTTPコール不要）
@@ -1091,9 +1129,9 @@ function getAllData() {
       cachedAt: new Date().toISOString()
     });
 
-    // ── CacheService に保存（TTL 5分 / 失敗時は無視）──
+    // ── CacheService に保存（TTL 5分 / チャンク分割で100KB制限を回避）──
     if (gasCache) {
-      try { gasCache.put(GAS_ALL_CACHE_KEY, payload, 5 * 60); } catch(e) {}
+      putChunkedCache_(gasCache, GAS_ALL_CACHE_KEY, payload, 5 * 60);
     }
 
     return ContentService.createTextOutput(payload)
@@ -1254,13 +1292,18 @@ function getCompanies() {
 // ============================================================
 // 営業詳細リスト取得
 // ============================================================
+// 実行単位（リクエスト単位）でシート読み込みをメモ化。
+// GASは1リクエスト＝1実行なのでモジュールスコープ変数でOK。
+let _personDetailsCache = null;
+
 function getPersonDetails() {
+  if (_personDetailsCache) return _personDetailsCache;
   const sheet = getOrCreatePersonSheet();
   const lastRow = sheet.getLastRow();
-  if (lastRow <= 1) return [];
+  if (lastRow <= 1) return (_personDetailsCache = []);
   // A:営業名 B:役職 C:ステータス D:個人コード E:メールアドレス
   const vals = sheet.getRange(2, 1, lastRow - 1, 5).getValues();
-  return vals
+  _personDetailsCache = vals
     .filter(r => String(r[0]).trim())
     .map(r => ({
       name:   String(r[0]).trim(),
@@ -1269,6 +1312,7 @@ function getPersonDetails() {
       code:   String(r[3] || '').trim(),
       email:  String(r[4] || '').trim()
     }));
+  return _personDetailsCache;
 }
 
 // ============================================================
