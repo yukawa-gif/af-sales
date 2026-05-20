@@ -587,8 +587,8 @@ async function buildFromDeals() {
     });
     const json = await res.json();
     if (!json.success) throw new Error(json.error || '処理失敗');
-    const { added, linked } = json.data;
-    showBuildResult(added, linked);
+    const { added, linked, emptyIdCount } = json.data;
+    showBuildResult(added, linked, emptyIdCount);
     // 顧客リストを再読み込み
     await Promise.all([loadCustomerStats(), loadCustomers(0)]);
   } catch (e) {
@@ -599,10 +599,15 @@ async function buildFromDeals() {
   }
 }
 
-function showBuildResult(added, linked) {
+function showBuildResult(added, linked, emptyIdCount) {
+  const linkedMsg = linked > 0
+    ? `🔗 案件マスタの顧客ID（D列）を <b>${linked}件</b> 紐付けました`
+    : (emptyIdCount > 0
+        ? `⚠️ 顧客IDが未設定の案件が <b>${emptyIdCount}件</b> 残っています（要確認）`
+        : '案件の顧客ID紐付けはありませんでした（全件紐付け済み）');
   const msg = [
-    added  > 0 ? `✅ 顧客マスタに <b>${added}社</b> を新規追加しました` : '顧客マスタの新規追加はありませんでした（全社登録済み）',
-    linked > 0 ? `🔗 案件マスタの顧客ID（D列）を <b>${linked}件</b> 紐付けました` : '案件の顧客ID紐付けはありませんでした（全件紐付け済み）',
+    added > 0 ? `✅ 顧客マスタに <b>${added}社</b> を新規追加しました` : '顧客マスタの新規追加はありませんでした（全社登録済み）',
+    linkedMsg,
   ].join('<br>');
   // トーストではなくアラート風ダイアログで結果を表示
   const overlay = document.createElement('div');

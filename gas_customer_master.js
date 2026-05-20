@@ -398,10 +398,18 @@ function buildCustomersFromDeals() {
     dealSheet.getRange(2, customerIdIdx + 1, nDeals, 1).setValues(cusIdVals);
   }
 
+  // ── 診断: D列が空のままの案件数をカウント ──
+  let emptyIdCount = 0;
+  for (let i = 0; i < nDeals; i++) {
+    const company = String(dealVals[i + 1][companyIdx] || '').trim();
+    if (!company) continue;
+    if (!String(cusIdVals[i][0] || '').trim()) emptyIdCount++;
+  }
+
   // キャッシュ無効化（案件マスタ変更のため）
   invalidateAllDataCache_();
 
-  return { added: newRows.length, linked };
+  return { added: newRows.length, linked, emptyIdCount };
 }
 
 // ============================================================

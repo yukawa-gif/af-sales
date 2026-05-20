@@ -51,6 +51,8 @@ function normalizeCompany_(s) {
   return String(s || '').trim()
     .replace(/株式会社|有限会社|合同会社|一般社団法人|一般財団法人|特定非営利活動法人/g, '')
     .replace(/[\s　（()）・]/g, '')
+    // 全角英数字 → 半角（例: "ＡＢＣ" → "abc"）
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
     .toLowerCase();
 }
 
