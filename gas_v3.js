@@ -125,7 +125,17 @@ function getTopProducts() {
 }
 
 // ============================================================
+// GAS CacheService キャッシュ無効化ヘルパー
+// ============================================================
+const GAS_ALL_CACHE_KEY = 'getAllData_v1';
+
+function invalidateAllDataCache_() {
+  try { CacheService.getScriptCache().remove(GAS_ALL_CACHE_KEY); } catch(e) {}
+}
+
+// ============================================================
 // LockService ヘルパー（同時書き込み防止）
+// 書き込み操作はすべてここを通るため、finally でキャッシュも無効化する
 // ============================================================
 function withLock(fn) {
   const lock = LockService.getScriptLock();
@@ -137,6 +147,7 @@ function withLock(fn) {
   } catch (err) {
     return json({ success: false, error: err.message });
   } finally {
+    invalidateAllDataCache_(); // 書き込み後に allData キャッシュを破棄
     try { lock.releaseLock(); } catch(_) {}
   }
 }
@@ -991,6 +1002,14 @@ function buildPipelineByPerson_(deals) {
 // ============================================================
 function getAllData() {
   try {
+    // ── GAS CacheService チェック（キャッシュヒット時は即返却）──
+    const gasCache = CacheService.getScriptCache();
+    const hit = gasCache.get(GAS_ALL_CACHE_KEY);
+    if (hit) {
+      return ContentService.createTextOutput(hit)
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     // 各データを内部で直接取得（HTTPコール不要）
     const ss = SpreadsheetApp.getActiveSpreadsheet();
 
@@ -1036,7 +1055,7 @@ function getAllData() {
     masterResult.companies   = getCompanies();
     masterResult.topProducts = getTopProducts();
 
-    return json({
+    const payload = JSON.stringify({
       success: true,
       master: masterResult,
       goals: { success: true, goals: goalsVal },
@@ -1047,6 +1066,12 @@ function getAllData() {
       weeklyKpi,
       cachedAt: new Date().toISOString()
     });
+
+    // ── CacheService に保存（TTL 5分 / 100KB超過時は無視）──
+    try { gasCache.put(GAS_ALL_CACHE_KEY, payload, 5 * 60); } catch(e) {}
+
+    return ContentService.createTextOutput(payload)
+      .setMimeType(ContentService.MimeType.JSON);
   } catch(err) {
     return json({ success: false, error: err.message });
   }
