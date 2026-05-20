@@ -1002,12 +1002,17 @@ function buildPipelineByPerson_(deals) {
 // ============================================================
 function getAllData() {
   try {
-    // ── GAS CacheService チェック（キャッシュヒット時は即返却）──
-    const gasCache = CacheService.getScriptCache();
-    const hit = gasCache.get(GAS_ALL_CACHE_KEY);
-    if (hit) {
-      return ContentService.createTextOutput(hit)
-        .setMimeType(ContentService.MimeType.JSON);
+    // ── GAS CacheService チェック（失敗しても素通りする）──
+    let gasCache = null;
+    try { gasCache = CacheService.getScriptCache(); } catch(e) {}
+    if (gasCache) {
+      try {
+        const hit = gasCache.get(GAS_ALL_CACHE_KEY);
+        if (hit) {
+          return ContentService.createTextOutput(hit)
+            .setMimeType(ContentService.MimeType.JSON);
+        }
+      } catch(e) {}
     }
 
     // 各データを内部で直接取得（HTTPコール不要）
@@ -1067,8 +1072,10 @@ function getAllData() {
       cachedAt: new Date().toISOString()
     });
 
-    // ── CacheService に保存（TTL 5分 / 100KB超過時は無視）──
-    try { gasCache.put(GAS_ALL_CACHE_KEY, payload, 5 * 60); } catch(e) {}
+    // ── CacheService に保存（TTL 5分 / 失敗時は無視）──
+    if (gasCache) {
+      try { gasCache.put(GAS_ALL_CACHE_KEY, payload, 5 * 60); } catch(e) {}
+    }
 
     return ContentService.createTextOutput(payload)
       .setMimeType(ContentService.MimeType.JSON);
