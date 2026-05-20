@@ -1032,6 +1032,10 @@ function getAllData() {
     // 全担当者の今週行動KPI集計
     const weeklyKpi = getWeeklyKPISummaryAll_(getThisWeekMonday_());
 
+    // doGet の mode=master ハンドラと同等のフィールドを付与
+    masterResult.companies   = getCompanies();
+    masterResult.topProducts = getTopProducts();
+
     return json({
       success: true,
       master: masterResult,
@@ -1093,33 +1097,33 @@ function getWeeklyKPISummaryAll_(weekStart) {
   const actSheet  = ss.getSheetByName(SHEET_ACTIVITIES);
   const weekDates = getWeekDateRange(weekStart);
 
+  // シートを1回だけ読み込む（担当者ループ内での複数回読み込みを解消）
+  const gRows = (goalSheet && goalSheet.getLastRow() > 1)
+    ? goalSheet.getDataRange().getValues().slice(1) : [];
+  const aRows = (actSheet && actSheet.getLastRow() > 1)
+    ? actSheet.getDataRange().getValues().slice(1) : [];
+
   return persons.map(function(p) {
     const person = p.name;
 
     // 週次目標を取得
     var target = { calls: 0, meetings: 0, referrals: 0 };
-    if (goalSheet && goalSheet.getLastRow() > 1) {
-      const gRows = goalSheet.getDataRange().getValues().slice(1);
-      const gRow = gRows.find(function(r) {
-        return String(r[0]).trim() === person && toDateStr(r[1]) === weekStart;
-      });
-      if (gRow) {
-        target = { calls: Number(gRow[2])||0, meetings: Number(gRow[3])||0, referrals: Number(gRow[4])||0 };
-      }
+    const gRow = gRows.find(function(r) {
+      return String(r[0]).trim() === person && toDateStr(r[1]) === weekStart;
+    });
+    if (gRow) {
+      target = { calls: Number(gRow[2])||0, meetings: Number(gRow[3])||0, referrals: Number(gRow[4])||0 };
     }
 
     // 週次実績を集計
     var actual = { calls: 0, meetings: 0, referrals: 0 };
-    if (actSheet && actSheet.getLastRow() > 1) {
-      const aRows = actSheet.getDataRange().getValues().slice(1);
-      aRows.forEach(function(r) {
-        if (String(r[0]).trim() === person && weekDates.includes(toDateStr(r[1]))) {
-          actual.calls     += Number(r[2]) || 0;
-          actual.meetings  += Number(r[3]) || 0;
-          actual.referrals += Number(r[4]) || 0;
-        }
-      });
-    }
+    aRows.forEach(function(r) {
+      if (String(r[0]).trim() === person && weekDates.includes(toDateStr(r[1]))) {
+        actual.calls     += Number(r[2]) || 0;
+        actual.meetings  += Number(r[3]) || 0;
+        actual.referrals += Number(r[4]) || 0;
+      }
+    });
 
     return { person: person, role: p.role, target: target, actual: actual };
   });

@@ -1209,10 +1209,17 @@ async function init(){
       document.getElementById('loading').style.display='none';
       initAdminPanel();
     } else {
-      document.getElementById('loading').innerHTML=
-        '<div style="color:var(--red);text-align:center;padding:20px">読み込み失敗: '+e.message+'<br><br>'+
+      // オーバーレイを閉じてサイドバー等を操作可能に戻す
+      document.getElementById('loading').style.display='none';
+      const main=document.getElementById('main');
+      main.style.display='block';
+      main.innerHTML='<div style="text-align:center;padding:60px 20px;color:var(--red)">'+
+        '読み込み失敗: '+esc(e.message)+'<br><br>'+
         '<button onclick="init()" style="padding:8px 18px;background:var(--blue);color:#fff;'+
-        'border:none;border-radius:6px;cursor:pointer;font-family:inherit">再試行</button></div>';
+        'border:none;border-radius:6px;cursor:pointer;font-family:inherit;margin-right:8px">再試行</button>'+
+        '<a href="deal_form.html" style="padding:8px 18px;background:var(--surface);border:1.5px solid var(--border);'+
+        'border-radius:6px;text-decoration:none;color:var(--text);font-size:13px;font-family:inherit">案件登録へ</a>'+
+        '</div>';
     }
   }
 }
