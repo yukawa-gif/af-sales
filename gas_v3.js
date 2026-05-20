@@ -224,7 +224,8 @@ function doPost(e) {
     if (action === 'getCustomerStats') return json(getCustomerStats(d.afcStaff));
     if (action === 'getContactMaster') return json({ success: true, data: getContacts(d.customerId || '') });
     if (action === 'detectIndustry')  return json({ success: true, data: detectIndustry(d.companyName) });
-    if (action === 'migrateOldDB')    return json({ success: true, data: migrateOldCustomerDB() });
+    if (action === 'migrateOldDB')         return json({ success: true, data: migrateOldCustomerDB() });
+    if (action === 'buildCustomersFromDeals') return json({ success: true, data: buildCustomersFromDeals() });
     if (action === 'clearAll')        return json({ success: false, error: '外部からの実行は許可されていません' });
 
     // ── 書き込み系（LockService で保護） ───────────────────

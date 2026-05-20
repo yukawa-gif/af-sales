@@ -312,6 +312,99 @@ function deleteContact(id) {
 }
 
 // ============================================================
+// 案件マスタから顧客マスタを一括構築 ＋ 案件のD列（顧客ID）を紐付け
+// ※ SHEET_DEALS / normalizeCompany_ は gas_v3.js で定義済み（同スコープ）
+// ============================================================
+function buildCustomersFromDeals() {
+  const ss        = SpreadsheetApp.getActiveSpreadsheet();
+  const dealSheet = ss.getSheetByName(SHEET_DEALS);   // '案件マスタ'
+  const cusSheet  = ss.getSheetByName(CUSTOMER_SHEET); // '顧客マスタ'
+
+  if (!dealSheet) throw new Error('案件マスタシートが見つかりません');
+  if (!cusSheet)  throw new Error('顧客マスタシートが見つかりません');
+
+  const dealVals = dealSheet.getDataRange().getValues();
+  if (dealVals.length <= 1) return { added: 0, linked: 0 };
+
+  const headers       = dealVals[0];
+  const companyIdx    = headers.indexOf('会社名');
+  const customerIdIdx = headers.indexOf('顧客ID');
+  const personIdx     = headers.indexOf('担当者');
+
+  if (companyIdx    === -1) throw new Error('案件マスタに「会社名」列がありません');
+  if (customerIdIdx === -1) throw new Error('案件マスタに「顧客ID」列がありません');
+
+  // ── 既存顧客マスタを「正規化会社名 → 顧客ID」でマップ化 ──
+  const normToId = {};
+  getAllCustomers_().forEach(c => {
+    if (c.company) normToId[normalizeCompany_(c.company)] = c.id;
+  });
+
+  // ── 案件マスタから会社情報を収集（後の行の担当者で上書き） ──
+  const companyMap = {}; // norm → { original, person }
+  dealVals.slice(1).forEach(r => {
+    const company = String(r[companyIdx] || '').trim();
+    const person  = String(r[personIdx]  || '').trim();
+    if (!company) return;
+    const norm = normalizeCompany_(company);
+    if (!companyMap[norm]) companyMap[norm] = { original: company, person: '' };
+    if (person) companyMap[norm].person = person;
+  });
+
+  // ── 既存顧客マスタの最大連番を取得（一括採番用） ──
+  let maxNum = 0;
+  const cusData = cusSheet.getDataRange().getValues();
+  for (let i = 1; i < cusData.length; i++) {
+    const id = String(cusData[i][0] || '');
+    if (id.startsWith('CUS-')) {
+      const n = parseInt(id.slice(4), 10);
+      if (!isNaN(n) && n > maxNum) maxNum = n;
+    }
+  }
+
+  // ── 未登録会社を顧客マスタに一括追加 ──
+  const now     = new Date();
+  const newRows = [];
+  for (const norm in companyMap) {
+    if (normToId[norm]) continue;
+    maxNum++;
+    const id = 'CUS-' + String(maxNum).padStart(4, '0');
+    const info = companyMap[norm];
+    newRows.push([id, info.original, '', '', '', info.person, '既存', now, now, '']);
+    normToId[norm] = id;
+  }
+  if (newRows.length > 0) {
+    const startRow = cusSheet.getLastRow() + 1;
+    cusSheet.getRange(startRow, 1, newRows.length, newRows[0].length).setValues(newRows);
+  }
+
+  // ── 案件マスタのD列（顧客ID）を一括紐付け ──
+  const nDeals    = dealVals.length - 1;
+  const cusIdVals = dealSheet
+    .getRange(2, customerIdIdx + 1, nDeals, 1)
+    .getValues();
+
+  let linked = 0;
+  for (let i = 0; i < nDeals; i++) {
+    const company = String(dealVals[i + 1][companyIdx] || '').trim();
+    if (!company) continue;
+    const newId = normToId[normalizeCompany_(company)];
+    if (newId && String(cusIdVals[i][0] || '') !== newId) {
+      cusIdVals[i][0] = newId;
+      linked++;
+    }
+  }
+  if (linked > 0) {
+    dealSheet.getRange(2, customerIdIdx + 1, nDeals, 1).setValues(cusIdVals);
+  }
+
+  // キャッシュ無効化（案件マスタ変更のため）
+  invalidateAllDataCache_();
+
+  return { added: newRows.length, linked };
+}
+
+// ============================================================
 // 既存 doGet / doPost の switch-case に以下を追加してください
 // ============================================================
 //

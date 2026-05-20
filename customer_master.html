@@ -226,6 +226,10 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
       <div class="page-meta">顧客マスタ・担当者マスタの管理</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-secondary" onclick="buildFromDeals()" id="buildFromDealsBtn"
+        title="案件マスタの会社名から顧客マスタを自動生成し、案件に顧客IDを紐付けます">
+        🔄 案件から一括取り込み
+      </button>
       <button class="btn btn-primary" onclick="openCustomerModal()">＋ 新規顧客登録</button>
     </div>
   </div>
@@ -569,6 +573,50 @@ function normalizeContact(c) {
     snsId:          c['SNS_ID']        || c.snsId           || '',
     memo:           c['メモ']          || c.memo            || ''
   };
+}
+
+// ─── 案件マスタから顧客を一括取り込み ──────────────────────────
+async function buildFromDeals() {
+  const btn = document.getElementById('buildFromDealsBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 処理中...';
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'buildCustomersFromDeals' })
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || '処理失敗');
+    const { added, linked } = json.data;
+    showBuildResult(added, linked);
+    // 顧客リストを再読み込み
+    await Promise.all([loadCustomerStats(), loadCustomers(0)]);
+  } catch (e) {
+    showToast('エラー: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔄 案件から一括取り込み';
+  }
+}
+
+function showBuildResult(added, linked) {
+  const msg = [
+    added  > 0 ? `✅ 顧客マスタに <b>${added}社</b> を新規追加しました` : '顧客マスタの新規追加はありませんでした（全社登録済み）',
+    linked > 0 ? `🔗 案件マスタの顧客ID（D列）を <b>${linked}件</b> 紐付けました` : '案件の顧客ID紐付けはありませんでした（全件紐付け済み）',
+  ].join('<br>');
+  // トーストではなくアラート風ダイアログで結果を表示
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:400px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+      <div style="font-size:16px;font-weight:800;margin-bottom:14px">一括取り込み完了</div>
+      <div style="font-size:14px;line-height:1.7;color:#374151">${msg}</div>
+      <button onclick="this.closest('div[style]').remove()"
+        style="margin-top:20px;width:100%;padding:10px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">
+        OK
+      </button>
+    </div>`;
+  document.body.appendChild(overlay);
 }
 
 // ─── 統計（専用エンドポイント）──────────────────────────────────
