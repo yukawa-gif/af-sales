@@ -1281,6 +1281,11 @@ async function fetchDashboardData(){
       weeklyKpi: d.weeklyKpi || [],
     };
     try{ localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); }catch(e){}
+    // 案件登録（deal_form.html）のマスタキャッシュも同時に書き込む
+    // → ダッシュボード訪問後は案件登録が即時表示される（GAS 2重呼び出し不要）
+    if(d.master && d.master.success){
+      try{ localStorage.setItem('af_master_v1', JSON.stringify({timestamp: Date.now(), data: d.master})); }catch(e){}
+    }
     return cache;
   }catch(e){
     console.error('ダッシュボードデータ取得失敗:', e.message);
