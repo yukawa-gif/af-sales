@@ -63,14 +63,29 @@ function doGet(e) {
   if (mode === 'ai')        return getAIAdvice(e && e.parameter);
   if (mode === 'data')      return getData();
   if (mode === 'master') {
-  var m = getMaster();           // まず既存関数を呼ぶ
-  var mObj = JSON.parse(m.getContent());
-  mObj.topProducts = getTopProducts();
-  mObj.companies   = getCompanies();
-  return ContentService
-    .createTextOutput(JSON.stringify(mObj))
-    .setMimeType(ContentService.MimeType.JSON);
-}
+    var masterCache = null;
+    try { masterCache = CacheService.getScriptCache(); } catch(e) {}
+    if (masterCache) {
+      try {
+        var masterHit = masterCache.get(GAS_MASTER_CACHE_KEY);
+        if (masterHit) {
+          return ContentService.createTextOutput(masterHit)
+            .setMimeType(ContentService.MimeType.JSON);
+        }
+      } catch(e) {}
+    }
+    var m = getMaster();
+    var mObj = JSON.parse(m.getContent());
+    mObj.topProducts = getTopProducts();
+    mObj.companies   = getCompanies();
+    var masterPayload = JSON.stringify(mObj);
+    if (masterCache) {
+      try { masterCache.put(GAS_MASTER_CACHE_KEY, masterPayload, 5 * 60); } catch(e) {}
+    }
+    return ContentService
+      .createTextOutput(masterPayload)
+      .setMimeType(ContentService.MimeType.JSON);
+  }
   if (mode === 'goals')           return getGoals(e && e.parameter && e.parameter.fy);
   if (mode === 'goals_history')   return getGoalsHistory(e && e.parameter && e.parameter.fy);
   if (mode === 'generateTestData') return generateTestData();
@@ -127,10 +142,14 @@ function getTopProducts() {
 // ============================================================
 // GAS CacheService キャッシュ無効化ヘルパー
 // ============================================================
-const GAS_ALL_CACHE_KEY = 'getAllData_v1';
+const GAS_ALL_CACHE_KEY    = 'getAllData_v1';
+const GAS_MASTER_CACHE_KEY = 'getMaster_v1';
 
 function invalidateAllDataCache_() {
-  try { CacheService.getScriptCache().remove(GAS_ALL_CACHE_KEY); } catch(e) {}
+  try {
+    const c = CacheService.getScriptCache();
+    c.removeAll([GAS_ALL_CACHE_KEY, GAS_MASTER_CACHE_KEY]);
+  } catch(e) {}
 }
 
 // ============================================================
