@@ -22,8 +22,8 @@ function getNextId_(sheet, prefix) {
 
 // ============================================================
 // 顧客マスタ CRUD
-// 列: A:顧客ID B:企業名 C:都道府県 D:住所 E:業種 F:AFC担当者
-//     G:顧客ステータス H:登録日 I:最終更新日 J:メモ
+// 列: A:顧客ID B:企業名 C:都道府県 D:住所 E:業種 F:個人コード G:営業名
+//     H:顧客ステータス I:登録日 J:最終更新日 K:メモ
 // ============================================================
 
 function getAllCustomers_() {
@@ -31,14 +31,15 @@ function getAllCustomers_() {
   if (!sheet) return [];
   const [, ...rows] = sheet.getDataRange().getValues();
   return rows.filter(r => r[0]).map(r => ({
-    id:       r[0],
-    company:  r[1],
-    pref:     r[2],
-    address:  r[3],
-    industry: r[4],
-    afcStaff: r[5],
-    status:   r[6],
-    memo:     r[9]
+    id:         r[0],
+    company:    r[1],
+    pref:       r[2],
+    address:    r[3],
+    industry:   r[4],
+    personCode: r[5], // 個人コード
+    afcStaff:   r[6], // 営業名
+    status:     r[7],
+    memo:       r[10]
   }));
 }
 
@@ -81,8 +82,9 @@ function addCustomer(d) {
   if (!sheet) throw new Error('顧客マスタシートが見つかりません');
   const id  = getNextId_(sheet, 'CUS');
   const now = new Date();
+  // F:個人コード G:営業名 H:顧客ステータス I:登録日 J:最終更新日 K:メモ
   sheet.appendRow([id, d.company||'', d.pref||'', d.address||'', d.industry||'',
-                   d.afcStaff||'', d.status||'見込み', now, now, d.memo||'']);
+                   d.personCode||'', d.afcStaff||'', d.status||'見込み', now, now, d.memo||'']);
   return { success: true, id };
 }
 
@@ -93,14 +95,15 @@ function updateCustomer(d) {
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] !== d.id) continue;
     const r = i + 1;
-    if (d.company  !== undefined) sheet.getRange(r, 2).setValue(d.company);
-    if (d.pref     !== undefined) sheet.getRange(r, 3).setValue(d.pref);
-    if (d.address  !== undefined) sheet.getRange(r, 4).setValue(d.address);
-    if (d.industry !== undefined) sheet.getRange(r, 5).setValue(d.industry);
-    if (d.afcStaff !== undefined) sheet.getRange(r, 6).setValue(d.afcStaff);
-    if (d.status   !== undefined) sheet.getRange(r, 7).setValue(d.status);
-    if (d.memo     !== undefined) sheet.getRange(r, 10).setValue(d.memo);
-    sheet.getRange(r, 9).setValue(new Date());
+    if (d.company    !== undefined) sheet.getRange(r, 2).setValue(d.company);
+    if (d.pref       !== undefined) sheet.getRange(r, 3).setValue(d.pref);
+    if (d.address    !== undefined) sheet.getRange(r, 4).setValue(d.address);
+    if (d.industry   !== undefined) sheet.getRange(r, 5).setValue(d.industry);
+    if (d.personCode !== undefined) sheet.getRange(r, 6).setValue(d.personCode); // F:個人コード
+    if (d.afcStaff   !== undefined) sheet.getRange(r, 7).setValue(d.afcStaff);   // G:営業名
+    if (d.status     !== undefined) sheet.getRange(r, 8).setValue(d.status);     // H
+    if (d.memo       !== undefined) sheet.getRange(r, 11).setValue(d.memo);      // K
+    sheet.getRange(r, 10).setValue(new Date()); // J:最終更新日
     return { success: true };
   }
   throw new Error('顧客ID ' + d.id + ' が見つかりません');
@@ -329,7 +332,7 @@ function buildCustomersFromDeals() {
   const headers       = dealVals[0];
   const companyIdx    = headers.indexOf('会社名');
   const customerIdIdx = headers.indexOf('顧客ID');
-  const personIdx     = headers.indexOf('担当者');
+  const personIdx     = headers.indexOf('個人コード');
 
   if (companyIdx    === -1) throw new Error('案件マスタに「会社名」列がありません');
   if (customerIdIdx === -1) throw new Error('案件マスタに「顧客ID」列がありません');
@@ -340,15 +343,22 @@ function buildCustomersFromDeals() {
     if (c.company) normToId[normalizeCompany_(c.company)] = c.id;
   });
 
+  // 個人コード→営業名の解決マップを構築
+  const pcMap = {};
+  getPersonDetails().forEach(p => { if (p.code) pcMap[p.code] = p.name; });
+
   // ── 案件マスタから会社情報を収集（後の行の担当者で上書き） ──
-  const companyMap = {}; // norm → { original, person }
+  const companyMap = {}; // norm → { original, personCode, personName }
   dealVals.slice(1).forEach(r => {
-    const company = String(r[companyIdx] || '').trim();
-    const person  = String(r[personIdx]  || '').trim();
+    const company    = String(r[companyIdx] || '').trim();
+    const personCode = String(r[personIdx]  || '').trim();
     if (!company) return;
     const norm = normalizeCompany_(company);
-    if (!companyMap[norm]) companyMap[norm] = { original: company, person: '' };
-    if (person) companyMap[norm].person = person;
+    if (!companyMap[norm]) companyMap[norm] = { original: company, personCode: '', personName: '' };
+    if (personCode) {
+      companyMap[norm].personCode = personCode;
+      companyMap[norm].personName = pcMap[personCode] || '';
+    }
   });
 
   // ── 既存顧客マスタの最大連番を取得（一括採番用） ──
@@ -370,7 +380,8 @@ function buildCustomersFromDeals() {
     maxNum++;
     const id = 'CUS-' + String(maxNum).padStart(4, '0');
     const info = companyMap[norm];
-    newRows.push([id, info.original, '', '', '', info.person, '既存', now, now, '']);
+    // A:顧客ID B:企業名 C:都道府県 D:住所 E:業種 F:個人コード G:営業名 H:顧客ステータス I:登録日 J:最終更新日 K:メモ
+    newRows.push([id, info.original, '', '', '', info.personCode, info.personName, '既存', now, now, '']);
     normToId[norm] = id;
   }
   if (newRows.length > 0) {

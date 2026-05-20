@@ -20,7 +20,7 @@ const SHEET_ACTIVITIES    = '日次活動';
 const SHEET_WEEKLY_GOALS  = '設定_週次目標';
 
 const HEADERS = [
-  '送信日時','日付','担当者','商材',
+  '送信日時','日付','個人コード','営業名','商材',
   '自分でアポ','テレアポ経由','紹介会社','代理店紹介',
   'ビジェント','代理店開拓',
   'ヒアリング','提案','クロージング','売上(万円)',
@@ -33,13 +33,14 @@ const PRODUCT_HEADERS_V3 = [
 ];
 
 // 案件マスタの列定義
+// C:個人コード D:営業名 は設定_営業のD列・A列に対応
 const DEAL_HEADERS = [
-  '案件ID','登録日','担当者','顧客ID','会社名','商材名',
+  '案件ID','登録日','個人コード','営業名','顧客ID','会社名','商材名',
   'フェーズ','確度ランク',
   '売上（単価）','費用（単価）','コース数','件数','月数',
   '売上予定額','費用（合計）','粗利',
   'インセンティブ','売上予定月','入金ステータス','入金確認日',
-  'メモ','引継担当者','引継日','担当者コード','理由','最終更新日',
+  'メモ','引継営業名','引継日','理由','最終更新日',
   '計上会社','B売上単価','B費用単価','B件数'
 ];
 
@@ -293,31 +294,35 @@ function addDeal(d) {
   const incentiveRate = pDetail ? pDetail.incentiveRate : 0;
   const incentive = calcIncentive(monthlyGP, months, incentiveRate);
 
-sheet.appendRow([
+  const codeMap = {};
+  getPersonDetails().forEach(p => { if (p.code) codeMap[p.code] = p.name; });
+  const personName = codeMap[String(d.person || '').trim()] || String(d.person || '').trim();
+
+  sheet.appendRow([
     id,                          // A: 案件ID
     today,                       // B: 登録日
-    d.person || '',              // C: 担当者
-    d.customerId || '',          // D: 顧客ID
-    d.companyName || '',         // E: 会社名
-    d.productName || '',         // F: 商材名
-    d.phase || 'ヒアリング中',   // G: フェーズ
-    d.rankLabel || 'C',          // H: 確度ランク
-    unitSales,                   // I: 売上（単価）
-    unitCost,                    // J: 費用（単価）
-    courses,                     // K: コース数
-    qty,                         // L: 件数
-    months,                      // M: 月数
-    totalSales,                  // N: 売上予定額（合計）
-    totalCost,                   // O: 費用（合計）
-    grossProfit,                 // P: 粗利（合計）
-    incentive,                   // Q: インセンティブ
-    d.expectedMonth || '',       // R: 売上予定月
-    '未入金',                    // S: 入金ステータス
-    '',                          // T: 入金確認日
-    d.memo || '',                // U: メモ
-    '',                          // V: 引継担当者
-    '',                          // W: 引継日
-    '',                          // X: 担当者コード
+    d.person || '',              // C: 個人コード
+    personName,                  // D: 営業名
+    d.customerId || '',          // E: 顧客ID
+    d.companyName || '',         // F: 会社名
+    d.productName || '',         // G: 商材名
+    d.phase || 'ヒアリング中',   // H: フェーズ
+    d.rankLabel || 'C',          // I: 確度ランク
+    unitSales,                   // J: 売上（単価）
+    unitCost,                    // K: 費用（単価）
+    courses,                     // L: コース数
+    qty,                         // M: 件数
+    months,                      // N: 月数
+    totalSales,                  // O: 売上予定額（合計）
+    totalCost,                   // P: 費用（合計）
+    grossProfit,                 // Q: 粗利（合計）
+    incentive,                   // R: インセンティブ
+    d.expectedMonth || '',       // S: 売上予定月
+    '未入金',                    // T: 入金ステータス
+    '',                          // U: 入金確認日
+    d.memo || '',                // V: メモ
+    '',                          // W: 引継営業名
+    '',                          // X: 引継日
     d.reason || '',              // Y: 理由
     today,                       // Z: 最終更新日
     d.billingCompany || '',      // AA: 計上会社
@@ -337,9 +342,15 @@ function getDeals(person) {
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) return json({ success: true, deals: [], count: 0 });
 
-  // 個人コード→営業名の解決マップを構築
+  // 個人コード→営業名、営業名→個人コードの双方向マップを構築
   const personCodeMap = {};
-  getPersonDetails().forEach(p => { if (p.code) personCodeMap[p.code] = p.name; });
+  const personNameToCode = {};
+  getPersonDetails().forEach(p => {
+    if (p.code) {
+      personCodeMap[p.code] = p.name;
+      if (p.name) personNameToCode[p.name] = p.code;
+    }
+  });
 
   const vals = sheet.getRange(1, 1, lastRow, DEAL_HEADERS.length).getValues();
   const headers = vals[0];
@@ -380,15 +391,17 @@ function getDeals(person) {
 
   let deals = vals.slice(1).filter(r => r[0]).map(r => {
     const o = {};
-    let rawPersonCode = '';
     headers.forEach((h, i) => {
-      if (h === '担当者コード') {
-        // X列は後でC列の値で上書きするためスキップ
-        return;
-      } else if (h === '担当者') {
-        // C列: 個人コード→名前に解決（旧データ=名前文字列はそのまま）
-        rawPersonCode = String(r[i] || '').trim();
-        o[h] = personCodeMap[rawPersonCode] || rawPersonCode;
+      if (h === '個人コード') {
+        const raw = String(r[i] || '').trim();
+        // 旧レコード対応: 個人コード列に営業名が入っている場合は逆引きでコードに変換
+        o[h] = personCodeMap[raw] !== undefined ? raw : (personNameToCode[raw] || raw);
+        o['担当者コード'] = o[h]; // 後方互換
+      } else if (h === '営業名') {
+        // シートのVLOOKUP値を使い、personCodeMapで最新名に解決
+        const code = o['個人コード'] || '';
+        o[h] = personCodeMap[code] || String(r[i] || '').trim() || code;
+        o['担当者'] = o[h]; // 後方互換
       } else if (h === '売上予定月') {
         o[h] = normYM(r[i]);
       } else if (h === '登録日' || h === '入金確認日' || h === '引継日') {
@@ -399,12 +412,16 @@ function getDeals(person) {
         o[h] = r[i];
       }
     });
-    // C列の生コード（個人コード）を担当者コードとして公開
-    o['担当者コード'] = rawPersonCode;
+    // 後方互換キーを末尾で強制上書き（ヘッダー処理順に依存しない保証）
+    o['担当者']     = o['営業名']   || '';
+    o['担当者コード'] = o['個人コード'] || '';
+    if (o['売上予定月']) {
+      o['売上予定月'] = String(o['売上予定月']).slice(0, 7);
+    }
     return o;
   });
 
-  if (person) deals = deals.filter(d => d['担当者'] === person);
+  if (person) deals = deals.filter(d => d['個人コード'] === person || d['営業名'] === person || d['担当者'] === person);
 
   return json({ success: true, deals, count: deals.length });
 }
@@ -436,6 +453,12 @@ function getDeal(id) {
 // ============================================================
 function updateDeal(d) {
   if (!d.id) return json({ success: false, error: 'IDが空です' });
+  // grossProfit 単位補正安全弁：10000未満の正の値は万円単位とみなして円に変換
+  if (d.grossProfit !== undefined) {
+    let gp = Number(d.grossProfit) || 0;
+    if (gp > 0 && gp < 10000) gp = gp * 10000;
+    d.grossProfit = gp;
+  }
   const sheet = getOrCreateDealSheet();
   const lastRow = sheet.getLastRow();
   const vals = sheet.getRange(2, 1, lastRow - 1, DEAL_HEADERS.length).getValues();
@@ -541,7 +564,7 @@ function handoverDeal(id, newPerson, handoverDate) {
     if (String(vals[i][0]).trim() === id.trim()) {
       const row = i + 2;
       const dateStr = handoverDate || Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd');
-      sheet.getRange(row, DEAL_HEADERS.indexOf('引継担当者') + 1).setValue(newPerson);
+      sheet.getRange(row, DEAL_HEADERS.indexOf('引継営業名') + 1).setValue(newPerson);
       sheet.getRange(row, DEAL_HEADERS.indexOf('引継日') + 1).setValue(dateStr);
       return json({ success: true });
     }
@@ -712,10 +735,14 @@ function addEntry(d) {
   const sheet = getOrCreateResultSheet();
   const now = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd HH:mm:ss');
 
+  const entryCodeMap = {};
+  getPersonDetails().forEach(p => { if (p.code) entryCodeMap[p.code] = p.name; });
+  const entryPersonName = entryCodeMap[String(d.person || '').trim()] || String(d.person || '').trim();
+
   if (d.activity !== undefined) {
     const act = d.activity || {};
     sheet.appendRow([
-      now, d.date||'', d.person||'', '【活動】',
+      now, d.date||'', d.person||'', entryPersonName, '【活動】',
       n(act.selfApo), n(act.telApo), n(act.refApo), n(act.agentRef),
       n(act.bizent), n(act.selfAgent),
       n(act.hearing), n(act.proposal), n(act.closing), 0,
@@ -724,7 +751,7 @@ function addEntry(d) {
     const deals = d.deals || [];
     deals.forEach(function(deal) {
       sheet.appendRow([
-        now, d.date||'', d.person||'', deal.product||'',
+        now, d.date||'', d.person||'', entryPersonName, deal.product||'',
         0, 0, 0, 0, 0, 0, 0, 0, deal.status==='売上'?1:0,
         deal.status==='売上' ? n(deal.sales) : 0,
         '',
@@ -739,7 +766,7 @@ function addEntry(d) {
   }
 
   sheet.appendRow([
-    now, d.date||'', d.person||'', d.product||'',
+    now, d.date||'', d.person||'', entryPersonName, d.product||'',
     n(d.selfApo), n(d.telApo), n(d.refApo), n(d.agentRef),
     n(d.bizent), n(d.selfAgent),
     n(d.hearing), n(d.proposal), n(d.closing), n(d.sales),
@@ -1195,29 +1222,49 @@ function getWeeklyKPISummaryAll_(weekStart) {
   const aRows = (actSheet && actSheet.getLastRow() > 1)
     ? actSheet.getDataRange().getValues().slice(1) : [];
 
+  // 設定_週次目標: A=個人コード B=営業名 C=週開始日 D=架電目標 E=面談目標 F=紹介目標
+  // 日次活動:     A=個人コード B=営業名 C=日付     D=架電数   E=面談数   F=紹介数
   return persons.map(function(p) {
-    const person = p.name;
+    const personCode = p.code;
+    const personName = p.name;
 
-    // 週次目標を取得
+    // 週次目標を取得（A列=個人コードで照合）
     var target = { calls: 0, meetings: 0, referrals: 0 };
     const gRow = gRows.find(function(r) {
-      return String(r[0]).trim() === person && toDateStr(r[1]) === weekStart;
+      return String(r[0]).trim() === personCode && toDateStr(r[2]) === weekStart;
     });
     if (gRow) {
-      target = { calls: Number(gRow[2])||0, meetings: Number(gRow[3])||0, referrals: Number(gRow[4])||0 };
+      target = { calls: Number(gRow[3])||0, meetings: Number(gRow[4])||0, referrals: Number(gRow[5])||0 };
     }
 
-    // 週次実績を集計
+    // 週次実績を集計（A列=個人コードで照合）
     var actual = { calls: 0, meetings: 0, referrals: 0 };
     aRows.forEach(function(r) {
-      if (String(r[0]).trim() === person && weekDates.includes(toDateStr(r[1]))) {
-        actual.calls     += Number(r[2]) || 0;
-        actual.meetings  += Number(r[3]) || 0;
-        actual.referrals += Number(r[4]) || 0;
+      if (String(r[0]).trim() === personCode && weekDates.includes(toDateStr(r[2]))) {
+        actual.calls     += Number(r[3]) || 0;
+        actual.meetings  += Number(r[4]) || 0;
+        actual.referrals += Number(r[5]) || 0;
       }
     });
 
-    return { person: person, role: p.role, target: target, actual: actual };
+    return {
+      person: personName,
+      code:   personCode,
+      role:   p.role,
+      target: {
+        calls: target.calls, meetings: target.meetings, referrals: target.referrals,
+        call:    target.calls,
+        meeting: target.meetings,
+        referral: target.referrals
+      },
+      actual: {
+        calls: actual.calls, meetings: actual.meetings, referrals: actual.referrals,
+        // フロントエンドの kpiSumFor が参照する旧キー（営業実績ヘッダー準拠）
+        'ヒアリング':   actual.meetings,
+        'テレアポ経由': actual.calls,
+        '紹介会社':    actual.referrals
+      }
+    };
   });
 }
 
@@ -1323,10 +1370,21 @@ function getPersonDetails() {
 // ============================================================
 function changeCompanyPerson(code, newPerson) {
   try {
-    if (!code || !newPerson) return json({ success: false, error: 'コードまたは営業名が空です' });
+    if (!code || !newPerson) return json({ success: false, error: 'コードまたは営業コードが空です' });
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName(SHEET_CUSTOMERS);
     if (!sheet) return json({ success: false, error: '顧客DBが見つかりません' });
+
+    // 個人コード・営業名の列番号をヘッダーから動的解決
+    const headerRow = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    const personCodeCol = headerRow.indexOf('個人コード') + 1; // 1-based, 0なら未存在
+    const personNameCol = headerRow.indexOf('営業名')   + 1;
+
+    // 個人コード→営業名を解決
+    const persons = getPersonDetails();
+    const matched = persons.find(p => p.code === newPerson) || persons.find(p => p.name === newPerson);
+    const resolvedCode = matched ? matched.code : newPerson;
+    const resolvedName = matched ? matched.name : newPerson;
 
     const histCol = ensureHistoryColumn(sheet);
     const lastRow = sheet.getLastRow();
@@ -1336,14 +1394,15 @@ function changeCompanyPerson(code, newPerson) {
     for (let i = 0; i < allCodes.length; i++) {
       if (String(allCodes[i][0]).trim() === code.trim()) {
         const row = i + 2;
-        const currentPerson = String(sheet.getRange(row, 2).getValue()).trim();
-        if (currentPerson && currentPerson !== newPerson) {
+        const currentCode = personCodeCol > 0 ? String(sheet.getRange(row, personCodeCol).getValue()).trim() : '';
+        if (currentCode && currentCode !== resolvedCode) {
           const histCell = sheet.getRange(row, histCol);
           const existing = String(histCell.getValue()).trim();
-          const entry = currentPerson + '(〜' + today + ')';
+          const entry = currentCode + '(〜' + today + ')';
           histCell.setValue(existing ? existing + ', ' + entry : entry);
         }
-        sheet.getRange(row, 2).setValue(newPerson);
+        if (personCodeCol > 0) sheet.getRange(row, personCodeCol).setValue(resolvedCode);
+        if (personNameCol > 0) sheet.getRange(row, personNameCol).setValue(resolvedName);
         return json({ success: true });
       }
     }
@@ -2003,21 +2062,24 @@ function resetDealSheetHeaders() {
 // ============================================================
 // 週次活動データ取得
 // ============================================================
+// person には必ず個人コード（例: "S001"）を渡すこと。営業名を渡すとシートとの照合が失敗する。
 function getWeeklyData(person, weekStart) {
   if (!person || !weekStart) return { success: false, error: 'person と weekStart は必須です' };
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
   // 週次目標を取得
+  // 設定_週次目標: A=個人コード B=営業名 C=週開始日 D=架電目標 E=面談目標 F=紹介目標
   const goalSheet = ss.getSheetByName(SHEET_WEEKLY_GOALS);
   let target = null;
   if (goalSheet && goalSheet.getLastRow() > 1) {
     const rows = goalSheet.getDataRange().getValues().slice(1);
-    const goalRow = rows.find(r => String(r[0]) === person && toDateStr(r[1]) === weekStart);
-    if (goalRow) target = { calls: Number(goalRow[2]) || 0, meetings: Number(goalRow[3]) || 0, referrals: Number(goalRow[4]) || 0 };
+    const goalRow = rows.find(r => String(r[0]) === person && toDateStr(r[2]) === weekStart);
+    if (goalRow) target = { calls: Number(goalRow[3]) || 0, meetings: Number(goalRow[4]) || 0, referrals: Number(goalRow[5]) || 0 };
   }
 
   // 当週の日次活動を取得（月〜金）
+  // 日次活動: A=個人コード B=営業名 C=日付 D=架電数 E=面談数 F=紹介数 G=コメント
   const actSheet = ss.getSheetByName(SHEET_ACTIVITIES);
   const daily = [];
   if (actSheet && actSheet.getLastRow() > 1) {
@@ -2025,9 +2087,9 @@ function getWeeklyData(person, weekStart) {
     const weekDates = getWeekDateRange(weekStart);
     rows.forEach(r => {
       const rowPerson = String(r[0]);
-      const rowDate   = toDateStr(r[1]);
+      const rowDate   = toDateStr(r[2]);
       if (rowPerson === person && weekDates.includes(rowDate)) {
-        daily.push({ date: rowDate, calls: Number(r[2]) || 0, meetings: Number(r[3]) || 0, referrals: Number(r[4]) || 0 });
+        daily.push({ date: rowDate, calls: Number(r[3]) || 0, meetings: Number(r[4]) || 0, referrals: Number(r[5]) || 0 });
       }
     });
   }
@@ -2059,25 +2121,38 @@ function addActivity(d) {
   if (!person || !date) return { success: false, error: 'person と date は必須です' };
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const actCodeMap = {};
+  const actNameToCode = {};
+  getPersonDetails().forEach(p => {
+    if (p.code) {
+      actCodeMap[p.code] = p.name;
+      if (p.name) actNameToCode[p.name] = p.code;
+    }
+  });
+  // d.person は個人コードを期待。名前で渡された場合はコードに変換
+  const personCode    = actCodeMap[person] !== undefined ? person : (actNameToCode[person] || person);
+  const actPersonName = actCodeMap[personCode] || personCode;
+
   let sheet = ss.getSheetByName(SHEET_ACTIVITIES);
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_ACTIVITIES);
-    sheet.appendRow(['担当者', '日付', '架電数', '面談数', '紹介数', 'コメント']);
-    sheet.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground('#e8f4f8');
+    sheet.appendRow(['個人コード', '営業名', '日付', '架電数', '面談数', '紹介数', 'コメント']);
+    sheet.getRange(1, 1, 1, 7).setFontWeight('bold').setBackground('#e8f4f8');
   }
 
   // 同日のレコードがあれば更新、なければ追記
+  // A=個人コード B=営業名 C=日付 D=架電数 E=面談数 F=紹介数 G=コメント
   const lastRow = sheet.getLastRow();
   if (lastRow > 1) {
-    const vals = sheet.getRange(2, 1, lastRow - 1, 2).getValues();
+    const vals = sheet.getRange(2, 1, lastRow - 1, 3).getValues();
     for (let i = 0; i < vals.length; i++) {
-      if (String(vals[i][0]) === person && String(vals[i][1]).slice(0,10) === date) {
-        sheet.getRange(i + 2, 3, 1, 4).setValues([[calls, meetings, referrals, comment]]);
+      if (String(vals[i][0]) === personCode && String(vals[i][2]).slice(0,10) === date) {
+        sheet.getRange(i + 2, 4, 1, 4).setValues([[calls, meetings, referrals, comment]]);
         return { success: true, updated: true };
       }
     }
   }
-  sheet.appendRow([person, date, calls, meetings, referrals, comment]);
+  sheet.appendRow([personCode, actPersonName, date, calls, meetings, referrals, comment]);
   return { success: true, updated: false };
 }
 
@@ -2085,32 +2160,46 @@ function addActivity(d) {
 // 週次目標保存（setWeeklyTarget）
 // ============================================================
 function setWeeklyTarget(d) {
-  const person    = String(d.person    || '').trim();
-  const weekStart = String(d.weekStart || '').trim();
-  const callTarget    = Number(d.callTarget)    || 0;
-  const meetingTarget = Number(d.meetingTarget) || 0;
+  const person         = String(d.person    || '').trim();
+  const weekStart      = String(d.weekStart || '').trim();
+  const callTarget     = Number(d.callTarget)     || 0;
+  const meetingTarget  = Number(d.meetingTarget)  || 0;
+  const referralTarget = Number(d.referralTarget) || 0;
   if (!person || !weekStart) return { success: false, error: 'person と weekStart は必須です' };
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const wgCodeMap = {};
+  const wgNameToCode = {};
+  getPersonDetails().forEach(p => {
+    if (p.code) {
+      wgCodeMap[p.code] = p.name;
+      if (p.name) wgNameToCode[p.name] = p.code;
+    }
+  });
+  // d.person は個人コードを期待。名前で渡された場合はコードに変換
+  const personCode   = wgCodeMap[person] !== undefined ? person : (wgNameToCode[person] || person);
+  const wgPersonName = wgCodeMap[personCode] || personCode;
+
   let sheet = ss.getSheetByName(SHEET_WEEKLY_GOALS);
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_WEEKLY_GOALS);
-    sheet.appendRow(['担当者', '週開始日', '架電目標', '面談目標']);
-    sheet.getRange(1, 1, 1, 4).setFontWeight('bold').setBackground('#e8f4f8');
+    sheet.appendRow(['個人コード', '営業名', '週開始日', '架電目標', '面談目標', '紹介目標']);
+    sheet.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground('#e8f4f8');
   }
 
   // 同担当者・同週があれば更新
+  // A=個人コード B=営業名 C=週開始日 D=架電目標 E=面談目標 F=紹介目標
   const lastRow = sheet.getLastRow();
   if (lastRow > 1) {
-    const vals = sheet.getRange(2, 1, lastRow - 1, 2).getValues();
+    const vals = sheet.getRange(2, 1, lastRow - 1, 3).getValues();
     for (let i = 0; i < vals.length; i++) {
-      if (String(vals[i][0]) === person && String(vals[i][1]).slice(0,10) === weekStart) {
-        sheet.getRange(i + 2, 3, 1, 2).setValues([[callTarget, meetingTarget]]);
+      if (String(vals[i][0]) === personCode && String(vals[i][2]).slice(0,10) === weekStart) {
+        sheet.getRange(i + 2, 4, 1, 3).setValues([[callTarget, meetingTarget, referralTarget]]);
         return { success: true, updated: true };
       }
     }
   }
-  sheet.appendRow([person, weekStart, callTarget, meetingTarget]);
+  sheet.appendRow([personCode, wgPersonName, weekStart, callTarget, meetingTarget, referralTarget]);
   return { success: true, updated: false };
 }
 
@@ -2124,23 +2213,38 @@ function setMonthlyKPITarget(d) {
   const weeks   = d.weeks   || [];
   if (!person || !month) return { success: false, error: 'person と month は必須です' };
 
-  // Script Properties に月次データを保存
+  // Script Properties は personCode 確定後に書き込む（下方で定義）
   const props = PropertiesService.getScriptProperties();
-  props.setProperty('KPI_' + person + '_' + month, JSON.stringify({ monthly, weeks }));
 
   // SHEET_WEEKLY_GOALS に週別目標を書き込む
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const mkpiCodeMap = {};
+  const mkpiNameToCode = {};
+  getPersonDetails().forEach(p => {
+    if (p.code) {
+      mkpiCodeMap[p.code] = p.name;
+      if (p.name) mkpiNameToCode[p.name] = p.code;
+    }
+  });
+  // d.person は個人コードを期待。名前で渡された場合はコードに変換
+  const personCode     = mkpiCodeMap[person] !== undefined ? person : (mkpiNameToCode[person] || person);
+  const mkpiPersonName = mkpiCodeMap[personCode] || personCode;
+
+  // Script Properties に月次データを保存（コードで統一）
+  props.setProperty('KPI_' + personCode + '_' + month, JSON.stringify({ monthly, weeks }));
+
   let sheet = ss.getSheetByName(SHEET_WEEKLY_GOALS);
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_WEEKLY_GOALS);
-    sheet.appendRow(['担当者', '週開始日', '架電目標', '面談目標', '紹介目標']);
-    sheet.getRange(1, 1, 1, 5).setFontWeight('bold').setBackground('#e8f4f8');
+    sheet.appendRow(['個人コード', '営業名', '週開始日', '架電目標', '面談目標', '紹介目標']);
+    sheet.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground('#e8f4f8');
   }
 
   // 既存の同一担当者・同月データを全削除（Date型バグ対策・重複防止）
+  // A=個人コード C=週開始日
   const all = sheet.getDataRange().getValues();
   for (let i = all.length - 1; i >= 1; i--) {
-    if (String(all[i][0]).trim() === person && toDateStr(all[i][1]).slice(0, 7) === month) {
+    if (String(all[i][0]).trim() === personCode && toDateStr(all[i][2]).slice(0, 7) === month) {
       sheet.deleteRow(i + 1);
     }
   }
@@ -2149,7 +2253,7 @@ function setMonthlyKPITarget(d) {
   weeks.forEach(w => {
     const weekStart = String(w.weekStart || '').slice(0, 10);
     if (!weekStart) return;
-    sheet.appendRow([person, weekStart, w.calls || 0, w.meetings || 0, w.referrals || 0]);
+    sheet.appendRow([personCode, mkpiPersonName, weekStart, w.calls || 0, w.meetings || 0, w.referrals || 0]);
   });
 
   return { success: true };
@@ -2345,7 +2449,7 @@ function importFromSheet() {
   let added = 0, skipped = 0, errors = [];
 
   // 重複チェック用に既存データを一度だけ読み込む
-  const iPersonIdx  = DEAL_HEADERS.indexOf('担当者');
+  const iPersonIdx  = DEAL_HEADERS.indexOf('個人コード');
   const iCompanyIdx = DEAL_HEADERS.indexOf('会社名');
   const iMonthIdx   = DEAL_HEADERS.indexOf('売上予定月');
   const existingRows = dest.getLastRow() > 1
@@ -2403,13 +2507,13 @@ function importFromSheet() {
     const payStatus = rank === '売上' ? '入金済み' : '未入金';
 
     const rowMap = {
-      '案件ID': id, '登録日': today, '担当者': person, '顧客ID': '',
+      '案件ID': id, '登録日': today, '個人コード': person, '営業名': personName, '顧客ID': '',
       '会社名': company, '商材名': product, 'フェーズ': phase, '確度ランク': rank,
       '売上（単価）': sales, '費用（単価）': cost, 'コース数': 1, '件数': 1, '月数': 1,
       '売上予定額': sales, '費用（合計）': cost, '粗利': gp,
       'インセンティブ': 0, '売上予定月': expMonth,
       '入金ステータス': payStatus, '入金確認日': '', 'メモ': memo,
-      '引継担当者': '', '引継日': '', '担当者コード': '', '理由': '', '最終更新日': today,
+      '引継営業名': '', '引継日': '', '理由': '', '最終更新日': today,
       '計上会社': billingCo, 'B売上単価': bUnitSales, 'B費用単価': bUnitCost, 'B件数': bQty
     };
     const newRow = DEAL_HEADERS.map(h => rowMap[h] !== undefined ? rowMap[h] : '');

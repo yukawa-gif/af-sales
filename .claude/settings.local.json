@@ -39,7 +39,9 @@
       "Bash(python3 -c \"import sys; print\\(sys.getdefaultencoding\\(\\)\\); import locale; print\\(locale.getpreferredencoding\\(\\)\\)\")",
       "Bash(python3 -c \"import sys; data=sys.stdin.read\\(\\); print\\(repr\\(data[:500]\\)\\)\")",
       "Bash(git pull *)",
-      "Bash(claude --version)"
+      "Bash(claude --version)",
+      "Bash(python3 -c \"import openpyxl; print\\(openpyxl.__version__\\)\")",
+      "Bash(pip3 install *)"
     ]
   }
 }
