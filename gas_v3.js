@@ -225,7 +225,6 @@ function doPost(e) {
     if (action === 'getContactMaster') return json({ success: true, data: getContacts(d.customerId || '') });
     if (action === 'detectIndustry')  return json({ success: true, data: detectIndustry(d.companyName) });
     if (action === 'migrateOldDB')         return json({ success: true, data: migrateOldCustomerDB() });
-    if (action === 'buildCustomersFromDeals') return json({ success: true, data: buildCustomersFromDeals() });
     if (action === 'clearAll')        return json({ success: false, error: '外部からの実行は許可されていません' });
 
     // ── 書き込み系（LockService で保護） ───────────────────
@@ -242,6 +241,7 @@ function doPost(e) {
       if (action === 'updateDealStatus')    return updateDealStatus(d.id, d.phase, d.rankLabel);
       if (action === 'confirmPayment')      return confirmPayment(d.id, d.date);
       if (action === 'handoverDeal')        return handoverDeal(d.id, d.newPerson, d.date);
+      if (action === 'buildCustomersFromDeals') return json({ success: true, data: buildCustomersFromDeals() });
       if (action === 'addCustomer')         return json({ success: true, data: addCustomer(d) });
       if (action === 'updateCustomer')      return json({ success: true, data: updateCustomer(d) });
       if (action === 'deleteCustomer')      return json({ success: true, data: deleteCustomer(d.id) });
