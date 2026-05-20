@@ -1173,6 +1173,11 @@ async function init(){
   // キャッシュがあれば（期限切れでも）即時表示
   const cached = loadDashboardCacheAny();
   if(cached){
+    // 案件登録用に af_master_v1 を即時書き込み
+    // → バックグラウンドフェッチ完了を待たずに deal_form.html がキャッシュを使える
+    if(cached.master && cached.master.success){
+      try{ localStorage.setItem('af_master_v1', JSON.stringify({timestamp: Date.now(), data: cached.master})); }catch(e){}
+    }
     applyDashboardData(cached);
     document.getElementById('loading').style.display='none';
     if(!isAdmin) document.getElementById('main').style.display='block';

@@ -447,33 +447,37 @@ async function init() {
   document.getElementById('expectedMonth').value =
     next.getFullYear() + '-' + String(next.getMonth() + 1).padStart(2,'0');
 
-  await loadMaster();
+  // フォームを即時表示（マスタ読み込みを待たない）
+  document.getElementById('loading').style.display   = 'none';
+  document.getElementById('form-area').style.display = 'block';
+
+  loadMaster(); // await しない → 画面表示をブロックしない
 }
 
 async function loadMaster() {
-  // 期限切れでもキャッシュがあれば即時表示（dashboard と同じ戦略）
+  // キャッシュがあれば（期限切れでも）即時適用
   const cachedAny = loadMasterCacheAny();
   if(cachedAny){
     applyMasterData(cachedAny);
-    document.getElementById('loading').style.display   = 'none';
-    document.getElementById('form-area').style.display = 'block';
     // バックグラウンドで最新データを取得して上書き
     fetchMasterData().then(fresh=>{ if(fresh) applyMasterData(fresh); }).catch(()=>{});
     return;
   }
-  // キャッシュなし（初回）→ GAS を待つ
+  // キャッシュなし（初回）→ GAS を待って取得（フォームは表示済み）
+  // 担当者セレクトに "読み込み中..." を表示
+  const personSel = document.getElementById('person');
+  if(personSel) personSel.innerHTML = '<option value="">読み込み中...</option>';
   try{
     const data = await fetchMasterData();
-    if(!data) throw new Error('マスタ取得失敗');
-    applyMasterData(data);
-    document.getElementById('loading').style.display   = 'none';
-    document.getElementById('form-area').style.display = 'block';
+    if(data){
+      applyMasterData(data);
+    } else {
+      if(personSel) personSel.innerHTML =
+        '<option value="">取得失敗 — <a href="#" onclick="loadMaster();return false">再試行</a></option>';
+    }
   }catch(e){
-    document.getElementById('loading').innerHTML =
-      '<div style="color:var(--red);padding:20px">マスタデータの読み込みに失敗しました。<br>' +
-      '<small>' + e.message + '</small><br><br>' +
-      '<button onclick="loadMaster()" style="padding:8px 16px;background:var(--blue);' +
-      'color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit">再試行</button></div>';
+    console.error('マスタ取得失敗:', e);
+    if(personSel) personSel.innerHTML = '<option value="">エラー — ページを再読み込みしてください</option>';
   }
 }
 
