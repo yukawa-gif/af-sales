@@ -361,14 +361,21 @@ function getDeals(person) {
     if (!v) return '';
     // GASのスプレッドシートDate型はinstanceof Dateが効かない場合がある → duck typing
     if (typeof v === 'object' && typeof v.getFullYear === 'function') {
-      return Utilities.formatDate(v, 'Asia/Tokyo', 'yyyy-MM');
+      try {
+        const formatted = Utilities.formatDate(v, 'Asia/Tokyo', 'yyyy-MM');
+        if (/^\d{4}-\d{2}$/.test(formatted)) return formatted;
+      } catch(e) {}
+      return '';
     }
     const s = String(v).trim();
     // ISO文字列: "2025-07-31T15:00:00.000Z"
     const mIso = s.match(/^(\d{4})-(\d{2})-\d{2}T/);
     if (mIso) return mIso[1]+'-'+mIso[2];
-    // "2025-08" 形式はそのまま
+    // "2025-08-01" や "2025-08" 形式
     if (/^\d{4}-\d{2}/.test(s)) return s.slice(0, 7);
+    // "2025/08/01" や "2025/08" 形式（スラッシュ区切り）
+    const mSlash = s.match(/^(\d{4})\/(\d{2})/);
+    if (mSlash) return mSlash[1]+'-'+mSlash[2];
     // "Aug-25" 形式 → "2025-08"
     const m1 = s.match(/^([A-Z][a-z]{2})-(\d{2})$/i);
     if (m1) {
@@ -416,7 +423,7 @@ function getDeals(person) {
     o['担当者']     = o['営業名']   || '';
     o['担当者コード'] = o['個人コード'] || '';
     if (o['売上予定月']) {
-      o['売上予定月'] = String(o['売上予定月']).slice(0, 7);
+      o['売上予定月'] = String(o['売上予定月']).trim().slice(0, 7);
     }
     return o;
   });
@@ -453,12 +460,8 @@ function getDeal(id) {
 // ============================================================
 function updateDeal(d) {
   if (!d.id) return json({ success: false, error: 'IDが空です' });
-  // grossProfit 単位補正安全弁：10000未満の正の値は万円単位とみなして円に変換
-  if (d.grossProfit !== undefined) {
-    let gp = Number(d.grossProfit) || 0;
-    if (gp > 0 && gp < 10000) gp = gp * 10000;
-    d.grossProfit = gp;
-  }
+  // d.grossProfit は常に円単位で受け取る（フロントの dm-amount フォームが円入力）
+  // 以前あった「10000未満→万円とみなして変換」の安全弁は誤変換を招くため削除済み
   const sheet = getOrCreateDealSheet();
   const lastRow = sheet.getLastRow();
   const vals = sheet.getRange(2, 1, lastRow - 1, DEAL_HEADERS.length).getValues();
@@ -1262,7 +1265,11 @@ function getWeeklyKPISummaryAll_(weekStart) {
         // フロントエンドの kpiSumFor が参照する旧キー（営業実績ヘッダー準拠）
         'ヒアリング':   actual.meetings,
         'テレアポ経由': actual.calls,
-        '紹介会社':    actual.referrals
+        '紹介会社':    actual.referrals,
+        // 文字列キーエイリアス（フロントエンド側の参照方式に依存しない保証）
+        'meetings':  actual.meetings,
+        'calls':     actual.calls,
+        'referrals': actual.referrals
       }
     };
   });
@@ -2209,14 +2216,9 @@ function setWeeklyTarget(d) {
 function setMonthlyKPITarget(d) {
   const person  = String(d.person || '').trim();
   const month   = String(d.month  || '').trim(); // "2026-05"
-  const monthly = d.monthly || { calls: 0, meetings: 0, referrals: 0 };
-  const weeks   = d.weeks   || [];
+  const weeks   = d.weeks || [];
   if (!person || !month) return { success: false, error: 'person と month は必須です' };
 
-  // Script Properties は personCode 確定後に書き込む（下方で定義）
-  const props = PropertiesService.getScriptProperties();
-
-  // SHEET_WEEKLY_GOALS に週別目標を書き込む
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const mkpiCodeMap = {};
   const mkpiNameToCode = {};
@@ -2226,12 +2228,8 @@ function setMonthlyKPITarget(d) {
       if (p.name) mkpiNameToCode[p.name] = p.code;
     }
   });
-  // d.person は個人コードを期待。名前で渡された場合はコードに変換
   const personCode     = mkpiCodeMap[person] !== undefined ? person : (mkpiNameToCode[person] || person);
   const mkpiPersonName = mkpiCodeMap[personCode] || personCode;
-
-  // Script Properties に月次データを保存（コードで統一）
-  props.setProperty('KPI_' + personCode + '_' + month, JSON.stringify({ monthly, weeks }));
 
   let sheet = ss.getSheetByName(SHEET_WEEKLY_GOALS);
   if (!sheet) {
@@ -2240,21 +2238,24 @@ function setMonthlyKPITarget(d) {
     sheet.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground('#e8f4f8');
   }
 
-  // 既存の同一担当者・同月データを全削除（Date型バグ対策・重複防止）
-  // A=個人コード C=週開始日
+  // 既存データを一括読み込みし、対象担当者・同月行をメモリ上でフィルタ除外
+  // → deleteRow ループによる行インデックスズレを完全に回避
   const all = sheet.getDataRange().getValues();
-  for (let i = all.length - 1; i >= 1; i--) {
-    if (String(all[i][0]).trim() === personCode && toDateStr(all[i][2]).slice(0, 7) === month) {
-      sheet.deleteRow(i + 1);
-    }
-  }
+  const kept = all.slice(1).filter(r =>
+    !(String(r[0]).trim() === personCode && toDateStr(r[2]).slice(0, 7) === month)
+  );
 
-  // 週別目標を書き込む
+  // 新しい週別目標行をメモリ上で追記
   weeks.forEach(w => {
     const weekStart = String(w.weekStart || '').slice(0, 10);
     if (!weekStart) return;
-    sheet.appendRow([personCode, mkpiPersonName, weekStart, w.calls || 0, w.meetings || 0, w.referrals || 0]);
+    kept.push([personCode, mkpiPersonName, weekStart, w.calls || 0, w.meetings || 0, w.referrals || 0]);
   });
+
+  // ヘッダー以降を一括クリアして setValues で原子的に書き込む
+  const lastRow = sheet.getLastRow();
+  if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, 6).clearContent();
+  if (kept.length > 0) sheet.getRange(2, 1, kept.length, 6).setValues(kept);
 
   return { success: true };
 }
@@ -2399,21 +2400,23 @@ function generateCustomerCode() {
 // 商材一括登録（初回のみ実行）
 // ============================================================
 function initProducts() {
-  // [name, unitPrice, months, cost, dealType, priceType, incentiveType, incentiveTarget]
+  // [name, kind, unitPrice, cost, incentiveRate, priceType]
+  // kind: 'ストック'=12ヶ月継続 / 'スポット'=単発
+  // incentiveRate: 小数（0.1 = 10%、0.001 = 0.1%）
   const products = [
-    ['リスキリング研修_直販',    200000,  1,       0, '通常',          '固定',         '10%単発',  '○'],
-    ['リスキリング研修_代理店',  200000,  1,  150000, '通常',          '固定',         '10%単発',  '○'],
-    ['HubCast_直販',             35000, 12,   13000, '通常',          '固定',         '1ヶ月分',  '○'],
-    ['HubCast_代理店',           35000, 12,   27000, '通常',          '固定',         '10%継続',  '○'],
-    ['IT導入補助金',           1000000,  1,       0, '助成金・補助金', '固定',         '0.1%',     '○'],
-    ['社長紹介_直販',           600000,  1,       0, '通常',          '固定',         '10%単発',  '○'],
-    ['社長紹介_代理店',         600000,  1,  200000, '通常',          '固定',         '10%単発',  '○'],
-    ['健康診断事務代理',              0,  1,       0, '通常',          '都度見積もり', '10%単発',  '○'],
-    ['保健師電話健康相談',            0,  1,       0, '通常',          '都度見積もり', '10%単発',  '○'],
-    ['社労士案件',                    0,  1,       0, '通常',          '都度見積もり', '10%単発',  '○'],
+    ['リスキリング研修_直販',   'スポット', 200000,       0, 0.1,   '固定'],
+    ['リスキリング研修_代理店', 'スポット', 200000,  150000, 0.1,   '固定'],
+    ['HubCast_直販',            'ストック',  35000,   13000, 0.1,   '固定'],
+    ['HubCast_代理店',          'ストック',  35000,   27000, 0.1,   '固定'],
+    ['IT導入補助金',            'スポット', 1000000,      0, 0.001, '固定'],
+    ['社長紹介_直販',           'スポット', 600000,       0, 0.1,   '固定'],
+    ['社長紹介_代理店',         'スポット', 600000,  200000, 0.1,   '固定'],
+    ['健康診断事務代理',        'スポット',      0,       0, 0.1,   '都度見積もり'],
+    ['保健師電話健康相談',      'スポット',      0,       0, 0.1,   '都度見積もり'],
+    ['社労士案件',              'スポット',      0,       0, 0.1,   '都度見積もり'],
   ];
-  products.forEach(([name, unitPrice, months, cost, dealType, priceType, incentiveType, incentiveTarget]) => {
-    addProductToSheet(name, unitPrice, months, cost, dealType, priceType, incentiveType, incentiveTarget);
+  products.forEach(([name, kind, unitPrice, cost, incentiveRate, priceType]) => {
+    addProductToSheet(name, kind, unitPrice, cost, incentiveRate, priceType);
   });
   Logger.log('商材登録完了: ' + products.length + '件');
 }

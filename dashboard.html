@@ -1074,17 +1074,17 @@ async function gasGet(params, { retries = 2, timeoutMs = 15000 } = {}) {
   throw lastErr;
 }
 
-// POST (no-cors): fire-and-forget。レスポンスは読めないがタイムアウトは保持
+// POST: GASにPOSTしてJSONレスポンスを返す
 async function gasPost(payload, { timeoutMs = 15000 } = {}) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    await fetch(GAS_URL, {
+    const res = await fetch(GAS_URL, {
       method: 'POST',
-      mode: 'no-cors',
       body: JSON.stringify(payload),
       signal: ctrl.signal,
     });
+    return await res.json();
   } catch (err) {
     if (err.name === 'AbortError') throw new Error('GAS送信タイムアウト（15秒）');
     throw err;
@@ -2010,9 +2010,10 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
   // 各案件の月別粗利を事前計算（粗利合計÷月数で月別分配）
   const dealCellAmts=new Map();
   activeDeals.forEach(d=>{
-    const expYM=String(d['売上予定月']||'');
-    if(!expYM)return;
+    const expYM=String(d['売上予定月']||'').slice(0,7);
+    if(!/^\d{4}-\d{2}$/.test(expYM))return;
     const [ey,em]=expYM.split('-').map(Number);
+    if(!ey||!em||em<1||em>12)return;
     const months=Math.max(1,Number(d['月数'])||1);
     const monthlyAmt=(Number(d['粗利'])||0)/months;
     const cellAmts={};
@@ -2484,7 +2485,8 @@ async function saveDealModal(){
         billingCompany,
       };
       if(bRowVisible){ payload.bUnitSales=bUnitSales; payload.bUnitCost=bUnitCost; payload.bQty=bQty; }
-      await gasPost(payload);
+      const result = await gasPost(payload);
+      if(result && !result.success) console.warn('案件更新失敗(GAS):', result.error);
     }catch(e){ console.warn('案件更新失敗:', e.message); }
   }
 
