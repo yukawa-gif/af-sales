@@ -460,7 +460,7 @@ async function loadMaster() {
   if(cachedAny){
     applyMasterData(cachedAny);
     // バックグラウンドで最新データを取得して上書き
-    fetchMasterData().then(fresh=>{ if(fresh) applyMasterData(fresh); }).catch(()=>{});
+    fetchMasterData().then(fresh=>{ if(fresh) applyMasterData(fresh, true); }).catch(()=>{});
     return;
   }
   // キャッシュなし（初回）→ GAS を待って取得（フォームは表示済み）
@@ -511,9 +511,13 @@ async function fetchMasterData(){
   }catch(e){ return null; }
 }
 
-function applyMasterData(data){
+function applyMasterData(data, isBackgroundRefresh = false){
   masterData = data;
-  buildPersonOptions(data.personDetails || []);
+  // バックグラウンド更新時は担当者が既に選択済みなら再構築しない（ドロップダウン操作を妨げない）
+  const personAlreadySelected = isBackgroundRefresh && !!getSelectedPerson();
+  if (!personAlreadySelected) {
+    buildPersonOptions(data.personDetails || [], data.persons || []);
+  }
   buildProductOptions(data.productDetails || [], data.topProducts || []);
   buildCompanyOptions(data.companies || []);
   customerList = (data.customers || []).map(c => ({
@@ -521,19 +525,29 @@ function applyMasterData(data){
     company: c['企業名']    || c.company || '',
     person:  c['AFC担当者'] || c['AFC営業担当'] || c.person  || ''
   })).filter(c => c.company);
-  restoreLastPerson();
+  if (!isBackgroundRefresh) restoreLastPerson();
 }
 
-function buildPersonOptions(details) {
+function buildPersonOptions(details, personsFallback) {
   const sel = document.getElementById('person');
   sel.innerHTML = '<option value="">選択してください</option>';
-  details.filter(p => p.status === '在籍中').forEach(p => {
-    const opt = document.createElement('option');
-    // 個人コードをvalueに、名前を表示テキストに設定
-    opt.value = p.code || p.name;  // コード未設定の場合は名前をfallback
-    opt.textContent = p.name;
-    sel.appendChild(opt);
-  });
+  const active = details.filter(p => p.status === '在籍中');
+  if (active.length > 0) {
+    active.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.code || p.name;
+      opt.textContent = p.name;
+      sel.appendChild(opt);
+    });
+  } else if (personsFallback && personsFallback.length > 0) {
+    // personDetails のステータスフィルターが全員を弾いた場合、persons 配列でフォールバック
+    personsFallback.forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      sel.appendChild(opt);
+    });
+  }
 }
 
 function buildProductOptions(details, topProducts) {
