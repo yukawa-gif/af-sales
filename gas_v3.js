@@ -3,7 +3,7 @@
 // 営業・商材・案件をスプレッドシートで管理するバージョン
 // ============================================================
 // 【シート構成】
-//   「設定_営業」シート  ：営業名・役職・ステータス・個人コード
+//   「設定_営業」シート  ：個人コード・営業名・役職・ステータス
 //   「設定_商材」シート  ：商材名・金額・案件種別・インセンティブ方式
 //   「案件マスタ」シート ：案件の全データ（新規追加）
 //   「営業実績」シート   ：日報データが自動蓄積
@@ -33,7 +33,7 @@ const PRODUCT_HEADERS_V3 = [
 ];
 
 // 案件マスタの列定義
-// C:個人コード D:営業名 は設定_営業のD列・A列に対応
+// C:個人コード D:営業名 は設定_営業のA列・B列に対応
 const DEAL_HEADERS = [
   '案件ID','登録日','個人コード','営業名','顧客ID','会社名','商材名',
   'フェーズ','確度ランク',
@@ -790,7 +790,7 @@ function addPerson(name, role, code) {
   const existing = getPersonDetails();
   if (existing.some(p => p.name === name)) return json({ success: false, error: '既に存在します: ' + name });
   const nextRow = sheet.getLastRow() + 1;
-  sheet.getRange(nextRow, 1, 1, 4).setValues([[name, role, '在籍中', code]]);
+  sheet.getRange(nextRow, 1, 1, 4).setValues([[code, name, role, '在籍中']]);
   return json({ success: true, name: name, role: role, code: code });
 }
 
@@ -803,10 +803,10 @@ function setPersonStatus(name, status) {
   const sheet = getOrCreatePersonSheet();
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) return json({ success: false, error: '営業が見つかりません' });
-  const vals = sheet.getRange(2, 1, lastRow - 1, 3).getValues();
+  const vals = sheet.getRange(2, 1, lastRow - 1, 4).getValues();
   for (let i = 0; i < vals.length; i++) {
-    if (String(vals[i][0]).trim() === name) {
-      sheet.getRange(i + 2, 3).setValue(status);
+    if (String(vals[i][1]).trim() === name) {
+      sheet.getRange(i + 2, 4).setValue(status);
       return json({ success: true, name: name, status: status });
     }
   }
@@ -822,9 +822,9 @@ function deletePerson(name) {
   const sheet = getOrCreatePersonSheet();
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) return json({ success: false, error: '営業が見つかりません' });
-  const vals = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  const vals = sheet.getRange(2, 1, lastRow - 1, 2).getValues();
   for (let i = 0; i < vals.length; i++) {
-    if (String(vals[i][0]).trim() === name) {
+    if (String(vals[i][1]).trim() === name) {
       sheet.deleteRow(i + 2);
       return json({ success: true, name: name });
     }
@@ -1358,15 +1358,15 @@ function getPersonDetails() {
   const sheet = getOrCreatePersonSheet();
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) return (_personDetailsCache = []);
-  // A:営業名 B:役職 C:ステータス D:個人コード E:メールアドレス
+  // A:個人コード B:営業名 C:役職 D:ステータス E:メールアドレス
   const vals = sheet.getRange(2, 1, lastRow - 1, 5).getValues();
   _personDetailsCache = vals
-    .filter(r => String(r[0]).trim())
+    .filter(r => String(r[1]).trim())
     .map(r => ({
-      name:   String(r[0]).trim(),
-      role:   String(r[1]).trim() || 'スタッフ',
-      status: String(r[2]).trim() || '在籍中',
-      code:   String(r[3] || '').trim(),
+      code:   String(r[0] || '').trim(),
+      name:   String(r[1]).trim(),
+      role:   String(r[2]).trim() || 'スタッフ',
+      status: String(r[3]).trim() || '在籍中',
       email:  String(r[4] || '').trim()
     }));
   return _personDetailsCache;
@@ -1957,7 +1957,7 @@ function getOrCreatePersonSheet() {
   if (!sheet) sheet = ss.insertSheet(SHEET_PERSONS);
   const h1 = String(sheet.getRange(1,1).getValue()).trim();
   if (!h1) {
-    const headers = ['営業名','役職','ステータス','個人コード'];
+    const headers = ['個人コード','営業名','役職','ステータス'];
     const hr = sheet.getRange(1,1,1,4);
     hr.setValues([headers]);
     hr.setBackground('#2d6a4f').setFontColor('#fff').setFontWeight('bold');
@@ -2281,7 +2281,7 @@ function getCalendarEventsForWeek(personName, weekStart) {
     if (!sheet) return [];
 
     const rows = sheet.getDataRange().getValues().slice(1);
-    const personRow = rows.find(r => String(r[0]).trim() === personName);
+    const personRow = rows.find(r => String(r[1]).trim() === personName);
     if (!personRow || !personRow[4]) return []; // E列 = メールアドレス
 
     const email = String(personRow[4]).trim();
