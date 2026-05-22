@@ -146,7 +146,7 @@ function getTopProducts() {
 // GAS CacheService キャッシュ無効化ヘルパー
 // ============================================================
 const GAS_ALL_CACHE_KEY    = 'getAllData_v1';
-const GAS_MASTER_CACHE_KEY = 'getMaster_v1';
+const GAS_MASTER_CACHE_KEY = 'getMaster_v2';
 const GAS_CACHE_CHUNK      = 90000; // CacheService は 100KB/エントリ制限 → 90KB ずつ分割
 
 // チャンク分割してキャッシュに書き込む
@@ -1949,6 +1949,11 @@ function getOrCreateMasterSheet(name, headers) {
 function getOrCreatePersonSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(SHEET_PERSONS);
+  // 旧シート名 '設定_担当者' へのフォールバック（担当者→営業 移行期対応）
+  if ((!sheet || sheet.getLastRow() <= 1) && SHEET_PERSONS !== '設定_担当者') {
+    const legacy = ss.getSheetByName('設定_担当者');
+    if (legacy && legacy.getLastRow() > 1) return legacy;
+  }
   if (!sheet) sheet = ss.insertSheet(SHEET_PERSONS);
   const h1 = String(sheet.getRange(1,1).getValue()).trim();
   if (!h1) {
