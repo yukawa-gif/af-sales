@@ -2038,6 +2038,7 @@ function onOpen() {
     .createMenu('🏢 顧客管理')
     .addItem('顧客コードを生成する（初回のみ）', 'insertCustomerCodes')
     .addItem('【初回のみ】案件マスタのヘッダーをリセットする', 'resetDealSheetHeaders')
+    .addItem('案件マスタの顧客IDを自動補完する', 'fillMissingCustomerIds')
     .addToUi();
 }
 
@@ -2351,6 +2352,113 @@ ${calSection}
   } catch(err) {
     return { success: false, error: err.message };
   }
+}
+
+// ============================================================
+// 案件マスタの空欄を一括補完
+//   ① 案件IDが空 → DL-YYYYMMDDHHmmss-XXXX 形式で自動生成
+//   ② 顧客IDが空 → 顧客DBで会社名を照合、未登録なら新規追加
+// ============================================================
+function fillMissingCustomerIds() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ui = SpreadsheetApp.getUi();
+
+  // ── 顧客DB ロード ─────────────────────────────────────────
+  const custSheet = ss.getSheetByName(SHEET_CUSTOMERS);
+  if (!custSheet) { ui.alert('「顧客DB」シートが見つかりません。'); return; }
+
+  const custVals    = custSheet.getDataRange().getValues();
+  const custHeaders = custVals[0].map(h => String(h).trim());
+  const codeIdx     = custHeaders.indexOf('顧客コード');
+  const companyIdx  = custHeaders.indexOf('企業名');
+  const afcIdx      = custHeaders.indexOf('AFC営業担当');
+  if (codeIdx < 0 || companyIdx < 0) { ui.alert('顧客DBに「顧客コード」または「企業名」列が見つかりません。'); return; }
+
+  const companyToCode = {};
+  const existingCodes = new Set();
+  custVals.slice(1).forEach(r => {
+    const name = String(r[companyIdx] || '').trim();
+    const code = String(r[codeIdx]    || '').trim();
+    if (code) existingCodes.add(code);
+    if (name && code) companyToCode[name] = code;
+  });
+
+  // ── 案件マスタ ロード ────────────────────────────────────
+  const dealSheet = getOrCreateDealSheet();
+  const lastRow   = dealSheet.getLastRow();
+  if (lastRow <= 1) { ui.alert('案件マスタにデータがありません。'); return; }
+
+  const vals          = dealSheet.getRange(1, 1, lastRow, DEAL_HEADERS.length).getValues();
+  const headers       = vals[0].map(h => String(h).trim());
+  const dealIdCol     = headers.indexOf('案件ID');    // index 0
+  const customerIdCol = headers.indexOf('顧客ID');    // index 4
+  const companyCol    = headers.indexOf('会社名');    // index 5
+  const personNameCol = headers.indexOf('営業名');    // index 3
+  if (customerIdCol < 0 || companyCol < 0) { ui.alert('案件マスタのヘッダーが想定外です。'); return; }
+
+  // ── ① 未登録会社を先に顧客DBへ追加 ─────────────────────
+  //    （案件IDの有無を問わず会社名があればすべて対象）
+  const newCompanies = {};
+  for (let i = 1; i < vals.length; i++) {
+    const row = vals[i];
+    const companyName = String(row[companyCol] || '').trim();
+    if (!companyName) continue;
+    if (String(row[customerIdCol]).trim()) continue;       // 顧客ID既入力はスキップ
+    if (!companyToCode[companyName] && !newCompanies[companyName]) {
+      newCompanies[companyName] = String(row[personNameCol] || '').trim();
+    }
+  }
+
+  const numCols = custHeaders.length;
+  let registered = 0;
+  Object.entries(newCompanies).forEach(([name, personName]) => {
+    let code;
+    do { code = generateCustomerCode(); } while (existingCodes.has(code));
+    existingCodes.add(code);
+    companyToCode[name] = code;
+
+    const newRow = new Array(numCols).fill('');
+    newRow[codeIdx]    = code;
+    newRow[companyIdx] = name;
+    if (afcIdx >= 0) newRow[afcIdx] = personName;
+    custSheet.appendRow(newRow);
+    registered++;
+  });
+
+  // ── ② 案件ID・顧客ID を1行ずつ補完 ─────────────────────
+  let filledDealId     = 0;
+  let filledCustomerId = 0;
+
+  for (let i = 1; i < vals.length; i++) {
+    const row         = vals[i];
+    const companyName = String(row[companyCol] || '').trim();
+
+    // 会社名もなく案件IDもない行は完全空行とみなしてスキップ
+    if (!companyName && !String(row[dealIdCol] || '').trim()) continue;
+
+    // ① 案件ID が空なら生成
+    if (!String(row[dealIdCol] || '').trim()) {
+      const newId = generateDealId();
+      dealSheet.getRange(i + 1, dealIdCol + 1).setValue(newId);
+      filledDealId++;
+    }
+
+    // ② 顧客ID が空で会社名があれば補完
+    if (companyName && !String(row[customerIdCol] || '').trim()) {
+      const code = companyToCode[companyName];
+      if (code) {
+        dealSheet.getRange(i + 1, customerIdCol + 1).setValue(code);
+        filledCustomerId++;
+      }
+    }
+  }
+
+  ui.alert(
+    `完了しました。\n` +
+    `・案件IDを自動生成: ${filledDealId}件\n` +
+    `・顧客DBに新規登録: ${registered}社\n` +
+    `・顧客IDを補完: ${filledCustomerId}件`
+  );
 }
 
 // ============================================================

@@ -564,7 +564,7 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
       <table class="wkpi-table" id="wkpi-table">
         <thead><tr>
           <th style="width:100px">営業</th>
-          <th>架電</th><th>面談</th><th>紹介</th><th style="width:60px">総合</th>
+          <th>アプローチ</th><th>面談</th><th>紹介</th><th style="width:60px">総合</th>
         </tr></thead>
         <tbody id="wkpi-tbody"></tbody>
       </table>
@@ -661,13 +661,13 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
       <table class="detail-tbl">
         <thead id="detail-thead-row">
           <tr>
+            <th style="width:52px"></th>
             <th style="width:180px">会社名</th>
             <th style="width:130px">商材名</th>
             <th style="width:80px">確度</th>
             <th style="width:90px">売上予定月</th>
             <th style="width:110px;text-align:right">粗利</th>
             <th>メモ</th>
-            <th style="width:52px"></th>
           </tr>
         </thead>
         <tbody id="detail-tbody"></tbody>
@@ -1536,9 +1536,9 @@ function renderPersonDetail(personDeals, isTeam){
     const cnt=rankCounts[r.v]||0;
     if(r.v!=='ALL'&&cnt===0)return '';
     const active=detailFilterRank===r.v;
-    const bg=active?(r.color||'#475569'):'transparent';
-    const col=active?'#fff':(r.color||'#475569');
-    const border=r.color||'#475569';
+    const bg=active?(r.col||'#475569'):'transparent';
+    const col=active?'#fff':(r.col||'#475569');
+    const border=r.col||'#475569';
     return `<button class="detail-filter-btn${active?' active':''}"
       style="color:${col};background:${bg};border-color:${border}"
       onclick="setDetailFilter('${r.v}')">${r.label} ${cnt}</button>`;
@@ -1561,9 +1561,9 @@ function setDetailFilter(rank){
     const r=allFilters[i];
     if(!r)return;
     const active=detailFilterRank===r.v;
-    const bg=active?(r.color||'#475569'):'transparent';
+    const bg=active?(r.col||'#475569'):'transparent';
     btn.style.background=bg;
-    btn.style.color=active?'#fff':(r.color||'#475569');
+    btn.style.color=active?'#fff':(r.col||'#475569');
     btn.classList.toggle('active',active);
   });
   renderDetailTable(personDeals);
@@ -1592,23 +1592,23 @@ function renderDetailTable(personDeals){
 
   tbody.innerHTML=sorted.map(d=>{
     const rank=d['確度ランク']||'';
-    const rankCfg=RANKS.find(r=>r.v===rank)||{color:'#9ca3af'};
+    const rankCfg=RANKS.find(r=>r.v===rank)||{col:'#9ca3af'};
     const gp=Number(d['粗利'])||0;
     const gpStr=gp===0?'—':(gp<0?'<span style="color:#dc2626">▲'+Math.abs(gp).toLocaleString()+'</span>':gp.toLocaleString());
     const stale=isStale(d);
     const showMail=stale||['決定','失注'].includes(d['確度ランク']||'');
     return `<tr class="${stale?'row-stale':''}" onclick="openDealModal(${JSON.stringify(d).replace(/"/g,'&quot;')})">
-      <td title="${esc(d['会社名']||'')}">${esc(d['会社名']||'—')}</td>
-      <td title="${esc(d['商材名']||'')}">${esc(d['商材名']||'—')}</td>
-      <td><span class="detail-tbl-rank" style="display:inline-block;padding:2px 8px;border-radius:10px;
-        font-size:10px;font-weight:700;color:#fff;background:${rankCfg.color}">${esc(rank)}</span></td>
-      <td>${esc(String(d['売上予定月']||'').slice(0,7))}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums">${gpStr}</td>
-      <td style="color:var(--text3);font-size:11px" title="${esc(d['メモ']||'')}">${esc(d['メモ']||'')}</td>
       <td onclick="event.stopPropagation()" style="text-align:center;padding:4px">
         <button class="task-btn" onclick="openTaskModal(${JSON.stringify(d).replace(/"/g,'&quot;')})" title="Googleタスクに追加">+T</button>
         ${showMail?`<button class="mail-btn" onclick="openMailModal(${JSON.stringify(d).replace(/"/g,'&quot;')})" title="フォローアップメールを下書き">メール</button>`:''}
       </td>
+      <td title="${esc(d['会社名']||'')}">${esc(d['会社名']||'—')}</td>
+      <td title="${esc(d['商材名']||'')}">${esc(d['商材名']||'—')}</td>
+      <td><span class="detail-tbl-rank" style="display:inline-block;padding:2px 8px;border-radius:10px;
+        font-size:10px;font-weight:700;color:#fff;background:${rankCfg.col}">${esc(rank)}</span></td>
+      <td>${esc(String(d['売上予定月']||'').slice(0,7))}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${gpStr}</td>
+      <td style="color:var(--text3);font-size:11px" title="${esc(d['メモ']||'')}">${esc(d['メモ']||'')}</td>
     </tr>`;
   }).join('');
 }
@@ -1918,7 +1918,7 @@ function renderWeeklyKPI(person, isTeam) {
     const t = r.target || { calls:0, meetings:0, referrals:0 };
     const a = r.actual || { calls:0, meetings:0, referrals:0 };
 
-    // 総合進捗（架電・面談いずれかが50%未満か判定）
+    // 総合進捗（アプローチ・面談いずれかが50%未満か判定）
     const pcts = [
       t.calls    > 0 ? a.calls    / t.calls    : null,
       t.meetings > 0 ? a.meetings / t.meetings : null,
@@ -2867,7 +2867,7 @@ function renderKPITable(kpiMonth,kpiWeek,kpiToday,monthlyKpi,weeklyKpi,dailyKpi)
 
   const defs=[
     {label:'面談件数',key:'meetings'},
-    {label:'架電件数',key:'calls'},
+    {label:'アプローチ件数',key:'calls'},
     {label:'紹介件数',key:'referrals'},
   ];
   const accent={meetings:'#15803d',calls:'#1d4ed8',referrals:'#7c3aed'};
