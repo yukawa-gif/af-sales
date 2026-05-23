@@ -2968,8 +2968,18 @@ function renderIncentiveCard(person, isTeam){
   const fyStartYM = yyyyMM(fyMonths[0].year, fyMonths[0].month); // FY開始月（例: '2025-08'）
 
   // productDetails をキャッシュ（incentiveRate参照用）
-  const prodMap = {};
-  (masterData?.productDetails||[]).forEach(p=>{ prodMap[p.name]=p; });
+  // 1. 商材コードで引く（完全一致・確実）
+  // 2. 商材名で引く（正規化フォールバック：trim + lowercase）
+  const prodMapByCode = {};
+  const prodMapByName = {};
+  (masterData?.productDetails||[]).forEach(p=>{
+    if (p.code) prodMapByCode[p.code] = p;
+    prodMapByName[String(p.name||'').trim().toLowerCase()] = p;
+  });
+  const findProd = d =>
+    (d['商材コード'] && prodMapByCode[d['商材コード']]) ||
+    prodMapByName[String(d['商材名']||'').trim().toLowerCase()] ||
+    null;
 
   // 月別マップ: { 'YYYY-MM': [{d, amt}, ...] }
   const byMonth = {};
@@ -2981,10 +2991,10 @@ function renderIncentiveCard(person, isTeam){
     if(!startYM) return;
     const months=Math.max(1,Number(d['月数'])||1);
 
-    // 保存済みインセンティブ優先、0なら商材マスタから計算
+    // 保存済みインセンティブ優先、0なら商材マスタから計算（コード優先lookup）
     let totalIncentive=Number(d['インセンティブ'])||0;
     if(totalIncentive===0){
-      const pDetail=prodMap[d['商材名']];
+      const pDetail=findProd(d);
       if(pDetail?.incentiveRate){
         const unitSales=Number(d['売上（単価）'])||0;
         const unitCost =Number(d['費用（単価）'])||0;

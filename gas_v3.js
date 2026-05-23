@@ -28,8 +28,11 @@ const HEADERS = [
 ];
 
 // 商材マスタの列定義（v3: 種別・インセンティブ率に簡略化）
+// A:商材名 B:種別 C:売上単価 D:費用 E:インセンティブ率 F:価格タイプ
+// G:B単価（円） H:B費用（円） I:商材コード
 const PRODUCT_HEADERS_V3 = [
-  '商材名','種別','売上単価（円）','費用（円）','インセンティブ率','価格タイプ'
+  '商材名','種別','売上単価（円）','費用（円）','インセンティブ率','価格タイプ',
+  'B単価（円）','B費用（円）','商材コード'
 ];
 
 // 案件マスタの列定義
@@ -41,7 +44,8 @@ const DEAL_HEADERS = [
   '売上予定額','費用（合計）','粗利',
   'インセンティブ','売上予定月','入金ステータス','入金確認日',
   'メモ','引継営業名','引継日','理由','最終更新日',
-  '計上会社','B売上単価','B費用単価','B件数'
+  '計上会社','B売上単価','B費用単価','B件数',
+  '商材コード'  // AE: index 30
 ];
 
 // ============================================================
@@ -277,7 +281,8 @@ function addDeal(d) {
   const today = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd');
   const id = generateDealId();
 
-  const pDetail = getProductDetail(d.productName);
+  // 商材コード優先、なければ商材名でlookup
+  const pDetail = getProductDetail(d.productCode || d.productName);
 
   // フォームから単価・コース数・件数・月数を受け取り、合計を計算
   const unitSales = Number(d.unitSales) || (pDetail ? pDetail.unitPrice : 0);
@@ -328,7 +333,8 @@ function addDeal(d) {
     d.billingCompany || '',      // AA: 計上会社
     Number(d.bUnitSales) || 0,  // AB: B売上単価
     Number(d.bUnitCost)  || 0,  // AC: B費用単価
-    Number(d.bQty)       || 0   // AD: B件数
+    Number(d.bQty)       || 0,  // AD: B件数
+    d.productCode || (pDetail ? pDetail.code : '') || ''  // AE: 商材コード
   ]);
 
   return json({ success: true, id, incentive, grossProfit });
@@ -485,9 +491,10 @@ function updateDeal(d) {
       setCol('理由', d.reason);
       setCol('入金ステータス', d.paymentStatus);
       setCol('計上会社', d.billingCompany);
-      if (d.bUnitSales !== undefined) setCol('B売上単価', Number(d.bUnitSales) || 0);
-      if (d.bUnitCost  !== undefined) setCol('B費用単価', Number(d.bUnitCost)  || 0);
-      if (d.bQty       !== undefined) setCol('B件数',     Number(d.bQty)       || 0);
+      if (d.bUnitSales  !== undefined) setCol('B売上単価', Number(d.bUnitSales) || 0);
+      if (d.bUnitCost   !== undefined) setCol('B費用単価', Number(d.bUnitCost)  || 0);
+      if (d.bQty        !== undefined) setCol('B件数',     Number(d.bQty)       || 0);
+      if (d.productCode !== undefined) setCol('商材コード', d.productCode || '');
 
       const today = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd');
 
@@ -708,16 +715,21 @@ function generateDealId() {
 // ============================================================
 // 商材詳細1件取得（ヘルパー）
 // ============================================================
-function getProductDetail(name) {
-  if (!name) return null;
+// nameOrCode: 商材名 or 商材コード（どちらでも引ける）
+function getProductDetail(nameOrCode) {
+  if (!nameOrCode) return null;
   const sheet = getOrCreateMasterSheet(SHEET_PRODUCTS, PRODUCT_HEADERS_V3);
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) return null;
-  const vals = sheet.getRange(2, 1, lastRow - 1, 6).getValues();
-  const row = vals.find(r => String(r[0]).trim() === String(name).trim());
+  const vals = sheet.getRange(2, 1, lastRow - 1, PRODUCT_HEADERS_V3.length).getValues();
+  const query = String(nameOrCode).trim();
+  // コード優先（I列=index8）、なければ名前（A列=index0）で検索
+  const row = vals.find(r => (String(r[8]).trim() && String(r[8]).trim() === query))
+           || vals.find(r => String(r[0]).trim() === query);
   if (!row) return null;
   const kind = String(row[1] || 'スポット').trim();
   return {
+    code:          String(row[8] || '').trim(),
     name:          String(row[0]).trim(),
     kind:          kind,
     months:        kind === 'ストック' ? 12 : 1,
@@ -725,6 +737,8 @@ function getProductDetail(name) {
     cost:          Number(row[3]) || 0,
     incentiveRate: Number(row[4]) || 0,
     priceType:     String(row[5]).trim() || (Number(row[2]) > 0 ? '固定' : '都度見積もり'),
+    bUnitPrice:    Number(row[6]) || 0,
+    bCost:         Number(row[7]) || 0,
   };
 }
 
@@ -1310,6 +1324,7 @@ function getMaster() {
   const productDetails = pVals.slice(1).filter(r => String(r[0]).trim()).map(r => {
     const kind = String(r[1] || 'スポット').trim();
     return {
+      code:          String(r[8] || '').trim(),        // I列: 商材コード（例: P001）
       name:          String(r[0]).trim(),
       kind:          kind,
       months:        kind === 'ストック' ? 12 : 1,
@@ -1317,8 +1332,8 @@ function getMaster() {
       cost:          Number(r[3]) || 0,
       incentiveRate: Number(r[4]) || 0,  // 0.10% → GASは0.001として読む
       priceType:     String(r[5]).trim() || (Number(r[2]) > 0 ? '固定' : '都度見積もり'),
-      bUnitPrice:    Number(r[6]) || 0,  // ← 追加
-      bCost:         Number(r[7]) || 0,  // ← 追加
+      bUnitPrice:    Number(r[6]) || 0,
+      bCost:         Number(r[7]) || 0,
     };
   });
   const products = productDetails.map(p => p.name);
