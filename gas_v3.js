@@ -27,12 +27,12 @@ const HEADERS = [
   'メモ','ステータス','企業名','プロジェクト名','費用(万円)','粗利(万円)'
 ];
 
-// 商材マスタの列定義（v3: 種別・インセンティブ率に簡略化）
-// A:商材名 B:種別 C:売上単価 D:費用 E:インセンティブ率 F:価格タイプ
-// G:B単価（円） H:B費用（円） I:商材コード
+// 商材マスタの列定義
+// A:商材コード B:商材名 C:種別 D:売上単価 E:費用 F:インセンティブ率
+// G:価格タイプ H:B単価（円） I:B費用（円）
 const PRODUCT_HEADERS_V3 = [
-  '商材名','種別','売上単価（円）','費用（円）','インセンティブ率','価格タイプ',
-  'B単価（円）','B費用（円）','商材コード'
+  '商材コード','商材名','種別','売上単価（円）','費用（円）','インセンティブ率',
+  '価格タイプ','B単価（円）','B費用（円）'
 ];
 
 // 案件マスタの列定義
@@ -239,7 +239,7 @@ function doPost(e) {
       if (action === 'addPerson')           return addPerson(d.name, d.role, d.code || '');
       if (action === 'setPersonStatus')     return setPersonStatus(d.name, d.status);
       if (action === 'deletePerson')        return deletePerson(d.name);
-      if (action === 'addProduct')          return addProductToSheet(d.name, d.kind, d.unitPrice, d.cost, d.incentiveRate, d.priceType);
+      if (action === 'addProduct')          return addProductToSheet(d.code, d.name, d.kind, d.unitPrice, d.cost, d.incentiveRate, d.priceType);
       if (action === 'saveGoals')           return saveGoals(d);
       if (action === 'changeCompanyPerson') return changeCompanyPerson(d.code, d.person);
       if (action === 'initCustomerHistory') return initCustomerHistoryColumn();
@@ -715,7 +715,7 @@ function generateDealId() {
 // ============================================================
 // 商材詳細1件取得（ヘルパー）
 // ============================================================
-// nameOrCode: 商材名 or 商材コード（どちらでも引ける）
+// nameOrCode: 商材コード(A列) または 商材名(B列)（どちらでも引ける、コード優先）
 function getProductDetail(nameOrCode) {
   if (!nameOrCode) return null;
   const sheet = getOrCreateMasterSheet(SHEET_PRODUCTS, PRODUCT_HEADERS_V3);
@@ -723,22 +723,22 @@ function getProductDetail(nameOrCode) {
   if (lastRow <= 1) return null;
   const vals = sheet.getRange(2, 1, lastRow - 1, PRODUCT_HEADERS_V3.length).getValues();
   const query = String(nameOrCode).trim();
-  // コード優先（I列=index8）、なければ名前（A列=index0）で検索
-  const row = vals.find(r => (String(r[8]).trim() && String(r[8]).trim() === query))
-           || vals.find(r => String(r[0]).trim() === query);
+  // A列(index0)=商材コード優先、B列(index1)=商材名でフォールバック
+  const row = vals.find(r => String(r[0]).trim() && String(r[0]).trim() === query)
+           || vals.find(r => String(r[1]).trim() === query);
   if (!row) return null;
-  const kind = String(row[1] || 'スポット').trim();
+  const kind = String(row[2] || 'スポット').trim();
   return {
-    code:          String(row[8] || '').trim(),
-    name:          String(row[0]).trim(),
-    kind:          kind,
+    code:          String(row[0] || '').trim(),   // A: 商材コード
+    name:          String(row[1]).trim(),           // B: 商材名
+    kind:          kind,                            // C: 種別
     months:        kind === 'ストック' ? 12 : 1,
-    unitPrice:     Number(row[2]) || 0,
-    cost:          Number(row[3]) || 0,
-    incentiveRate: Number(row[4]) || 0,
-    priceType:     String(row[5]).trim() || (Number(row[2]) > 0 ? '固定' : '都度見積もり'),
-    bUnitPrice:    Number(row[6]) || 0,
-    bCost:         Number(row[7]) || 0,
+    unitPrice:     Number(row[3]) || 0,            // D: 売上単価
+    cost:          Number(row[4]) || 0,            // E: 費用
+    incentiveRate: Number(row[5]) || 0,            // F: インセンティブ率
+    priceType:     String(row[6]).trim() || (Number(row[3]) > 0 ? '固定' : '都度見積もり'), // G
+    bUnitPrice:    Number(row[7]) || 0,            // H: B単価
+    bCost:         Number(row[8]) || 0,            // I: B費用
   };
 }
 
@@ -849,22 +849,29 @@ function deletePerson(name) {
 // ============================================================
 // 商材追加（新列対応）
 // ============================================================
-function addProductToSheet(name, kind, unitPrice, cost, incentiveRate, priceType) {
+// code: 商材コード（A列）を先頭引数に
+function addProductToSheet(code, name, kind, unitPrice, cost, incentiveRate, priceType) {
   if (!name || !name.trim()) return json({ success: false, error: '商材名が空です' });
   name = name.trim();
+  code = String(code || '').trim();
   const sheet = getOrCreateMasterSheet(SHEET_PRODUCTS, PRODUCT_HEADERS_V3);
-  const existing = getListFromSheet(sheet);
-  if (existing.includes(name)) return json({ success: false, error: '既に存在します: ' + name });
+  // 重複チェック：B列（商材名）で確認
+  const lastRow = sheet.getLastRow();
+  if (lastRow > 1) {
+    const names = sheet.getRange(2, 2, lastRow - 1, 1).getValues().map(r => String(r[0]).trim());
+    if (names.includes(name)) return json({ success: false, error: '既に存在します: ' + name });
+  }
   const nextRow = sheet.getLastRow() + 1;
-  sheet.getRange(nextRow, 1, 1, 6).setValues([[
-    name,
-    kind          || 'スポット',
-    Number(unitPrice) || 0,
-    Number(cost)      || 0,
-    Number(incentiveRate) || 0,
-    priceType     || '固定',
+  sheet.getRange(nextRow, 1, 1, 7).setValues([[
+    code,                        // A: 商材コード
+    name,                        // B: 商材名
+    kind          || 'スポット', // C: 種別
+    Number(unitPrice)     || 0,  // D: 売上単価
+    Number(cost)          || 0,  // E: 費用
+    Number(incentiveRate) || 0,  // F: インセンティブ率
+    priceType     || '固定',     // G: 価格タイプ
   ]]);
-  return json({ success: true, name: name });
+  return json({ success: true, name: name, code: code });
 }
 
 // ============================================================
@@ -1321,19 +1328,21 @@ function getMaster() {
 
   const productSheet = getOrCreateMasterSheet(SHEET_PRODUCTS, PRODUCT_HEADERS_V3);
   const pVals = productSheet.getDataRange().getValues();
-  const productDetails = pVals.slice(1).filter(r => String(r[0]).trim()).map(r => {
-    const kind = String(r[1] || 'スポット').trim();
+  const productDetails = pVals.slice(1).filter(r => String(r[1]).trim()).map(r => {
+    // A(0)=商材コード B(1)=商材名 C(2)=種別 D(3)=売上単価 E(4)=費用
+    // F(5)=インセンティブ率 G(6)=価格タイプ H(7)=B単価 I(8)=B費用
+    const kind = String(r[2] || 'スポット').trim();
     return {
-      code:          String(r[8] || '').trim(),        // I列: 商材コード（例: P001）
-      name:          String(r[0]).trim(),
+      code:          String(r[0] || '').trim(),
+      name:          String(r[1]).trim(),
       kind:          kind,
       months:        kind === 'ストック' ? 12 : 1,
-      unitPrice:     Number(r[2]) || 0,
-      cost:          Number(r[3]) || 0,
-      incentiveRate: Number(r[4]) || 0,  // 0.10% → GASは0.001として読む
-      priceType:     String(r[5]).trim() || (Number(r[2]) > 0 ? '固定' : '都度見積もり'),
-      bUnitPrice:    Number(r[6]) || 0,
-      bCost:         Number(r[7]) || 0,
+      unitPrice:     Number(r[3]) || 0,
+      cost:          Number(r[4]) || 0,
+      incentiveRate: Number(r[5]) || 0,  // 0.10% → GASは0.001として読む
+      priceType:     String(r[6]).trim() || (Number(r[3]) > 0 ? '固定' : '都度見積もり'),
+      bUnitPrice:    Number(r[7]) || 0,
+      bCost:         Number(r[8]) || 0,
     };
   });
   const products = productDetails.map(p => p.name);
@@ -1623,7 +1632,12 @@ function getOldCustomers() {
 function buildFormHtml() {
   const scriptUrl = ScriptApp.getService().getUrl();
   const persons  = getPersonDetails().filter(p => p.status === '在籍中').map(p => p.name);
-  const products = getListFromSheet(getOrCreateMasterSheet(SHEET_PRODUCTS, PRODUCT_HEADERS_V3));
+  // B列（商材名）を読む（A列は商材コードのため）
+  const _prodSheet = getOrCreateMasterSheet(SHEET_PRODUCTS, PRODUCT_HEADERS_V3);
+  const _prodLastRow = _prodSheet.getLastRow();
+  const products = _prodLastRow > 1
+    ? _prodSheet.getRange(2, 2, _prodLastRow - 1, 1).getValues().map(r => String(r[0]).trim()).filter(v => v)
+    : [];
   const personOpts  = persons.map(p  => `<option value="${p}">${p}</option>`).join('');
   const productOpts = products.map(p => `<option value="${p}">${p}</option>`).join('');
 
@@ -2543,8 +2557,10 @@ function initProducts() {
     ['保健師電話健康相談',      'スポット',      0,       0, 0.1,   '都度見積もり'],
     ['社労士案件',              'スポット',      0,       0, 0.1,   '都度見積もり'],
   ];
+  // addProductToSheet(code, name, kind, unitPrice, cost, incentiveRate, priceType)
+  // ※ この関数は初回セットアップ用。現在の設定_商材シートを優先すること。
   products.forEach(([name, kind, unitPrice, cost, incentiveRate, priceType]) => {
-    addProductToSheet(name, kind, unitPrice, cost, incentiveRate, priceType);
+    addProductToSheet('', name, kind, unitPrice, cost, incentiveRate, priceType);
   });
   Logger.log('商材登録完了: ' + products.length + '件');
 }
