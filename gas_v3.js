@@ -240,6 +240,7 @@ function doPost(e) {
       if (action === 'setPersonStatus')     return setPersonStatus(d.name, d.status);
       if (action === 'deletePerson')        return deletePerson(d.name);
       if (action === 'addProduct')          return addProductToSheet(d.code, d.name, d.kind, d.unitPrice, d.cost, d.incentiveRate, d.priceType);
+      if (action === 'updateProduct')       return updateProduct(d);
       if (action === 'saveGoals')           return saveGoals(d);
       if (action === 'changeCompanyPerson') return changeCompanyPerson(d.code, d.person);
       if (action === 'initCustomerHistory') return initCustomerHistoryColumn();
@@ -872,6 +873,30 @@ function addProductToSheet(code, name, kind, unitPrice, cost, incentiveRate, pri
     priceType     || '固定',     // G: 価格タイプ
   ]]);
   return json({ success: true, name: name, code: code });
+}
+
+// ============================================================
+// 商材更新（商材名またはコードで特定、フィールドを部分更新）
+// ============================================================
+function updateProduct(d) {
+  const nameOrCode = String(d.name || d.code || '').trim();
+  if (!nameOrCode) return json({ success: false, error: '商材名またはコードが必要です' });
+  const sheet = getOrCreateMasterSheet(SHEET_PRODUCTS, PRODUCT_HEADERS_V3);
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    const code = String(rows[i][0]).trim();
+    const name = String(rows[i][1]).trim();
+    if (name.toLowerCase() !== nameOrCode.toLowerCase() && code !== nameOrCode) continue;
+    if (d.kind         !== undefined) sheet.getRange(i+1, 3).setValue(d.kind);
+    if (d.unitPrice    !== undefined) sheet.getRange(i+1, 4).setValue(Number(d.unitPrice)||0);
+    if (d.cost         !== undefined) sheet.getRange(i+1, 5).setValue(Number(d.cost)||0);
+    if (d.incentiveRate!== undefined) sheet.getRange(i+1, 6).setValue(Number(d.incentiveRate)||0);
+    if (d.priceType    !== undefined) sheet.getRange(i+1, 7).setValue(d.priceType);
+    if (d.bUnitPrice   !== undefined) sheet.getRange(i+1, 8).setValue(Number(d.bUnitPrice)||0);
+    if (d.bCost        !== undefined) sheet.getRange(i+1, 9).setValue(Number(d.bCost)||0);
+    return json({ success: true, name, code });
+  }
+  return json({ success: false, error: '商材が見つかりません: ' + nameOrCode });
 }
 
 // ============================================================
@@ -2588,6 +2613,26 @@ function importFromSheet() {
 
   const dest = ss.getSheetByName(SHEET_DEALS);
 
+  // 商材マスタをルックアップマップに変換（インセンティブ・月数計算用）
+  const prodByName = {}, prodByCode = {};
+  (function() {
+    const ps = ss.getSheetByName(SHEET_PRODUCTS);
+    if (!ps) return;
+    ps.getDataRange().getValues().slice(1).forEach(r => {
+      const code = String(r[0]||'').trim();
+      const name = String(r[1]||'').trim();
+      if (!name) return;
+      const obj = {
+        code, name,
+        kind:          String(r[2]||'スポット').trim(),
+        months:        String(r[2]).trim() === 'ストック' ? 12 : 1,
+        incentiveRate: Number(r[5]) || 0,
+      };
+      prodByName[name.toLowerCase()] = obj;
+      if (code) prodByCode[code] = obj;
+    });
+  })();
+
   // 営業名→個人コードの変換マップを構築
   const personNameToCode = {};
   getPersonDetails().forEach(p => { if (p.name && p.code) personNameToCode[p.name] = p.code; });
@@ -2653,12 +2698,19 @@ function importFromSheet() {
     const phase = (rank === '売上' || rank === '決定') ? '完了' : 'ヒアリング中';
     const payStatus = rank === '売上' ? '入金済み' : '未入金';
 
+    // 商材マスタから月数・インセンティブを計算
+    const pDetail = prodByCode[product] || prodByName[product.toLowerCase()];
+    const months  = pDetail ? pDetail.months : 1;
+    const incentive = (pDetail && pDetail.incentiveRate)
+      ? calcIncentive((sales - cost), months, pDetail.incentiveRate)
+      : 0;
+
     const rowMap = {
       '案件ID': id, '登録日': today, '個人コード': person, '営業名': personName, '顧客ID': '',
       '会社名': company, '商材名': product, 'フェーズ': phase, '確度ランク': rank,
-      '売上（単価）': sales, '費用（単価）': cost, 'コース数': 1, '件数': 1, '月数': 1,
+      '売上（単価）': sales, '費用（単価）': cost, 'コース数': 1, '件数': 1, '月数': months,
       '売上予定額': sales, '費用（合計）': cost, '粗利': gp,
-      'インセンティブ': 0, '売上予定月': expMonth,
+      'インセンティブ': incentive, '売上予定月': expMonth,
       '入金ステータス': payStatus, '入金確認日': '', 'メモ': memo,
       '引継営業名': '', '引継日': '', '理由': '', '最終更新日': today,
       '計上会社': billingCo, 'B売上単価': bUnitSales, 'B費用単価': bUnitCost, 'B件数': bQty
