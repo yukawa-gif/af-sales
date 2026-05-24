@@ -2907,21 +2907,28 @@ function fixBadCostData() {
   const iCost = h.indexOf('費用（単価）');
   const iInc  = h.indexOf('インセンティブ');
 
-  const costCol = [], incCol = [];
+  const iSales = h.indexOf('売上（単価）');
+  const costCol = [], incCol = [], salesCol = [];
   let fixed = 0;
 
   for (let i = 1; i < data.length; i++) {
-    const cost = Number(data[i][iCost]) || 0;
-    const inc  = Number(data[i][iInc])  || 0;
-    const isBad = cost < -1000000 || inc > 1000000;
-    costCol.push([isBad && cost < -1000000 ? 0 : data[i][iCost]]);
-    incCol.push( [isBad ? 0 : data[i][iInc]]);
-    if (isBad) fixed++;
+    const sales = Number(data[i][iSales]) || 0;
+    const cost  = Number(data[i][iCost])  || 0;
+    const inc   = Number(data[i][iInc])   || 0;
+    // 売上・費用が負値、またはインセンティブが絶対値100万超は異常値
+    const badSales = sales < -1000000;
+    const badCost  = cost  < -1000000;
+    const badInc   = Math.abs(inc) > 1000000;
+    salesCol.push([badSales ? 0 : data[i][iSales]]);
+    costCol.push( [badCost  ? 0 : data[i][iCost]]);
+    incCol.push(  [badInc   ? 0 : data[i][iInc]]);
+    if (badSales || badCost || badInc) fixed++;
   }
 
   if (costCol.length) {
-    sheet.getRange(2, iCost + 1, costCol.length, 1).setValues(costCol);
-    sheet.getRange(2, iInc  + 1, incCol.length,  1).setValues(incCol);
+    sheet.getRange(2, iSales + 1, salesCol.length, 1).setValues(salesCol);
+    sheet.getRange(2, iCost  + 1, costCol.length,  1).setValues(costCol);
+    sheet.getRange(2, iInc   + 1, incCol.length,   1).setValues(incCol);
   }
 
   invalidateAllDataCache_();
