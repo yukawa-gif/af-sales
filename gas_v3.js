@@ -2893,3 +2893,37 @@ function fixIncentivesWithRates() {
   Logger.log('設定_商材 レート更新完了 / 案件マスタ再計算: '
     + updated + '件更新 / ' + skipped + '件スキップ（商材未登録） / キャッシュクリア済み');
 }
+
+// ============================================================
+// Excelインポート時のDate型ゴミ値（費用が-2兆等）を修正
+// 費用（単価）が負値 or インセンティブが100万超の行を0にリセット
+// GASエディタから一度だけ実行する
+// ============================================================
+function fixBadCostData() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('案件マスタ');
+  const data = sheet.getDataRange().getValues();
+  const h = data[0];
+  const iCost = h.indexOf('費用（単価）');
+  const iInc  = h.indexOf('インセンティブ');
+
+  const costCol = [], incCol = [];
+  let fixed = 0;
+
+  for (let i = 1; i < data.length; i++) {
+    const cost = Number(data[i][iCost]) || 0;
+    const inc  = Number(data[i][iInc])  || 0;
+    const isBad = cost < -1000000 || inc > 1000000;
+    costCol.push([isBad && cost < -1000000 ? 0 : data[i][iCost]]);
+    incCol.push( [isBad ? 0 : data[i][iInc]]);
+    if (isBad) fixed++;
+  }
+
+  if (costCol.length) {
+    sheet.getRange(2, iCost + 1, costCol.length, 1).setValues(costCol);
+    sheet.getRange(2, iInc  + 1, incCol.length,  1).setValues(incCol);
+  }
+
+  invalidateAllDataCache_();
+  Logger.log('fixBadCostData: ' + fixed + '件修正（費用0・インセンティブ0にリセット） / キャッシュクリア済み');
+}
