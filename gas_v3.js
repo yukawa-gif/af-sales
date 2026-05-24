@@ -2810,3 +2810,86 @@ function fixImportedIncentives() {
   invalidateAllDataCache_();
   Logger.log('fixImportedIncentives: ' + fixed + '件修正、キャッシュクリア済み');
 }
+
+// ============================================================
+// インセンティブ率を正しい値に設定し、案件マスタ全件を再計算して保存
+// 社労士・助成金 → 0.1%（0.001）/ それ以外 → 10%（0.10）
+// GASエディタから一度だけ実行する
+// ============================================================
+function fixIncentivesWithRates() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  // --- Step 1: 設定_商材 F列（インセンティブ率）を一括更新 ---
+  const prodSheet = ss.getSheetByName('設定_商材');
+  const prodVals  = prodSheet.getDataRange().getValues();
+  const rateUpdates = [];
+  for (let i = 1; i < prodVals.length; i++) {
+    const name = String(prodVals[i][1] || ''); // B列: 商材名
+    const isSharoushi = name.includes('社労士') || name.includes('助成金');
+    rateUpdates.push([isSharoushi ? 0.001 : 0.10]);
+  }
+  if (rateUpdates.length) {
+    prodSheet.getRange(2, 6, rateUpdates.length, 1).setValues(rateUpdates);
+  }
+
+  // 更新後のマスタを再読み込みしてルックアップマップ構築
+  const prodVals2 = prodSheet.getDataRange().getValues();
+  const prodByCode = {}, prodByName = {};
+  for (let i = 1; i < prodVals2.length; i++) {
+    const code = String(prodVals2[i][0] || '').trim();
+    const name = String(prodVals2[i][1] || '').trim().toLowerCase();
+    const rate = Number(prodVals2[i][5]) || 0;
+    if (code) prodByCode[code] = rate;
+    if (name) prodByName[name] = rate;
+  }
+
+  // --- Step 2: 案件マスタ全件のインセンティブを再計算してバッチ書き込み ---
+  const dealSheet = ss.getSheetByName('案件マスタ');
+  const dealVals  = dealSheet.getDataRange().getValues();
+  const dh = dealVals[0];
+  const idx = col => dh.indexOf(col);
+
+  const iSales    = idx('売上（単価）');
+  const iCost     = idx('費用（単価）');
+  const iCourses  = idx('コース数');
+  const iQty      = idx('件数');
+  const iMonths   = idx('月数');
+  const iInc      = idx('インセンティブ');
+  const iProdCode = idx('商材コード');
+  const iProdName = idx('商材名');
+
+  const incValues = [];
+  let updated = 0, skipped = 0;
+
+  for (let i = 1; i < dealVals.length; i++) {
+    const row = dealVals[i];
+    const code = String(row[iProdCode] || '').trim();
+    const name = String(row[iProdName] || '').trim().toLowerCase();
+    const rate = (code && prodByCode[code] !== undefined) ? prodByCode[code]
+               : (prodByName[name] !== undefined)         ? prodByName[name]
+               : null;
+
+    if (rate === null) {
+      incValues.push([row[iInc]]); // 商材未登録は変更しない
+      skipped++;
+      continue;
+    }
+
+    const unitSales = Number(row[iSales])   || 0;
+    const unitCost  = Number(row[iCost])    || 0;
+    const courses   = Math.max(1, Number(row[iCourses]) || 1);
+    const qty       = Math.max(1, Number(row[iQty])     || 1);
+    const months    = Math.max(1, Number(row[iMonths])  || 1);
+    const monthlyGP = (unitSales - unitCost) * courses * qty;
+    incValues.push([Math.floor(monthlyGP * months * rate)]);
+    updated++;
+  }
+
+  if (incValues.length) {
+    dealSheet.getRange(2, iInc + 1, incValues.length, 1).setValues(incValues);
+  }
+
+  invalidateAllDataCache_();
+  Logger.log('設定_商材 レート更新完了 / 案件マスタ再計算: '
+    + updated + '件更新 / ' + skipped + '件スキップ（商材未登録） / キャッシュクリア済み');
+}
