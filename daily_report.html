@@ -37,9 +37,9 @@
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.6}
 
-  .header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:var(--shadow)}
-  .header-title{font-size:15px;font-weight:700;color:var(--text)}
-  .header-sub{font-size:12px;color:var(--text3);margin-top:1px}
+  .header{background:#0d1117;border-bottom:1px solid rgba(255,255,255,.06);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,.3)}
+  .header-title{font-size:13px;font-weight:800;letter-spacing:.01em;color:#fff}
+  .header-sub{font-size:12px;color:rgba(255,255,255,.5);margin-top:1px}
 
   .wrap{max-width:640px;margin:0 auto;padding:24px 16px 60px}
 
@@ -203,12 +203,11 @@
 <!-- ヘッダー -->
 <div class="header">
   <div>
-    <div class="header-title">営業日報</div>
-    <div class="header-sub">エー・ファクトリー株式会社</div>
+    <div class="header-title">エー・ファクトリー株式会社｜実績報告</div>
   </div>
   <div style="display:flex;align-items:center;gap:8px">
-    <span id="header-person-name" style="font-size:13px;font-weight:700;color:var(--text)"></span>
-    <span id="today-date" style="font-size:12px;color:var(--text3)"></span>
+    <span id="header-person-name" style="font-size:13px;font-weight:700;color:#fff"></span>
+    <span id="today-date" style="font-size:12px;color:rgba(255,255,255,.5)"></span>
     <button onclick="togglePersonPicker()" class="btn btn-sm">変更</button>
     <button onclick="location.href='dashboard.html'" class="btn btn-sm">← ダッシュボード</button>
   </div>
