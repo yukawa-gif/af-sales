@@ -304,12 +304,31 @@ function addDeal(d) {
   getPersonDetails().forEach(p => { if (p.code) codeMap[p.code] = p.name; });
   const personName = codeMap[String(d.person || '').trim()] || String(d.person || '').trim();
 
+  // 顧客IDルックアップ / 未登録は顧客マスタに自動追加
+  const custSheet_ = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('顧客マスタ');
+  let customerId_ = String(d.customerId || '').trim();
+  if (!customerId_ && custSheet_) {
+    const norm_ = normalizeCompany_(d.companyName || '');
+    const custData_ = custSheet_.getDataRange().getValues();
+    const match_ = custData_.find((r, i) => i > 0 && normalizeCompany_(String(r[1])) === norm_);
+    if (match_) {
+      customerId_ = String(match_[0]);
+    } else {
+      const newId_ = getNextId_(custSheet_, 'CUS');
+      custSheet_.appendRow([
+        newId_, d.companyName || '', '', '', '',
+        String(d.person || ''), personName, '取引中', new Date(), new Date(), ''
+      ]);
+      customerId_ = newId_;
+    }
+  }
+
   sheet.appendRow([
     id,                          // A: 案件ID
     today,                       // B: 登録日
     d.person || '',              // C: 個人コード
     personName,                  // D: 営業名
-    d.customerId || '',          // E: 顧客ID
+    customerId_,                 // E: 顧客ID
     d.companyName || '',         // F: 会社名
     d.productName || '',         // G: 商材名
     d.phase || 'ヒアリング中',   // H: フェーズ
@@ -2647,6 +2666,16 @@ function importFromSheet() {
     ? dest.getDataRange().getValues().slice(1)
     : [];
 
+  // 顧客マスタをルックアップマップに構築（インポート内での重複新規登録防止）
+  const custSheet = ss.getSheetByName('顧客マスタ');
+  const custNormMap = {}; // 正規化企業名 → 顧客ID
+  if (custSheet) {
+    custSheet.getDataRange().getValues().forEach((r, i) => {
+      if (i === 0 || !r[0]) return;
+      custNormMap[normalizeCompany_(String(r[1]))] = String(r[0]);
+    });
+  }
+
   vals.slice(1).forEach((r, i) => {
     const rowNum       = i + 2;
     const personName   = String(r[0]||'').trim();
@@ -2690,6 +2719,23 @@ function importFromSheet() {
       skipped++; return;
     }
 
+    // 顧客IDルックアップ / 未登録は顧客マスタに自動追加
+    let customerId = '';
+    if (custSheet) {
+      const norm = normalizeCompany_(company);
+      if (custNormMap[norm]) {
+        customerId = custNormMap[norm];
+      } else {
+        const newId = getNextId_(custSheet, 'CUS');
+        custSheet.appendRow([
+          newId, company, '', '', '', person, personName, '取引中',
+          new Date(), new Date(), ''
+        ]);
+        custNormMap[norm] = newId;
+        customerId = newId;
+      }
+    }
+
     // 案件ID生成
     const now = new Date();
     const id = 'DEAL-IMP-' + Utilities.formatDate(now,'Asia/Tokyo','yyyyMMddHHmmss') + '-' + (added+1);
@@ -2706,7 +2752,7 @@ function importFromSheet() {
       : 0;
 
     const rowMap = {
-      '案件ID': id, '登録日': today, '個人コード': person, '営業名': personName, '顧客ID': '',
+      '案件ID': id, '登録日': today, '個人コード': person, '営業名': personName, '顧客ID': customerId,
       '会社名': company, '商材名': product, 'フェーズ': phase, '確度ランク': rank,
       '売上（単価）': sales, '費用（単価）': cost, 'コース数': 1, '件数': 1, '月数': importMonths,
       '売上予定額': sales, '費用（合計）': cost, '粗利': gp,
@@ -2723,4 +2769,20 @@ function importFromSheet() {
 
   Logger.log('【インポート完了】 追加:'+added+'件 / スキップ:'+skipped+'件');
   if (errors.length) Logger.log('【エラー詳細】\n'+errors.join('\n'));
+}
+
+// ============================================================
+// 担当者マスタ初期設定（GASエディタから一度だけ実行）
+// 鈴木純平/af0003 を 設定_営業 シートに追加する
+// ============================================================
+function setupPersonSuzuki() {
+  const sheet = getOrCreatePersonSheet();
+  const vals = sheet.getDataRange().getValues();
+  const exists = vals.some(r => String(r[0]).trim() === 'af0003');
+  if (exists) {
+    Logger.log('af0003（鈴木純平）は既に登録済みです');
+    return;
+  }
+  sheet.appendRow(['af0003', '鈴木純平', 'スタッフ', '在籍中', '']);
+  Logger.log('af0003（鈴木純平）を設定_営業シートに追加しました');
 }
