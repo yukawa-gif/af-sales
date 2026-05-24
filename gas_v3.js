@@ -886,7 +886,7 @@ function updateProduct(d) {
   for (let i = 1; i < rows.length; i++) {
     const code = String(rows[i][0]).trim();
     const name = String(rows[i][1]).trim();
-    if (name.toLowerCase() !== nameOrCode.toLowerCase() && code !== nameOrCode) continue;
+    if (name.toLowerCase() !== nameOrCode.toLowerCase() && code.toLowerCase() !== nameOrCode.toLowerCase()) continue;
     if (d.kind         !== undefined) sheet.getRange(i+1, 3).setValue(d.kind);
     if (d.unitPrice    !== undefined) sheet.getRange(i+1, 4).setValue(Number(d.unitPrice)||0);
     if (d.cost         !== undefined) sheet.getRange(i+1, 5).setValue(Number(d.cost)||0);
@@ -2615,10 +2615,9 @@ function importFromSheet() {
 
   // 商材マスタをルックアップマップに変換（インセンティブ・月数計算用）
   const prodByName = {}, prodByCode = {};
-  (function() {
-    const ps = ss.getSheetByName(SHEET_PRODUCTS);
-    if (!ps) return;
-    ps.getDataRange().getValues().slice(1).forEach(r => {
+  const _prodSheet = ss.getSheetByName(SHEET_PRODUCTS);
+  if (_prodSheet) {
+    _prodSheet.getDataRange().getValues().slice(1).forEach(r => {
       const code = String(r[0]||'').trim();
       const name = String(r[1]||'').trim();
       if (!name) return;
@@ -2631,7 +2630,7 @@ function importFromSheet() {
       prodByName[name.toLowerCase()] = obj;
       if (code) prodByCode[code] = obj;
     });
-  })();
+  }
 
   // 営業名→個人コードの変換マップを構築
   const personNameToCode = {};
@@ -2699,16 +2698,17 @@ function importFromSheet() {
     const payStatus = rank === '売上' ? '入金済み' : '未入金';
 
     // 商材マスタから月数・インセンティブを計算
-    const pDetail = prodByCode[product] || prodByName[product.toLowerCase()];
-    const months  = pDetail ? pDetail.months : 1;
-    const incentive = (pDetail && pDetail.incentiveRate)
-      ? calcIncentive((sales - cost), months, pDetail.incentiveRate)
+    const pDetail      = prodByCode[product] || prodByName[product.toLowerCase()];
+    const importMonths = pDetail ? pDetail.months : 1;
+    const monthlyGP    = (sales - cost) * 1 * 1; // コース数=1・件数=1 固定のため
+    const incentive    = (pDetail && pDetail.incentiveRate)
+      ? calcIncentive(monthlyGP, importMonths, pDetail.incentiveRate)
       : 0;
 
     const rowMap = {
       '案件ID': id, '登録日': today, '個人コード': person, '営業名': personName, '顧客ID': '',
       '会社名': company, '商材名': product, 'フェーズ': phase, '確度ランク': rank,
-      '売上（単価）': sales, '費用（単価）': cost, 'コース数': 1, '件数': 1, '月数': months,
+      '売上（単価）': sales, '費用（単価）': cost, 'コース数': 1, '件数': 1, '月数': importMonths,
       '売上予定額': sales, '費用（合計）': cost, '粗利': gp,
       'インセンティブ': incentive, '売上予定月': expMonth,
       '入金ステータス': payStatus, '入金確認日': '', 'メモ': memo,
