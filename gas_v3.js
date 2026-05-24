@@ -2915,9 +2915,9 @@ function fixBadCostData() {
     const sales = Number(data[i][iSales]) || 0;
     const cost  = Number(data[i][iCost])  || 0;
     const inc   = Number(data[i][iInc])   || 0;
-    // 売上・費用が負値、またはインセンティブが絶対値100万超は異常値
-    const badSales = sales < -1000000;
-    const badCost  = cost  < -1000000;
+    // 売上・費用が負値または1億超（Date型ゴミ値）、インセンティブが絶対値100万超は異常値
+    const badSales = sales < 0 || sales > 100000000;
+    const badCost  = cost  < 0 || cost  > 100000000;
     const badInc   = Math.abs(inc) > 1000000;
     salesCol.push([badSales ? 0 : data[i][iSales]]);
     costCol.push( [badCost  ? 0 : data[i][iCost]]);
