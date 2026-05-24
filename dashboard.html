@@ -2992,19 +2992,18 @@ function renderIncentiveCard(person, isTeam){
     const months=Math.max(1,Number(d['月数'])||1);
 
     // 保存済みインセンティブ優先、0なら商材マスタから計算（コード優先lookup）
+    const pDetail=findProd(d);
     let totalIncentive=Number(d['インセンティブ'])||0;
-    if(totalIncentive===0){
-      const pDetail=findProd(d);
-      if(pDetail?.incentiveRate){
-        const unitSales=Number(d['売上（単価）'])||0;
-        const unitCost =Number(d['費用（単価）'])||0;
-        const courses  =Math.max(1,Number(d['コース数'])||1);
-        const qty      =Math.max(1,Number(d['件数'])||1);
-        const monthlyGP=(unitSales-unitCost)*courses*qty;
-        totalIncentive =Math.floor(monthlyGP*months*pDetail.incentiveRate);
-      }
+    if(totalIncentive===0 && pDetail?.incentiveRate){
+      const unitSales=Number(d['売上（単価）'])||0;
+      const unitCost =Number(d['費用（単価）'])||0;
+      const courses  =Math.max(1,Number(d['コース数'])||1);
+      const qty      =Math.max(1,Number(d['件数'])||1);
+      const monthlyGP=(unitSales-unitCost)*courses*qty;
+      totalIncentive =Math.floor(monthlyGP*months*pDetail.incentiveRate);
     }
-    if(totalIncentive<=0) return;
+    // 商材マスタ登録済みなら金額0でも表示（未登録商材は除外）
+    if(totalIncentive<=0 && !pDetail) return;
 
     if(months<=1){
       // スポット：売上予定月のみ
