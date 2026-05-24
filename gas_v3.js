@@ -2769,6 +2769,7 @@ function importFromSheet() {
 
   Logger.log('【インポート完了】 追加:'+added+'件 / スキップ:'+skipped+'件');
   if (errors.length) Logger.log('【エラー詳細】\n'+errors.join('\n'));
+  invalidateAllDataCache_();
 }
 
 // ============================================================
@@ -2785,4 +2786,27 @@ function setupPersonSuzuki() {
   }
   sheet.appendRow(['af0003', '鈴木純平', 'スタッフ', '在籍中', '']);
   Logger.log('af0003（鈴木純平）を設定_営業シートに追加しました');
+}
+
+// ============================================================
+// インポート時の異常インセンティブ値を修正（一度だけ実行）
+// DEAL-IMP- で始まる案件のうちインセンティブが100万超のものを0にリセット
+// ============================================================
+function fixImportedIncentives() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('案件マスタ');
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const idIdx  = headers.indexOf('案件ID');
+  const incIdx = headers.indexOf('インセンティブ');
+  let fixed = 0;
+  data.slice(1).forEach((row, i) => {
+    const id  = String(row[idIdx]  || '');
+    const inc = Number(row[incIdx]) || 0;
+    if (!id.startsWith('DEAL-IMP-') || inc < 1000000) return;
+    sheet.getRange(i + 2, incIdx + 1).setValue(0);
+    fixed++;
+  });
+  invalidateAllDataCache_();
+  Logger.log('fixImportedIncentives: ' + fixed + '件修正、キャッシュクリア済み');
 }
