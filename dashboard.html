@@ -280,30 +280,6 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
 
 
 
-/* ─── 年間進捗 ─── */
-.prog-wrap{margin-bottom:16px}
-.prog-header{display:flex;justify-content:space-between;
-  font-size:12px;color:var(--text3);margin-bottom:8px}
-.prog-header b{color:var(--text);font-weight:700}
-.prog-bg{background:#e4e4e7;border-radius:999px;height:14px;position:relative;overflow:hidden}
-.prog-actual{background:var(--blue);height:100%;
-  border-radius:999px 0 0 999px;position:absolute;left:0;top:0;transition:width .6s}
-.prog-yomi{background:#bfdbfe;height:100%;position:absolute;top:0;transition:width .6s}
-.prog-pct-label{position:absolute;right:8px;top:50%;transform:translateY(-50%);
-  font-size:10px;font-weight:700;color:#fff;mix-blend-mode:difference;pointer-events:none}
-.prog-metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
-.prog-metric{background:var(--bg);border-radius:10px;padding:12px 10px;text-align:center;
-  border:1px solid var(--border);transition:var(--transition)}
-.prog-metric:hover{border-color:var(--blue-mid);background:var(--blue-bg)}
-.prog-metric-label{font-size:9px;color:var(--text3);margin-bottom:5px;
-  text-transform:uppercase;letter-spacing:.07em;font-weight:700}
-.prog-metric-val{font-size:20px;font-weight:800;letter-spacing:-.03em}
-.prog-metric-unit{font-size:10px;color:var(--text3);margin-top:2px;font-weight:500}
-.monthly-prog{margin-top:4px}
-.monthly-prog-divider{height:1px;background:var(--border);margin:14px 0 10px}
-.monthly-prog-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
-.monthly-prog-title{font-size:12px;font-weight:700;color:var(--text2)}
-.monthly-prog-pct{font-size:16px;font-weight:800;color:var(--blue)}
 
 /* ─── 目標設定モーダル ─── */
 .goal-modal-box{width:min(1640px,96vw) !important;max-height:96vh;overflow:visible}
@@ -709,73 +685,7 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
 
     </div><!-- /incentive-ai-wrap -->
 
-    <!-- 年間進捗（アコーディオン） -->
-    <div class="card">
-      <div class="card-header" onclick="toggleAnnualProgress()" style="cursor:pointer;user-select:none">
-        <span class="card-title" style="display:flex;align-items:center;gap:7px">
-          <i data-lucide="target" style="width:15px;height:15px;color:var(--blue)"></i> 年間進捗
-        </span>
-        <div style="display:flex;align-items:center;gap:10px;margin-left:auto">
-          <span class="card-hint" id="elapsed-hint"></span>
-          <span id="annual-progress-icon" style="font-size:12px;color:var(--text3)">▼</span>
-        </div>
-      </div>
-      <div id="annual-progress-body" style="display:none">
-        <div class="prog-wrap">
-          <div class="prog-header">
-            <span>実績 <b id="ph-actual">0</b> 万円</span>
-            <span id="ph-pct" style="font-size:16px;font-weight:800;color:var(--blue)">0%</span>
-            <span>目標 <b id="ph-target">—</b> 万円</span>
-          </div>
-          <div class="prog-bg">
-            <div class="prog-actual" id="bar-actual" style="width:0%"></div>
-            <div class="prog-yomi"   id="bar-yomi"   style="width:0%;left:0%"></div>
-            <div class="prog-pct-label" id="bar-label"></div>
-          </div>
-        </div>
-        <div class="prog-metrics">
-          <div class="prog-metric">
-            <div class="prog-metric-label">残り目標</div>
-            <div class="prog-metric-val" style="color:var(--red)" id="kv-remain">—</div>
-            <div class="prog-metric-unit">万円</div>
-          </div>
-          <div class="prog-metric">
-            <div class="prog-metric-label">着地見込</div>
-            <div class="prog-metric-val" style="color:var(--purple)" id="kv-forecast">—</div>
-            <div class="prog-metric-unit">万円</div>
-          </div>
-          <div class="prog-metric" style="grid-column:1/-1">
-            <div class="prog-metric-label">フォアキャスト</div>
-            <div class="prog-metric-val" style="color:var(--amber)" id="kv-forecast-pct">—</div>
-            <div class="prog-metric-unit">%達成見込</div>
-          </div>
-        </div>
-        <!-- 今月実績 vs 今月目標 -->
-        <div class="monthly-prog" id="monthly-prog-wrap" style="display:none">
-          <div class="monthly-prog-divider"></div>
-          <div class="monthly-prog-header">
-            <span class="monthly-prog-title">今月の粗利</span>
-            <span class="monthly-prog-pct" id="kv-month-pct">—</span>
-          </div>
-          <div class="prog-bg" style="margin-top:6px">
-            <div class="prog-actual" id="bar-month-actual" style="width:0%"></div>
-            <div class="prog-pct-label" id="bar-month-label"></div>
-          </div>
-          <div class="prog-metrics" style="margin-top:8px">
-            <div class="prog-metric">
-              <div class="prog-metric-label">今月実績</div>
-              <div class="prog-metric-val" id="kv-month-actual">—</div>
-              <div class="prog-metric-unit">万円</div>
-            </div>
-            <div class="prog-metric">
-              <div class="prog-metric-label">今月目標</div>
-              <div class="prog-metric-val" id="kv-month-target">—</div>
-              <div class="prog-metric-unit">万円</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+
 
   </div><!-- /bottom-grid -->
 
@@ -1478,7 +1388,6 @@ function render(person){
   renderPipelineByPerson(personDeals,isTeam);
   renderGoalsByPerson(personDeals,isTeam);
   renderPersonDetail(personDeals,isTeam);
-  renderProgress(annualTarget,uriageTotal,yomiTotal,forecast,col,monthlyTarget,thisMonthActual);
   renderIncentiveCard(person,isTeam);
   pendingChartArgs = [personDeals, person, isTeam];
   if (chartPanelOpen) {
@@ -2275,16 +2184,6 @@ function closeDealModal(){
   editingDeal=null;
 }
 
-// ============================================================
-// 案件一覧 開閉
-// ============================================================
-function toggleAnnualProgress() {
-  const body = document.getElementById('annual-progress-body');
-  const icon = document.getElementById('annual-progress-icon');
-  const opening = body.style.display === 'none';
-  body.style.display = opening ? '' : 'none';
-  icon.textContent = opening ? '▲' : '▼';
-}
 
 function toggleIncentiveCard() {
   const body = document.getElementById('incentive-card-body');
@@ -2835,58 +2734,6 @@ function getNumWeeksInMonth(yyyy,mm){
 }
 
 
-// ============================================================
-// 年間進捗
-// ============================================================
-function renderProgress(target,actual,yomi,forecast,col,monthlyTarget,thisMonthActual){
-  document.getElementById('ph-actual').textContent=fmt(actual);
-  document.getElementById('ph-target').textContent=target>0?fmt(target):'未設定';
-
-  if(target>0){
-    const pct=Math.round(actual/target*100);
-    const actualW=Math.min(pct,100);
-    const yomiW=Math.min(Math.round(yomi/target*100),100-actualW);
-    document.getElementById('ph-pct').textContent=pct+'%';
-    document.getElementById('ph-pct').style.color=pct>=100?'var(--green)':pct>=80?'var(--blue)':'var(--amber)';
-    document.getElementById('bar-actual').style.width=actualW+'%';
-    document.getElementById('bar-actual').style.background=col;
-    document.getElementById('bar-yomi').style.width=yomiW+'%';
-    document.getElementById('bar-yomi').style.left=actualW+'%';
-    document.getElementById('bar-label').textContent=pct+'%';
-    const remain=Math.max(target-actual,0);
-    document.getElementById('kv-remain').textContent=fmt(remain);
-    document.getElementById('kv-remain').style.color=remain===0?'var(--green)':'var(--red)';
-    document.getElementById('kv-forecast').textContent=fmt(forecast);
-    const fcPct=Math.round(forecast/target*100);
-    document.getElementById('kv-forecast-pct').textContent=fcPct;
-    document.getElementById('kv-forecast-pct').style.color=fcPct>=100?'var(--green)':fcPct>=80?'var(--blue)':'var(--amber)';
-    const fyStart=new Date(currentFY,7,1);
-    const elapsed=Math.max(1,(today.getFullYear()-fyStart.getFullYear())*12+(today.getMonth()-fyStart.getMonth())+1);
-    document.getElementById('elapsed-hint').textContent='経過 '+elapsed+'/12ヶ月';
-  }else{
-    ['ph-pct','kv-remain','kv-forecast-pct'].forEach(id=>document.getElementById(id).textContent='—');
-    document.getElementById('kv-forecast').textContent=fmt(forecast);
-    document.getElementById('elapsed-hint').textContent='目標未設定';
-  }
-
-  // 今月粗利セクション
-  const wrap=document.getElementById('monthly-prog-wrap');
-  if(monthlyTarget>0){
-    wrap.style.display='';
-    const mPct=Math.round((thisMonthActual/monthlyTarget)*100);
-    const mW=Math.min(mPct,100);
-    document.getElementById('kv-month-pct').textContent=mPct+'%';
-    document.getElementById('kv-month-pct').style.color=mPct>=100?'var(--green)':mPct>=80?'var(--blue)':'var(--amber)';
-    document.getElementById('bar-month-actual').style.width=mW+'%';
-    document.getElementById('bar-month-actual').style.background=col;
-    document.getElementById('bar-month-label').textContent=mPct+'%';
-    document.getElementById('kv-month-actual').textContent=fmt(thisMonthActual);
-    document.getElementById('kv-month-actual').style.color=mPct>=100?'var(--green)':mPct>=80?'var(--blue)':'var(--text)';
-    document.getElementById('kv-month-target').textContent=fmt(monthlyTarget);
-  }else{
-    wrap.style.display='none';
-  }
-}
 
 // ============================================================
 // インセンティブカード
