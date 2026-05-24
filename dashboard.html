@@ -278,20 +278,6 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
   background:none;border:none;font-family:inherit;padding:0;transition:var(--transition)}
 .ai-key-reset:hover{color:rgba(255,255,255,.7);text-decoration:underline}
 
-/* ─── KPIテーブル ─── */
-.kpi-tbl{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
-.kpi-tbl th{background:#fafafa;color:var(--text3);font-weight:700;font-size:10px;
-  padding:6px 4px;text-align:center;border-bottom:2px solid var(--border)}
-.kpi-tbl th.period-header{font-size:11px;font-weight:800;color:var(--text2);
-  border-bottom:1px solid var(--border);padding:6px 4px}
-.kpi-tbl th:first-child{text-align:left;padding-left:0;width:72px}
-.kpi-tbl td{padding:10px 4px;text-align:center;border-bottom:1px solid var(--border);vertical-align:middle}
-.kpi-tbl td:first-child{text-align:left;padding-left:0;font-weight:600;color:var(--text2);font-size:12px}
-.kpi-tbl tr:last-child td{border-bottom:none}
-.kpi-cell-actual{font-size:20px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
-.kpi-cell-target{font-size:11px;color:var(--text3);margin-top:2px}
-.kpi-cell-pct{font-size:10px;font-weight:700;margin-top:1px}
-.kpi-tbl .sep-col{width:1px;background:var(--border);padding:0}
 
 
 /* ─── 年間進捗 ─── */
@@ -678,17 +664,6 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
 
   <!-- 下段3カラム -->
   <div class="bottom-grid">
-
-    <!-- KPI -->
-    <div class="card">
-      <div class="card-header" style="flex-direction:column;align-items:flex-start;gap:10px">
-        <span class="card-title" style="display:flex;align-items:center;gap:7px">
-          <i data-lucide="activity" style="width:15px;height:15px;color:var(--blue)"></i> KPI
-        </span>
-        <div id="kpi-period-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
-      </div>
-      <div id="kpi-table-wrap"></div>
-    </div>
 
     <!-- インセンティブ＋AIアドバイス（縦並び） -->
     <div class="incentive-ai-wrap">
@@ -1503,7 +1478,6 @@ function render(person){
   renderPipelineByPerson(personDeals,isTeam);
   renderGoalsByPerson(personDeals,isTeam);
   renderPersonDetail(personDeals,isTeam);
-  renderKPITable(kpiMonth,kpiWeek,kpiToday,monthlyKpi,weeklyKpi,dailyKpi);
   renderProgress(annualTarget,uriageTotal,yomiTotal,forecast,col,monthlyTarget,thisMonthActual);
   renderIncentiveCard(person,isTeam);
   pendingChartArgs = [personDeals, person, isTeam];
@@ -2860,55 +2834,6 @@ function getNumWeeksInMonth(yyyy,mm){
   return count||4;
 }
 
-// ============================================================
-// KPIテーブル（今月・今週・今日 × 目標|実績）
-// ============================================================
-function renderKPITable(kpiMonth,kpiWeek,kpiToday,monthlyKpi,weeklyKpi,dailyKpi){
-  const btnWrap=document.getElementById('kpi-period-btns');
-  if(btnWrap) btnWrap.style.display='none';
-
-  const defs=[
-    {label:'面談件数',key:'meetings'},
-    {label:'アプローチ件数',key:'calls'},
-    {label:'紹介件数',key:'referrals'},
-  ];
-  const accent={meetings:'#15803d',calls:'#1d4ed8',referrals:'#7c3aed'};
-
-  const cell=(actual,target,key)=>{
-    const pct=target>0?Math.round(actual/target*100):null;
-    const col=pct===null?'var(--text)':pct>=100?'var(--green)':pct>=70?'var(--blue)':'var(--amber)';
-    return `<td style="padding:8px 4px">
-      <div class="kpi-cell-actual" style="color:${accent[key]||col}">${actual}</div>
-      <div class="kpi-cell-target">${target>0?'目標 '+target:'—'}</div>
-      ${pct!==null?`<div class="kpi-cell-pct" style="color:${col}">${pct}%</div>`:''}
-    </td>`;
-  };
-
-  const rows=defs.map(d=>`
-    <tr>
-      <td style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap;padding-left:0">${d.label}</td>
-      ${cell(kpiMonth[d.key],monthlyKpi[d.key],d.key)}
-      <td class="sep-col"></td>
-      ${cell(kpiWeek[d.key], weeklyKpi[d.key], d.key)}
-      <td class="sep-col"></td>
-      ${cell(kpiToday[d.key],dailyKpi[d.key],  d.key)}
-    </tr>`).join('');
-
-  document.getElementById('kpi-table-wrap').innerHTML=`
-    <table class="kpi-tbl">
-      <thead>
-        <tr>
-          <th></th>
-          <th class="period-header">今月</th>
-          <th class="sep-col"></th>
-          <th class="period-header">今週</th>
-          <th class="sep-col"></th>
-          <th class="period-header">今日</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>`;
-}
 
 // ============================================================
 // 年間進捗
