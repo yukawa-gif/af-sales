@@ -469,3 +469,24 @@ Claude 縺御ｽ懊▲縺溘ユ繝ｳ繝励Ξ繝ｼ繝医〒縺ｯ縺ｪ縺上
 
 `updateDeal()` 縺ｮ AA縲廣D蛻怜ｯｾ蠢懶ｼ郁ｨ井ｸ贋ｼ夂､ｾ繝ｻB陦後・菫晏ｭ假ｼ峨・ CLAUDE.md 縺ｫ螳溯｣・さ繝ｼ繝峨ｒ險倩ｼ画ｸ医∩縺縺後・
 **GAS繧ｨ繝・ぅ繧ｿ縺ｸ縺ｮ驕ｩ逕ｨ繝ｻ蜀阪ョ繝励Ο繧､縺悟ｮ御ｺ・＠縺ｦ縺・ｋ縺玖ｦ∫｢ｺ隱・*縲Ｅeal_form.html 縺九ｉ縺ｮ譁ｰ隕冗匳骭ｲ・・ddDeal・峨・蟇ｾ蠢懈ｸ医∩縲・
+
+---
+
+## 2026-05-25 螳溯｣・・螳ｹ
+
+### dashboard.html 縺ｮ蟇ｾ蠢懊
+
+#### 陦狗ｩｸKPI縲悄せ豁｣譌・縲阪ョ陦ｨ遉ｺ諡・倹
+
+- **菫ｮ豁｣蜑阪**：50%譛ｪ貍昜ｼ亥ｮ励ｄ縺九①縺・縺碁㍍豁｣譌･陦ｨ遉ｺ（譌ｧ譌ｩ縺ｫ縺ｪ縺ｩ荳蜈ｭ陦ｨ遉ｺ縺輔ｌ繧九・
+- **菫ｮ豁｣蠕後**：驍ｼ譏峨・3譌･逶ｮ・亥・髱｢・峨≠縺縺ｯ縺輔ｉ縺ｫ蠕後・貍昜ｼ峨↓50%譛ｪ貍昜ｼ縺ｮ蝣ｴ蜷医・縺ｿ陦ｨ遉ｺ
+
+```javascript
+// renderWeeklyKPI() 蜀・
+const weekDayNum = day === 0 ? 7 : day; // 譛・1, 迪・2, 豺・3, 譛・4, 驥・5
+const showWarn = !hasNoTarget && weekDayNum >= 3 && minPct !== null && minPct < 0.5;
+const rowCls = showWarn ? 'wkpi-row-warn' : '';
+const badge = hasNoTarget
+  ? '<span class="wkpi-badge-danger">譛ｪ險ｭ螳・/span>'
+  : (showWarn ? '<span class="wkpi-badge-warn">隕∵ｸ医ｵ</span>' : '');
+```
