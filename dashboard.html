@@ -1780,6 +1780,7 @@ function renderWeeklyKPI(person, isTeam) {
   const now = new Date();
   const day = now.getDay();
   const diff = day === 0 ? -6 : 1 - day;
+  const weekDayNum = day === 0 ? 7 : day; // 月=1, 火=2, 水=3, 木=4, 金=5
   const mon = new Date(now); mon.setDate(now.getDate() + diff);
   const fri = new Date(mon); fri.setDate(mon.getDate() + 4);
   const fmt2 = d => (d.getMonth()+1) + '/' + d.getDate();
@@ -1812,10 +1813,12 @@ function renderWeeklyKPI(person, isTeam) {
     const minPct = pcts.length > 0 ? Math.min(...pcts) : null;
     const hasNoTarget = t.calls + t.meetings + t.referrals === 0;
 
-    const rowCls = hasNoTarget ? '' : (minPct !== null && minPct < 0.5 ? 'wkpi-row-warn' : '');
+    // 週3日目（水曜）以降かつ50%未満の場合のみ要注意
+    const showWarn = !hasNoTarget && weekDayNum >= 3 && minPct !== null && minPct < 0.5;
+    const rowCls = showWarn ? 'wkpi-row-warn' : '';
     const badge = hasNoTarget
       ? '<span class="wkpi-badge-danger">未設定</span>'
-      : (minPct !== null && minPct < 0.5 ? '<span class="wkpi-badge-warn">要注意</span>' : '');
+      : (showWarn ? '<span class="wkpi-badge-warn">要注意</span>' : '');
 
     const col = personColorMap[r.person] || '#6b7280';
     const initial = r.person ? r.person.charAt(0) : '?';
