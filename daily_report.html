@@ -231,7 +231,7 @@
     <!-- 月次目標入力 -->
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:6px">
       <div>
-        <label class="fl" style="color:var(--blue-text)">架電件数/月</label>
+        <label class="fl" style="color:var(--blue-text)">アプローチ件数/月</label>
         <input class="fi" type="number" id="target-monthly-calls" placeholder="400" min="0" oninput="onMonthlyChange()">
       </div>
       <div>
@@ -251,7 +251,7 @@
         <thead>
           <tr>
             <th style="text-align:left">週</th>
-            <th style="color:var(--blue-text)">架電</th>
+            <th style="color:var(--blue-text)">アプローチ</th>
             <th style="color:var(--green)">面談</th>
             <th style="color:var(--purple)">紹介</th>
           </tr>
@@ -311,7 +311,7 @@
       <div id="weekly-data" style="display:none">
         <div class="progress-section">
           <div class="progress-label-row">
-            <span class="progress-label">架電件数</span>
+            <span class="progress-label">アプローチ件数</span>
             <span class="progress-value" id="calls-value-text">― / ― 件</span>
           </div>
           <div class="progress-track">
@@ -338,7 +338,7 @@
         </div>
         <div class="day-bars" id="day-bars"></div>
         <div class="legend">
-          <div class="legend-item"><div class="legend-dot" style="background:#93c5fd"></div>架電</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#93c5fd"></div>アプローチ</div>
           <div class="legend-item"><div class="legend-dot" style="background:#6ee7b7"></div>面談</div>
           <div class="legend-item"><div class="legend-dot" style="background:#c4b5fd"></div>紹介</div>
         </div>
@@ -358,7 +358,7 @@
       </div>
       <div class="kpi-grid">
         <div class="kpi-item" style="border-top:3px solid var(--blue)">
-          <div class="kpi-label">架電件数</div>
+          <div class="kpi-label">アプローチ件数</div>
           <input class="kpi-input" type="number" id="r-calls" value="0" min="0">
         </div>
         <div class="kpi-item" style="border-top:3px solid var(--green)">
@@ -541,9 +541,6 @@ async function loadWeeklyData() {
     if (data.success) {
       weeklyData = data;
       renderWeeklyCard(data);
-      if (new Date().getDay() === 1 && !data.target) {
-        openTargetModal(true);
-      }
     }
   } catch(e) {
     console.warn('週次データ取得失敗:', e);
@@ -728,7 +725,7 @@ function updateDistTotals() {
   const mR = parseInt(document.getElementById('target-monthly-referrals').value) || 0;
 
   const errs = [];
-  if (mC > 0 && totalC !== mC) errs.push(`架電: ${totalC}件（目標${mC}件、差分${totalC - mC > 0 ? '+' : ''}${totalC - mC}）`);
+  if (mC > 0 && totalC !== mC) errs.push(`アプローチ: ${totalC}件（目標${mC}件、差分${totalC - mC > 0 ? '+' : ''}${totalC - mC}）`);
   if (mM > 0 && totalM !== mM) errs.push(`面談: ${totalM}件（目標${mM}件、差分${totalM - mM > 0 ? '+' : ''}${totalM - mM}）`);
   if (mR > 0 && totalR !== mR) errs.push(`紹介: ${totalR}件（目標${mR}件、差分${totalR - mR > 0 ? '+' : ''}${totalR - mR}）`);
 
@@ -858,7 +855,7 @@ function showDone(calls, meetings, referrals, comment) {
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
       <div style="text-align:center;padding:12px 8px;background:var(--blue-bg);border-radius:var(--r-sm)">
         <div style="font-size:26px;font-weight:700;font-family:'DM Mono';color:var(--blue)">${calls}</div>
-        <div style="font-size:11px;color:var(--blue-text);margin-top:2px">架電</div>
+        <div style="font-size:11px;color:var(--blue-text);margin-top:2px">アプローチ</div>
         ${pctStr(newCalls, target?.calls)}
       </div>
       <div style="text-align:center;padding:12px 8px;background:var(--green-bg);border-radius:var(--r-sm)">

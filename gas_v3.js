@@ -2154,13 +2154,24 @@ function getWeeklyData(person, weekStart) {
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
+  // 名前で渡された場合はコードに変換（addActivity と同じ方式）
+  const wdCodeMap = {};
+  const wdNameToCode = {};
+  getPersonDetails().forEach(p => {
+    if (p.code) {
+      wdCodeMap[p.code] = p.name;
+      if (p.name) wdNameToCode[p.name] = p.code;
+    }
+  });
+  const personCode = wdCodeMap[person] !== undefined ? person : (wdNameToCode[person] || person);
+
   // 週次目標を取得
   // 設定_週次目標: A=個人コード B=営業名 C=週開始日 D=架電目標 E=面談目標 F=紹介目標
   const goalSheet = ss.getSheetByName(SHEET_WEEKLY_GOALS);
   let target = null;
   if (goalSheet && goalSheet.getLastRow() > 1) {
     const rows = goalSheet.getDataRange().getValues().slice(1);
-    const goalRow = rows.find(r => String(r[0]) === person && toDateStr(r[2]) === weekStart);
+    const goalRow = rows.find(r => String(r[0]) === personCode && toDateStr(r[2]) === weekStart);
     if (goalRow) target = { calls: Number(goalRow[3]) || 0, meetings: Number(goalRow[4]) || 0, referrals: Number(goalRow[5]) || 0 };
   }
 
@@ -2174,7 +2185,7 @@ function getWeeklyData(person, weekStart) {
     rows.forEach(r => {
       const rowPerson = String(r[0]);
       const rowDate   = toDateStr(r[2]);
-      if (rowPerson === person && weekDates.includes(rowDate)) {
+      if (rowPerson === personCode && weekDates.includes(rowDate)) {
         daily.push({ date: rowDate, calls: Number(r[3]) || 0, meetings: Number(r[4]) || 0, referrals: Number(r[5]) || 0 });
       }
     });
