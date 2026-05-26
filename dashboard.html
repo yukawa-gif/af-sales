@@ -534,6 +534,9 @@ body.modal-open{overflow:hidden}
   <div id="alert-area"></div>
   <div id="unpaid-alert-area"></div>
 
+  <!-- ヨミ着地ヒーローカード -->
+  <div id="yomi-hero" style="margin-bottom:12px"></div>
+
   <!-- パイプラインサマリー（ヒーローKPI行） -->
   <div id="pipeline-summary" class="pipeline-summary"></div>
 
@@ -1020,6 +1023,7 @@ const RANKS=[
   {v:'失注',label:'失注',desc:'商談終了',  av:'×',cls:'r-lost', col:'#9ca3af'},
 ];
 const RANK_COLOR={'売上':'#7c3aed','決定':'#dc2626','A':'#d97706','B':'#2563eb','C':'#6b7280','失注':'#9ca3af'};
+const RANK_PROB={'売上':1.0,'決定':1.0,'A':0.70,'B':0.40,'C':0.10,'失注':0};
 
 const PS_CONFIG=[
   {key:'売上', label:'売上（確定）',color:'#16a34a',border:'#bbf7d0'},
@@ -1361,6 +1365,7 @@ function render(person){
     if(byRankTotal[rank]!==undefined) byRankTotal[rank]+=toMan(Number(d['粗利'])||0);
   });
   renderPipelineSummary(byRankTotal);
+  renderYomiHero(personDeals);
 
   // KPI集計 - 今月・今週・今日の3期間を同時計算
   const kpiSumFor = period => {
@@ -1545,6 +1550,46 @@ function renderDetailTable(personDeals){
 }
 
 // ============================================================
+// 加重粗利（ヨミ着地）計算
+// ============================================================
+function calcWeightedGP(deals){
+  return deals.reduce((s,d)=>{
+    const prob=RANK_PROB[d['確度ランク']]??0;
+    return s+(Number(d['粗利'])||0)*prob;
+  },0);
+}
+
+function renderYomiHero(deals){
+  const el=document.getElementById('yomi-hero');
+  if(!el)return;
+  const weighted=calcWeightedGP(deals);
+  const breakdown=['売上','決定','A','B','C'].map(rank=>{
+    const prob=RANK_PROB[rank];
+    const gpYen=deals.filter(d=>d['確度ランク']===rank).reduce((s,d)=>s+(Number(d['粗利'])||0),0);
+    return{rank,gpMan:toMan(gpYen),wMan:toMan(gpYen*prob),prob};
+  });
+  el.innerHTML=`
+    <div style="background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 55%,#a855f7 100%);
+      border-radius:14px;padding:20px 24px;
+      box-shadow:0 4px 24px rgba(124,58,237,.22),0 1px 4px rgba(0,0,0,.1);
+      display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+      <div style="flex:1;min-width:180px">
+        <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.55);letter-spacing:.12em;text-transform:uppercase;margin-bottom:6px">ヨミ着地（加重粗利）</div>
+        <div style="font-size:30px;font-weight:800;color:#fff;letter-spacing:-.04em;line-height:1">${fmtMan(weighted)}</div>
+        <div style="font-size:10px;color:rgba(255,255,255,.45);margin-top:5px">確度確率で加重した期待粗利 ／ 失注除く</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${breakdown.map(b=>`
+          <div style="text-align:center;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:8px 14px;min-width:72px">
+            <div style="font-size:9px;color:rgba(255,255,255,.55);font-weight:700;letter-spacing:.04em;margin-bottom:3px">${b.rank}&nbsp;×${Math.round(b.prob*100)}%</div>
+            <div style="font-size:15px;font-weight:800;color:#fff">${b.wMan>0?fmt(b.wMan)+'万':'—'}</div>
+            <div style="font-size:9px;color:rgba(255,255,255,.38);margin-top:1px">粗利${b.gpMan>0?fmt(b.gpMan)+'万':'—'}</div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+// ============================================================
 // パイプラインサマリー
 // ============================================================
 function renderPipelineSummary(byRankTotal){
@@ -1580,24 +1625,32 @@ function renderPipelineByPerson(personDeals, isTeam) {
   const persons = (masterData?.personDetails || []).filter(p => p.status === '在籍中' && p.role !== 'P');
 
   const byPerson = {};
+  const weightedByPerson = {};
   persons.forEach(p => {
     byPerson[p.name] = {};
     ranks.forEach(r => { byPerson[p.name][r] = 0; });
+    weightedByPerson[p.name] = 0;
   });
   personDeals.filter(d => d['確度ランク'] !== '失注').forEach(d => {
     const person = d['担当者'];
     const rank   = d['確度ランク'];
     const gp = toMan(Number(d['粗利']) || 0);
     if (byPerson[person] && byPerson[person][rank] !== undefined) byPerson[person][rank] += gp;
+    if (weightedByPerson[person] !== undefined) {
+      weightedByPerson[person] += Math.round(toMan((Number(d['粗利'])||0) * (RANK_PROB[rank]??0)));
+    }
   });
 
   const rankCfgs = ranks.map(r => ({ r, color: RANK_COLOR[r] || '#6b7280', label: (RANKS.find(x => x.v === r) || {}).label || r }));
   const totalRow = {}; ranks.forEach(r => { totalRow[r] = 0; });
+  let totalWeighted = 0;
 
   const rows = persons.map(p => {
     const data = byPerson[p.name] || {};
     const total = ranks.reduce((s, r) => s + (data[r] || 0), 0);
+    const wv = weightedByPerson[p.name] || 0;
     ranks.forEach(r => { totalRow[r] += data[r] || 0; });
+    totalWeighted += wv;
     const col = personColorMap[p.name] || '#6b7280';
     const cells = rankCfgs.map(c => {
       const v = data[c.r] || 0;
@@ -1610,6 +1663,7 @@ function renderPipelineByPerson(personDeals, isTeam) {
         </span>
       </td>${cells}
       <td style="text-align:right;padding:7px 8px;font-weight:800;border-bottom:1px solid var(--border)">${total > 0 ? fmt(total) + '万' : '—'}</td>
+      <td style="text-align:right;padding:7px 8px;font-weight:800;border-bottom:1px solid var(--border);border-left:2px solid #ede9fe;color:#7c3aed;background:#faf5ff">${wv > 0 ? fmt(wv) + '万' : '—'}</td>
     </tr>`;
   }).join('');
 
@@ -1624,12 +1678,14 @@ function renderPipelineByPerson(personDeals, isTeam) {
       <th style="text-align:left;padding:6px 8px;font-size:10px;font-weight:700;color:var(--text3);background:#fafafa;border-bottom:2px solid var(--border)">営業</th>
       ${rankCfgs.map(c => `<th style="text-align:right;padding:6px 8px;font-size:10px;font-weight:700;color:${c.color};background:#fafafa;border-bottom:2px solid var(--border)">${c.label}</th>`).join('')}
       <th style="text-align:right;padding:6px 8px;font-size:10px;font-weight:700;color:var(--text2);background:#fafafa;border-bottom:2px solid var(--border)">合計</th>
+      <th style="text-align:right;padding:6px 8px;font-size:10px;font-weight:700;color:#7c3aed;background:#f5f3ff;border-bottom:2px solid var(--border);border-left:2px solid #ede9fe">ヨミ着地</th>
     </tr></thead>
     <tbody>${rows}</tbody>
     <tfoot><tr style="background:#fafafa">
       <td style="padding:7px 8px;font-size:11px;font-weight:700;color:var(--text2);border-top:2px solid var(--border)">合計</td>
       ${footCells}
       <td style="text-align:right;padding:7px 8px;font-weight:800;border-top:2px solid var(--border);color:var(--blue)">${grandTotal > 0 ? fmt(grandTotal) + '万' : '—'}</td>
+      <td style="text-align:right;padding:7px 8px;font-weight:800;border-top:2px solid var(--border);border-left:2px solid #ede9fe;color:#7c3aed;background:#faf5ff">${totalWeighted > 0 ? fmt(totalWeighted) + '万' : '—'}</td>
     </tr></tfoot>`;
 }
 
