@@ -325,7 +325,13 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
 .modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);
   display:none;align-items:center;justify-content:center;z-index:300;
   backdrop-filter:blur(2px)}
-.modal-overlay.open{display:flex}
+.modal-overlay.open{display:flex;animation:overlay-fadein .2s ease both}
+@keyframes overlay-fadein{from{opacity:0}to{opacity:1}}
+.modal-overlay.open .modal-box{animation:modal-slidein .22s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes modal-slidein{
+  from{opacity:0;transform:scale(.94) translateY(14px)}
+  to{opacity:1;transform:scale(1) translateY(0)}}
+body.modal-open{overflow:hidden}
 .modal-box{background:var(--surface);border-radius:16px;
   width:480px;max-width:calc(100vw - 32px);max-height:96vh;overflow-y:auto;
   box-shadow:0 20px 60px rgba(0,0,0,.18),0 4px 16px rgba(0,0,0,.1)}
@@ -378,13 +384,26 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
 .row-stale td{background:#fffbeb !important}
 
 /* ─── ローディング ─── */
-.loading-overlay{position:fixed;inset:0;background:rgba(244,244,245,.96);
+.loading-overlay{position:fixed;inset:0;background:rgba(244,244,245,.97);
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  z-index:200;gap:16px;backdrop-filter:blur(4px)}
-.spin{width:40px;height:40px;border:3px solid var(--border);
-  border-top-color:var(--blue);border-radius:50%;animation:spin .75s linear infinite}
+  z-index:200;gap:0;backdrop-filter:blur(6px);
+  transition:opacity .3s ease}
+.loading-overlay.hiding{opacity:0;pointer-events:none}
+.spin{width:52px;height:52px;
+  border:4px solid transparent;
+  border-top-color:var(--blue);border-right-color:var(--blue-mid);
+  border-radius:50%;animation:spin .7s linear infinite;margin-bottom:16px}
 @keyframes spin{to{transform:rotate(360deg)}}
-.loading-text{font-size:13px;color:var(--text3);font-weight:600;letter-spacing:.02em}
+.loading-text{font-size:13px;color:var(--text3);font-weight:600;letter-spacing:.02em;margin-bottom:32px}
+/* スケルトン */
+.loading-skel{display:flex;flex-direction:column;gap:12px;width:min(680px,90vw)}
+.loading-skel-row{display:flex;gap:12px}
+.skel{background:linear-gradient(90deg,#e4e4e7 25%,#f1f1f3 50%,#e4e4e7 75%);
+  background-size:600px 100%;border-radius:var(--r);
+  animation:shimmer 1.5s ease-in-out infinite}
+@keyframes shimmer{0%{background-position:-600px 0}100%{background-position:600px 0}}
+.skel-sm-card{height:80px;flex:1;border-radius:12px}
+.skel-table{height:160px;width:100%;border-radius:12px}
 
 /* ─── 行動KPI進捗パネル ─── */
 .wkpi-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 22px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
@@ -439,6 +458,17 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
 <div class="loading-overlay" id="loading">
   <div class="spin"></div>
   <div class="loading-text">データを読み込み中...</div>
+  <div class="loading-skel">
+    <div class="loading-skel-row">
+      <div class="skel skel-sm-card"></div>
+      <div class="skel skel-sm-card"></div>
+      <div class="skel skel-sm-card"></div>
+      <div class="skel skel-sm-card"></div>
+      <div class="skel skel-sm-card"></div>
+      <div class="skel skel-sm-card"></div>
+    </div>
+    <div class="skel skel-table"></div>
+  </div>
 </div>
 
 <!-- トップバー -->
@@ -808,7 +838,7 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
 </div>
 
 <!-- 目標履歴モーダル -->
-<div class="modal-overlay" id="goals-history-modal" onclick="if(event.target===this)closeGoalsHistoryModal()" style="display:none">
+<div class="modal-overlay" id="goals-history-modal" onclick="if(event.target===this)closeGoalsHistoryModal()">
   <div class="modal-box" style="width:min(820px,96vw);max-height:85vh;display:flex;flex-direction:column">
     <div class="modal-header">
       <span class="modal-title">📋 目標設定 履歴 <span id="gh-fy" style="color:var(--text3);font-size:14px"></span></span>
@@ -1002,6 +1032,22 @@ const PS_CONFIG=[
 
 function getCurrentFY(d){d=d||new Date();return d.getMonth()>=7?d.getFullYear():d.getFullYear()-1}
 function getFYMonths(fy){const a=[];for(let m=8;m<=12;m++)a.push({year:fy,month:m});for(let m=1;m<=7;m++)a.push({year:fy+1,month:m});return a}
+function hideLoading(){
+  const el=document.getElementById('loading');
+  el.classList.add('hiding');
+  setTimeout(()=>{ el.style.display='none'; el.classList.remove('hiding'); },300);
+}
+
+// ESCキーで最前面のモーダルを閉じる
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape') return;
+  if(document.getElementById('goals-history-modal').classList.contains('open')){closeGoalsHistoryModal();return;}
+  if(document.getElementById('goal-modal').classList.contains('open')){closeGoalModal();return;}
+  if(document.getElementById('mail-modal').classList.contains('open')){closeMailModal();return;}
+  if(document.getElementById('task-modal').classList.contains('open')){closeTaskModal();return;}
+  if(document.getElementById('deal-modal').classList.contains('open')){closeDealModal();return;}
+});
+
 function yyyyMM(y,m){return y+'-'+String(m).padStart(2,'0')}
 function toMan(yen){return Math.round(yen/10000)}
 function fmt(v){return v==null||isNaN(v)?'—':Number(v).toLocaleString()}
@@ -1065,7 +1111,7 @@ async function init(){
       try{ localStorage.setItem('af_master_v1', JSON.stringify({timestamp: Date.now(), data: cached.master})); }catch(e){}
     }
     applyDashboardData(cached);
-    document.getElementById('loading').style.display='none';
+    hideLoading();
     if(!isAdmin) document.getElementById('main').style.display='block';
     const last=localStorage.getItem('dashboard_person');
     const target=last||'__all__';
@@ -1087,7 +1133,7 @@ async function init(){
     const fresh = await fetchDashboardData();
     if(!fresh) throw new Error('データ取得失敗');
     applyDashboardData(fresh);
-    document.getElementById('loading').style.display='none';
+    hideLoading();
     if(!isAdmin) document.getElementById('main').style.display='block';
     const last=localStorage.getItem('dashboard_person');
     const target=last||'__all__';
@@ -1097,11 +1143,11 @@ async function init(){
   }catch(e){
     if(isAdmin){
       // 管理者モードでもデータ取得失敗時はローディングを非表示に
-      document.getElementById('loading').style.display='none';
+      hideLoading();
       initAdminPanel();
     } else {
       // オーバーレイを閉じてサイドバー等を操作可能に戻す
-      document.getElementById('loading').style.display='none';
+      hideLoading();
       const main=document.getElementById('main');
       main.style.display='block';
       main.innerHTML='<div style="text-align:center;padding:60px 20px;color:var(--red)">'+
@@ -2180,10 +2226,12 @@ function openDealModal(deal){
   sel.value=(String(deal['売上予定月']||'')).slice(0,7); // 日付型で返った場合も'yyyy-MM'に正規化
 
   document.getElementById('deal-modal').classList.add('open');
+  document.body.classList.add('modal-open');
 }
 
 function closeDealModal(){
   document.getElementById('deal-modal').classList.remove('open');
+  document.body.classList.remove('modal-open');
   editingDeal=null;
 }
 
@@ -2235,10 +2283,12 @@ function openTaskModal(deal){
   document.getElementById('task-save').disabled=false;
   document.getElementById('task-save').textContent='登録する';
   document.getElementById('task-modal').classList.add('open');
+  document.body.classList.add('modal-open');
 }
 
 function closeTaskModal(){
   document.getElementById('task-modal').classList.remove('open');
+  document.body.classList.remove('modal-open');
 }
 
 async function saveTask(){
@@ -2278,6 +2328,7 @@ async function openMailModal(deal){
   document.getElementById('mail-error').style.display='none';
   document.getElementById('mail-footer').style.display='none';
   document.getElementById('mail-modal').classList.add('open');
+  document.body.classList.add('modal-open');
   try{
     const data=await gasGet({ mode:'followup', company:deal['会社名']||'', person:deal['担当者']||'' });
     if(!data.success)throw new Error(data.error||'取得失敗');
@@ -2298,6 +2349,7 @@ async function openMailModal(deal){
 
 function closeMailModal(){
   document.getElementById('mail-modal').classList.remove('open');
+  document.body.classList.remove('modal-open');
 }
 
 function openGmail(){
@@ -2428,6 +2480,7 @@ function openGoalModal(){
   persons.forEach((_,pi)=>calcGoalRow(pi));
 
   document.getElementById('goal-modal').classList.add('open');
+  document.body.classList.add('modal-open');
   setTimeout(()=>document.querySelector('#goal-tbody input')?.focus(),50);
 }
 
@@ -2479,6 +2532,7 @@ function calcGoalTotals(){
 
 function closeGoalModal(){
   document.getElementById('goal-modal').classList.remove('open');
+  document.body.classList.remove('modal-open');
 }
 
 async function saveGoalModal(){
@@ -2539,7 +2593,8 @@ async function showGoalsHistory(){
   document.getElementById('gh-fy').textContent=fy;
   document.getElementById('gh-loading').style.display='block';
   document.getElementById('gh-list').style.display='none';
-  document.getElementById('goals-history-modal').style.display='flex';
+  document.getElementById('goals-history-modal').classList.add('open');
+  document.body.classList.add('modal-open');
 
   try{
     const d=await gasGet({ mode:'goals_history', fy });
@@ -2550,7 +2605,8 @@ async function showGoalsHistory(){
 }
 
 function closeGoalsHistoryModal(){
-  document.getElementById('goals-history-modal').style.display='none';
+  document.getElementById('goals-history-modal').classList.remove('open');
+  document.body.classList.remove('modal-open');
 }
 
 function renderGoalsHistory(history){

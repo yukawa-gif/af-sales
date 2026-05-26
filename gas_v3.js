@@ -129,7 +129,7 @@ function getTopProducts() {
   const counts = {};
   for (let i = 1; i < rows.length; i++) {
     const raw = rows[i][1]; // B列：登録日
-    const name = rows[i][5]; // F列：商材名
+    const name = rows[i][6]; // G列：商材名
     if (!name) continue;
     const d = (typeof raw.getFullYear === 'function') ? raw : new Date(raw);
     if (isNaN(d) || d < cutoff) continue;
