@@ -1365,7 +1365,7 @@ function render(person){
     if(byRankTotal[rank]!==undefined) byRankTotal[rank]+=toMan(Number(d['粗利'])||0);
   });
   renderPipelineSummary(byRankTotal);
-  renderYomiHero(personDeals);
+  // renderYomiHero(personDeals); // 非表示（再表示したい場合はコメントアウトを外す）
 
   // KPI集計 - 今月・今週・今日の3期間を同時計算
   const kpiSumFor = period => {
