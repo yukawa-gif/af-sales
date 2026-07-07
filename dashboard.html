@@ -921,9 +921,10 @@ body.modal-open{overflow:hidden}
       <div id="pm-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:18px"></div>
       <div style="border-top:1px solid var(--border);padding-top:14px">
         <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:10px">新規担当者</div>
-        <div class="mfg"><label class="mfl">氏名</label><input class="mfi" type="text" id="pm-add-name" placeholder="例: 山田 太郎"></div>
-        <div class="mfg"><label class="mfl">役職</label>
-          <select class="mfsel" id="pm-add-role">
+        <div style="display:flex;align-items:center;gap:8px">
+          <button id="pm-add-btn" onclick="addPersonUI()" title="追加する"
+            style="flex-shrink:0;width:26px;height:26px;border-radius:50%;border:1px solid var(--blue);background:var(--blue-bg);color:var(--blue);cursor:pointer;font-size:15px;font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;font-family:inherit">＋</button>
+          <select class="mfsel" id="pm-add-role" style="flex-shrink:0;width:auto;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
             <option value="スタッフ">スタッフ</option>
             <option value="M">M（マネージャー）</option>
             <option value="SS">SS</option>
@@ -931,8 +932,8 @@ body.modal-open{overflow:hidden}
             <option value="A">A</option>
             <option value="P">P（インセンティブ計算対象外）</option>
           </select>
+          <input class="mfi" type="text" id="pm-add-name" placeholder="氏名を入力" style="flex:1;min-width:0">
         </div>
-        <button class="modal-btn modal-btn-save" id="pm-add-btn" onclick="addPersonUI()" style="width:100%">追加する</button>
         <div id="pm-add-msg" style="font-size:12px;min-height:16px;margin-top:6px"></div>
       </div>
     </div>
@@ -2459,7 +2460,8 @@ async function addPersonUI(){
   const msgEl=document.getElementById('pm-add-msg');
   if(!name){ msgEl.style.color='var(--red)'; msgEl.textContent='氏名を入力してください'; return; }
   const btn=document.getElementById('pm-add-btn');
-  btn.disabled=true; btn.textContent='追加中…';
+  btn.disabled=true; btn.style.opacity='.5';
+  msgEl.style.color='var(--text3)'; msgEl.textContent='追加中…';
   try{
     const res=await gasPost({action:'addPerson', name, role});
     if(!res.success){ msgEl.style.color='var(--red)'; msgEl.textContent=res.error||'追加に失敗しました'; return; }
@@ -2471,7 +2473,7 @@ async function addPersonUI(){
     msgEl.style.color='var(--red)';
     msgEl.textContent='通信エラー: '+e.message;
   }finally{
-    btn.disabled=false; btn.textContent='追加する';
+    btn.disabled=false; btn.style.opacity='1';
   }
 }
 
