@@ -503,6 +503,9 @@ body.modal-open{overflow:hidden}
     <button onclick="openGoalModal()" class="sidebar-nav-item" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-family:inherit;border-radius:8px">
       <i data-lucide="settings" style="width:15px;height:15px;flex-shrink:0"></i> 目標設定
     </button>
+    <button onclick="openPersonModal()" class="sidebar-nav-item" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-family:inherit;border-radius:8px">
+      <i data-lucide="users" style="width:15px;height:15px;flex-shrink:0"></i> 担当営業管理
+    </button>
     <a id="admin-nav-link" href="dashboard.html#admin" class="sidebar-nav-item" style="display:none;text-decoration:none;border-radius:8px;color:var(--amber)">
       <i data-lucide="flask-conical" style="width:15px;height:15px;flex-shrink:0"></i> システムテスト
     </a>
@@ -906,6 +909,37 @@ body.modal-open{overflow:hidden}
   </div>
 </div>
 
+<!-- 担当営業管理モーダル -->
+<div class="modal-overlay" id="person-modal" onclick="if(event.target===this)closePersonModal()">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-header">
+      <span class="modal-title">担当営業管理</span>
+      <button class="modal-close" onclick="closePersonModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="pm-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:18px"></div>
+      <div style="border-top:1px solid var(--border);padding-top:14px">
+        <div class="mfg"><label class="mfl">氏名</label><input class="mfi" type="text" id="pm-add-name" placeholder="例: 山田 太郎"></div>
+        <div class="mfg"><label class="mfl">役職</label>
+          <select class="mfsel" id="pm-add-role">
+            <option value="スタッフ">スタッフ</option>
+            <option value="M">M（マネージャー）</option>
+            <option value="SS">SS</option>
+            <option value="S">S</option>
+            <option value="A">A</option>
+            <option value="P">P（インセンティブ計算対象外）</option>
+          </select>
+        </div>
+        <div id="pm-add-msg" style="font-size:12px;min-height:16px;margin-top:4px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn modal-btn-cancel" onclick="closePersonModal()">閉じる</button>
+      <button class="modal-btn modal-btn-save" id="pm-add-btn" onclick="addPersonUI()">追加する</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============================================================
      管理者テストパネル（URL末尾に #admin を付けると表示）
      ============================================================ -->
@@ -1049,6 +1083,7 @@ document.addEventListener('keydown',e=>{
   if(document.getElementById('goal-modal').classList.contains('open')){closeGoalModal();return;}
   if(document.getElementById('mail-modal').classList.contains('open')){closeMailModal();return;}
   if(document.getElementById('task-modal').classList.contains('open')){closeTaskModal();return;}
+  if(document.getElementById('person-modal').classList.contains('open')){closePersonModal();return;}
   if(document.getElementById('deal-modal').classList.contains('open')){closeDealModal();return;}
 });
 
@@ -2356,6 +2391,100 @@ async function saveTask(){
     btn.disabled=false; btn.textContent='登録する';
     console.warn('タスク登録失敗:', e.message);
   }
+}
+
+// ============================================================
+// 担当営業管理（追加・削除）
+// ============================================================
+function renderPersonModalList(){
+  const list=document.getElementById('pm-list');
+  const persons=(masterData?.personDetails||[]).slice().sort((a,b)=>{
+    const aActive=a.status==='在籍中', bActive=b.status==='在籍中';
+    if(aActive!==bActive) return aActive?-1:1;
+    return a.name.localeCompare(b.name,'ja');
+  });
+  if(!persons.length){
+    list.innerHTML='<div style="color:var(--text3);font-size:13px">登録されている営業がいません</div>';
+    return;
+  }
+  list.innerHTML=persons.map(p=>{
+    const active=p.status==='在籍中';
+    const nameEsc=esc(p.name).replace(/'/g,"\\'");
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;${active?'':'opacity:.55'}">
+      <div>
+        <div style="font-weight:600;font-size:13px">${esc(p.name)}</div>
+        <div style="font-size:11px;color:var(--text3)">${esc(p.role)}${active?'':'・'+esc(p.status)}</div>
+      </div>
+      ${active
+        ? `<button class="modal-btn modal-btn-cancel" style="padding:5px 12px;font-size:12px" onclick="removePersonUI('${nameEsc}')">削除</button>`
+        : `<button class="modal-btn" style="padding:5px 12px;font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--text2)" onclick="restorePersonUI('${nameEsc}')">復帰</button>`}
+    </div>`;
+  }).join('');
+}
+
+function openPersonModal(){
+  renderPersonModalList();
+  document.getElementById('pm-add-name').value='';
+  document.getElementById('pm-add-msg').textContent='';
+  document.getElementById('person-modal').classList.add('open');
+  document.body.classList.add('modal-open');
+}
+
+function closePersonModal(){
+  document.getElementById('person-modal').classList.remove('open');
+  document.body.classList.remove('modal-open');
+}
+
+// GAS側キャッシュ（withLockで自動破棄）を踏まえ、fresh=1で最新マスタを取り直す
+async function refreshMasterAfterPersonChange(){
+  const fresh=await fetchDashboardData(true);
+  if(fresh){
+    applyDashboardData(fresh);
+    if(currentPerson) render(currentPerson);
+  }
+  renderPersonModalList();
+}
+
+async function addPersonUI(){
+  const nameEl=document.getElementById('pm-add-name');
+  const name=nameEl.value.trim();
+  const role=document.getElementById('pm-add-role').value;
+  const msgEl=document.getElementById('pm-add-msg');
+  if(!name){ msgEl.style.color='var(--red)'; msgEl.textContent='氏名を入力してください'; return; }
+  const btn=document.getElementById('pm-add-btn');
+  btn.disabled=true; btn.textContent='追加中…';
+  try{
+    const res=await gasPost({action:'addPerson', name, role});
+    if(!res.success){ msgEl.style.color='var(--red)'; msgEl.textContent=res.error||'追加に失敗しました'; return; }
+    nameEl.value='';
+    msgEl.style.color='var(--green)';
+    msgEl.textContent='✅ '+name+' を追加しました';
+    await refreshMasterAfterPersonChange();
+  }catch(e){
+    msgEl.style.color='var(--red)';
+    msgEl.textContent='通信エラー: '+e.message;
+  }finally{
+    btn.disabled=false; btn.textContent='追加する';
+  }
+}
+
+// 削除＝ステータスを「退職済み」にする論理削除（案件履歴の紐付けを壊さないため）。いつでも「復帰」で戻せる。
+async function removePersonUI(name){
+  if(!confirm(name+' を担当営業一覧から外しますか？\n（過去の案件データは保持され、後から「復帰」できます）')) return;
+  try{
+    const res=await gasPost({action:'setPersonStatus', name, status:'退職済み'});
+    if(!res.success){ alert(res.error||'削除に失敗しました'); return; }
+    if(currentPerson===name) selectPerson('__all__');
+    await refreshMasterAfterPersonChange();
+  }catch(e){ alert('通信エラー: '+e.message); }
+}
+
+async function restorePersonUI(name){
+  try{
+    const res=await gasPost({action:'setPersonStatus', name, status:'在籍中'});
+    if(!res.success){ alert(res.error||'復帰に失敗しました'); return; }
+    await refreshMasterAfterPersonChange();
+  }catch(e){ alert('通信エラー: '+e.message); }
 }
 
 // ============================================================
