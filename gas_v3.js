@@ -1176,6 +1176,9 @@ function getAllData(force) {
 
     // master
     const masterResult = JSON.parse(getMaster().getContent());
+    // ダッシュボードはcustomers（顧客DB全件ダンプ）を使わないため除外
+    // → mode=master（deal_form.html等）はgetMaster()を直接呼ぶので影響なし
+    delete masterResult.customers;
 
     // goals（目標履歴シートから最新版を取得）
     let goalsVal = null;
