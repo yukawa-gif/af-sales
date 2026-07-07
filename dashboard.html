@@ -1106,8 +1106,8 @@ async function init(){
 
   const isAdmin = window.location.hash === '#admin';
 
-  // キャッシュがあれば（期限切れでも）即時表示
-  const cached = loadDashboardCacheAny();
+  // キャッシュがあれば（期限内のみ）即時表示。期限切れは信用せず素直に再取得する
+  const cached = loadDashboardCache();
   if(cached){
     // 案件登録用に af_master_v1 を即時書き込み
     // → バックグラウンドフェッチ完了を待たずに deal_form.html がキャッシュを使える
@@ -1163,15 +1163,6 @@ async function init(){
         '</div>';
     }
   }
-}
-
-// キャッシュを期限関係なく取得（即時表示用）
-function loadDashboardCacheAny(){
-  try{
-    const raw=localStorage.getItem(CACHE_KEY);
-    if(!raw) return null;
-    return JSON.parse(raw);
-  }catch(e){ return null; }
 }
 
 // 最終更新時刻を表示
