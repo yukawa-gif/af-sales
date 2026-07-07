@@ -501,9 +501,12 @@ body.modal-open{overflow:hidden}
   <button id="refresh-btn" onclick="manualRefresh()" style="background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:15px;padding:4px 6px;border-radius:6px;transition:var(--transition)" title="データを更新" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,.5)'">↻</button>
   <div style="position:relative">
     <button class="sidebar-toggle-btn" onclick="toggleSettingsMenu()" title="設定" id="settings-menu-btn">
-      <i data-lucide="settings-2" style="width:16px;height:16px"></i>
+      <i data-lucide="settings" style="width:16px;height:16px"></i>
     </button>
     <div id="settings-menu" style="display:none;position:absolute;top:38px;right:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-lg);min-width:170px;padding:6px;z-index:150">
+      <button onclick="openPersonModal()" class="sidebar-nav-item" title="担当営業管理" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-family:inherit;border-radius:8px">
+        <i data-lucide="users" style="width:15px;height:15px;flex-shrink:0"></i> <span class="nav-label">担当営業管理</span>
+      </button>
       <a id="admin-nav-link" href="dashboard.html#admin" class="sidebar-nav-item" title="システムテスト" style="text-decoration:none;border-radius:8px;color:var(--amber)">
         <i data-lucide="flask-conical" style="width:15px;height:15px;flex-shrink:0"></i> <span class="nav-label">システムテスト</span>
       </a>
@@ -529,9 +532,6 @@ body.modal-open{overflow:hidden}
     </a>
     <button onclick="openGoalModal()" class="sidebar-nav-item" title="目標設定" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-family:inherit;border-radius:8px">
       <i data-lucide="settings" style="width:15px;height:15px;flex-shrink:0"></i> <span class="nav-label">目標設定</span>
-    </button>
-    <button onclick="openPersonModal()" class="sidebar-nav-item" title="担当営業管理" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-family:inherit;border-radius:8px">
-      <i data-lucide="users" style="width:15px;height:15px;flex-shrink:0"></i> <span class="nav-label">担当営業管理</span>
     </button>
   </div>
   <div class="sidebar-divider"></div>
