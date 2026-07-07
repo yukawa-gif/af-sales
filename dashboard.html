@@ -932,12 +932,12 @@ body.modal-open{overflow:hidden}
             <option value="P">P（インセンティブ計算対象外）</option>
           </select>
         </div>
-        <div id="pm-add-msg" style="font-size:12px;min-height:16px;margin-top:4px"></div>
+        <button class="modal-btn modal-btn-save" id="pm-add-btn" onclick="addPersonUI()" style="width:100%">追加する</button>
+        <div id="pm-add-msg" style="font-size:12px;min-height:16px;margin-top:6px"></div>
       </div>
     </div>
     <div class="modal-footer">
       <button class="modal-btn modal-btn-cancel" onclick="closePersonModal()">閉じる</button>
-      <button class="modal-btn modal-btn-save" id="pm-add-btn" onclick="addPersonUI()">追加する</button>
     </div>
   </div>
 </div>
