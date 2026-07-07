@@ -2407,17 +2407,20 @@ function renderPersonModalList(){
     list.innerHTML='<div style="color:var(--text3);font-size:13px">登録されている営業がいません</div>';
     return;
   }
+  const btnBase='flex-shrink:0;width:26px;height:26px;border-radius:50%;cursor:pointer;'+
+    'font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;font-family:inherit';
   list.innerHTML=persons.map(p=>{
     const active=p.status==='在籍中';
     const nameEsc=esc(p.name).replace(/'/g,"\\'");
-    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;${active?'':'opacity:.55'}">
-      <div>
+    const actionBtn=active
+      ? `<button title="削除" style="${btnBase};border:1px solid var(--red);background:var(--red-bg);color:var(--red)" onclick="removePersonUI('${nameEsc}')">✕</button>`
+      : `<button title="復帰" style="${btnBase};border:1px solid var(--border);background:var(--bg);color:var(--text2)" onclick="restorePersonUI('${nameEsc}')">↺</button>`;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;${active?'':'opacity:.55'}">
+      ${actionBtn}
+      <div style="min-width:0;flex:1">
         <div style="font-weight:600;font-size:13px">${esc(p.name)}</div>
         <div style="font-size:11px;color:var(--text3)">${esc(p.role)}${active?'':'・'+esc(p.status)}</div>
       </div>
-      ${active
-        ? `<button class="modal-btn modal-btn-cancel" style="padding:5px 12px;font-size:12px" onclick="removePersonUI('${nameEsc}')">削除</button>`
-        : `<button class="modal-btn" style="padding:5px 12px;font-size:12px;background:var(--bg);border:1px solid var(--border);color:var(--text2)" onclick="restorePersonUI('${nameEsc}')">復帰</button>`}
     </div>`;
   }).join('');
 }
