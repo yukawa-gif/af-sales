@@ -66,7 +66,7 @@ function normalizeCompany_(s) {
 // ============================================================
 function doGet(e) {
   const mode = (e && e.parameter && e.parameter.mode) || 'form';
-  if (mode === 'all')       return getAllData();
+  if (mode === 'all')       return getAllData(e && e.parameter && e.parameter.fresh === '1');
   if (mode === 'ai')        return getAIAdvice(e && e.parameter);
   if (mode === 'data')      return getData();
   if (mode === 'master') {
@@ -1157,12 +1157,13 @@ function buildPipelineByPerson_(deals) {
 // ============================================================
 // 全データ一括取得（キャッシュ対応用）
 // ============================================================
-function getAllData() {
+function getAllData(force) {
   try {
     // ── GAS CacheService チェック（チャンク分割対応）──
+    // force=true（手動リフレッシュ時）はキャッシュを読まず必ずシートから再取得する
     let gasCache = null;
     try { gasCache = CacheService.getScriptCache(); } catch(e) {}
-    if (gasCache) {
+    if (gasCache && !force) {
       const hit = getChunkedCache_(gasCache, GAS_ALL_CACHE_KEY);
       if (hit) {
         return ContentService.createTextOutput(hit)

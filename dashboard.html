@@ -1178,7 +1178,7 @@ function updateLastUpdated(ts){
 async function manualRefresh(){
   const btn=document.getElementById('refresh-btn');
   if(btn){btn.textContent='🔄';btn.disabled=true;}
-  const fresh=await fetchDashboardData();
+  const fresh=await fetchDashboardData(true);
   if(fresh){
     applyDashboardData(fresh);
     if(currentPerson) render(currentPerson);
@@ -1198,9 +1198,9 @@ function loadDashboardCache(){
 }
 
 
-async function fetchDashboardData(){
+async function fetchDashboardData(forceFresh){
   try{
-    const d = await gasGet({ mode: 'all' });
+    const d = await gasGet(forceFresh ? { mode: 'all', fresh: '1' } : { mode: 'all' });
     if(!d.success) return null;
     const cache={
       timestamp: Date.now(),
