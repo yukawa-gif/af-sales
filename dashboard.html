@@ -583,8 +583,9 @@ body.modal-open{overflow:hidden}
     <div id="company-filter-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
   </div>
 
-  <!-- 行動KPI進捗（今週） -->
-  <div class="wkpi-card" id="wkpi-card" style="display:none">
+  <!-- 行動KPI進捗（今週）＋ AIアドバイス -->
+  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;align-items:flex-start">
+  <div class="wkpi-card" id="wkpi-card" style="display:none;margin-bottom:0;flex:1 1 480px">
     <div class="card-header" onclick="toggleWkpiCard()" style="cursor:pointer;user-select:none;margin-bottom:0">
       <span class="card-title" style="display:flex;align-items:center;gap:7px">
         <i data-lucide="activity" style="width:15px;height:15px;color:var(--blue)"></i>
@@ -604,6 +605,25 @@ body.modal-open{overflow:hidden}
       <div style="font-size:10px;color:var(--text3);margin-top:8px;text-align:right">
         <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#fef3c7;border:1px solid #fcd34d;display:inline-block;border-radius:2px"></span>50%未満</span>
         <span style="margin-left:8px;display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#fee2e2;border:1px solid #fca5a5;display:inline-block;border-radius:2px"></span>目標未設定 or 0</span>
+      </div>
+    </div>
+  </div>
+
+    <!-- AIアドバイスカード -->
+    <div class="ai-card" style="flex:1 1 380px">
+      <div class="ai-card-header">
+        <div class="ai-card-title">
+          ✨ 今月の営業活動へのAIアドバイス
+          <span class="ai-badge">Gemini</span>
+        </div>
+        <button class="ai-btn" id="ai-fetch-btn" onclick="fetchAIAdvice()">AIに聞く</button>
+      </div>
+      <div id="ai-body">
+        <div class="ai-placeholder">「AIに聞く」ボタンを押すと、現在の営業データを分析してアドバイスを生成します。</div>
+      </div>
+      <div id="ai-error" class="ai-error" style="display:none"></div>
+      <div class="ai-footer">
+        <span class="ai-footer-note" id="ai-footer-note"></span>
       </div>
     </div>
   </div>
@@ -711,10 +731,9 @@ body.modal-open{overflow:hidden}
   <!-- 下段3カラム -->
   <div class="bottom-grid">
 
-    <!-- インセンティブ＋AIアドバイス（縦並び） -->
+    <!-- インセンティブ -->
     <div class="incentive-ai-wrap">
 
-      <!-- インセンティブ -->
       <div class="card">
         <div class="card-header" onclick="toggleIncentiveCard()" style="cursor:pointer;user-select:none">
           <span class="card-title" style="display:flex;align-items:center;gap:7px">
@@ -732,24 +751,6 @@ body.modal-open{overflow:hidden}
             <span class="incentive-total-lbl">合計</span>
             <span class="incentive-total-val">¥<span id="incentive-total-footer">0</span></span>
           </div>
-        </div>
-      </div>
-
-      <!-- AIアドバイスカード -->
-      <div class="ai-card">
-        <div class="ai-card-header">
-          <div class="ai-card-title">
-            ✨ 今月の営業活動へのAIアドバイス
-            <span class="ai-badge">Gemini</span>
-          </div>
-          <button class="ai-btn" id="ai-fetch-btn" onclick="fetchAIAdvice()">AIに聞く</button>
-        </div>
-        <div id="ai-body">
-          <div class="ai-placeholder">「AIに聞く」ボタンを押すと、現在の営業データを分析してアドバイスを生成します。</div>
-        </div>
-        <div id="ai-error" class="ai-error" style="display:none"></div>
-        <div class="ai-footer">
-          <span class="ai-footer-note" id="ai-footer-note"></span>
         </div>
       </div>
 
