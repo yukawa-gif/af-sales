@@ -771,10 +771,6 @@ body.modal-open{overflow:hidden}
     <div class="modal-body">
       <div class="modal-info">
         <div class="modal-info-row">
-          <span class="modal-info-label">会社名</span>
-          <span class="modal-info-val" id="dm-company"></span>
-        </div>
-        <div class="modal-info-row">
           <span class="modal-info-label">商材</span>
           <span class="modal-info-val" id="dm-product"></span>
         </div>
@@ -786,6 +782,10 @@ body.modal-open{overflow:hidden}
           <span class="modal-info-label">顧客担当</span>
           <span class="modal-info-val" id="dm-contact"></span>
         </div>
+      </div>
+      <div class="mfg">
+        <label class="mfl">会社名</label>
+        <input class="mfi" type="text" id="dm-company" placeholder="会社名">
       </div>
       <div class="mfg">
         <label class="mfl">計上会社</label>
@@ -809,8 +809,18 @@ body.modal-open{overflow:hidden}
         </div>
       </div>
       <div class="mfg">
-        <label class="mfl">粗利（合計/円）</label>
-        <input class="mfi" type="number" id="dm-amount" min="0" step="1000" placeholder="例: 200000">
+        <label class="mfl">売上単価・費用単価・コース数・件数・月数</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr 56px 56px 56px;gap:6px">
+          <input class="mfi" type="number" id="dm-sales" min="0" step="1000" placeholder="売上単価" oninput="calcDealModalAmount()">
+          <input class="mfi" type="number" id="dm-cost" min="0" step="1000" placeholder="費用単価" oninput="calcDealModalAmount()">
+          <input class="mfi" type="number" id="dm-courses" min="1" step="1" placeholder="コース" oninput="calcDealModalAmount()">
+          <input class="mfi" type="number" id="dm-qty" min="1" step="1" placeholder="件数" oninput="calcDealModalAmount()">
+          <input class="mfi" type="number" id="dm-months" min="1" max="24" step="1" placeholder="月数" oninput="calcDealModalAmount()">
+        </div>
+      </div>
+      <div class="mfg">
+        <label class="mfl">粗利（合計/円・自動計算）</label>
+        <input class="mfi" type="text" id="dm-amount" disabled style="background:var(--surface2,#f3f2f0)">
       </div>
       <!-- B行（複合商材：社労士顧問・リスキリング・嘱託産業医など） -->
       <div id="dm-b-row" style="display:none;background:#f8f7f5;border-radius:8px;padding:10px 12px;border:1px solid var(--border)">
@@ -2351,7 +2361,7 @@ let editingDeal=null;
 
 function openDealModal(deal){
   editingDeal=deal;
-  document.getElementById('dm-company').textContent=deal['会社名']||'—';
+  document.getElementById('dm-company').value=deal['会社名']||'';
   document.getElementById('dm-product').textContent=deal['商材名']||'—';
   document.getElementById('dm-person').textContent=deal['担当者']||'—';
 
@@ -2379,7 +2389,11 @@ function openDealModal(deal){
   bcSel.value=deal['計上会社']||'';
 
   document.getElementById('dm-rank').value=deal['確度ランク']||'C';
-  document.getElementById('dm-amount').value=deal['粗利']||'';
+  document.getElementById('dm-sales').value=deal['売上（単価）']||0;
+  document.getElementById('dm-cost').value=deal['費用（単価）']||0;
+  document.getElementById('dm-courses').value=Number(deal['コース数'])||1;
+  document.getElementById('dm-qty').value=Number(deal['件数'])||1;
+  document.getElementById('dm-months').value=Number(deal['月数'])||1;
   document.getElementById('dm-memo').value=deal['メモ']||'';
   document.getElementById('dm-reason').value=deal['理由']||'';
 
@@ -2394,6 +2408,7 @@ function openDealModal(deal){
   } else {
     bRow.style.display='none';
   }
+  calcDealModalAmount();
 
   // 売上予定月の選択肢（FY前後3ヶ月）
   const sel=document.getElementById('dm-month');
@@ -2646,15 +2661,35 @@ function openGmail(){
   window.open('https://mail.google.com/mail/?view=cm&to='+to+'&su='+su+'&body='+body,'_blank');
 }
 
+// 売上単価−費用単価×コース数×件数×月数 → 粗利（合計）を自動計算して表示
+function calcDealModalAmount(){
+  const unitSales=Number(document.getElementById('dm-sales').value)||0;
+  const unitCost =Number(document.getElementById('dm-cost').value) ||0;
+  const courses  =Math.max(1,parseInt(document.getElementById('dm-courses').value,10)||1);
+  const qty      =Math.max(1,parseInt(document.getElementById('dm-qty').value,10)||1);
+  let   months   =Math.max(1,parseInt(document.getElementById('dm-months').value,10)||1);
+  if(months>24){months=24;document.getElementById('dm-months').value=24;}
+  const grossProfit=(unitSales-unitCost)*courses*qty*months;
+  document.getElementById('dm-amount').value='¥'+grossProfit.toLocaleString();
+  return grossProfit;
+}
+
 async function saveDealModal(){
   if(!editingDeal)return;
 
   // ── フロントエンドバリデーション ──────────────────────────
   const rank=document.getElementById('dm-rank').value;
   const month=document.getElementById('dm-month').value;
-  const amount=Number(document.getElementById('dm-amount').value)||0;
+  const companyName=document.getElementById('dm-company').value.trim();
+  const unitSales=Number(document.getElementById('dm-sales').value)||0;
+  const unitCost =Number(document.getElementById('dm-cost').value) ||0;
+  const courses  =Math.max(1,parseInt(document.getElementById('dm-courses').value,10)||1);
+  const qty      =Math.max(1,parseInt(document.getElementById('dm-qty').value,10)||1);
+  const months   =Math.max(1,Math.min(24,parseInt(document.getElementById('dm-months').value,10)||1));
+  const amount=calcDealModalAmount();
   if(!rank){alert('確度ランクを選択してください。');return;}
   if(!month){alert('粗利予定月を選択してください。');return;}
+  if(!companyName){alert('会社名を入力してください。');return;}
   if(rank==='売上'&&amount<=0){
     if(!confirm('確度ランクが「売上」ですが粗利が0円です。このまま保存しますか？'))return;
   }
@@ -2680,6 +2715,12 @@ async function saveDealModal(){
   // メモリ更新（即時反映）
   editingDeal['確度ランク']=rank;
   editingDeal['売上予定月']=month;
+  editingDeal['会社名']=companyName;
+  editingDeal['売上（単価）']=unitSales;
+  editingDeal['費用（単価）']=unitCost;
+  editingDeal['コース数']=courses;
+  editingDeal['件数']=qty;
+  editingDeal['月数']=months;
   editingDeal['粗利']=amount;
   editingDeal['メモ']=memo;
   editingDeal['理由']=reason;
@@ -2695,7 +2736,12 @@ async function saveDealModal(){
         id:editingDeal['案件ID'],
         rankLabel:rank,
         expectedMonth:month,
-        grossProfit:amount,
+        companyName,
+        unitSales,
+        unitCost,
+        courses,
+        qty,
+        months,
         memo,
         reason,
         paymentStatus,

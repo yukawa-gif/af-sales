@@ -95,8 +95,9 @@ function doGet(e) {
   }
   if (mode === 'goals')           return getGoals(e && e.parameter && e.parameter.fy);
   if (mode === 'goals_history')   return getGoalsHistory(e && e.parameter && e.parameter.fy);
-  if (mode === 'generateTestData') return generateTestData();
-  if (mode === 'clearTestData')    return clearTestData();
+  if (mode === 'generateTestData') return withLock(() => generateTestData());
+  if (mode === 'clearTestData')    return withLock(() => clearTestData());
+  if (mode === 'syncDealHeaders')  return withLock(() => syncDealHeaders());
   if (mode === 'customers') return getCustomerList();
   if (mode === 'customer')  return getCustomerDetail(e && e.parameter && e.parameter.code);
   if (mode === 'deals')     return getDeals(e && e.parameter && e.parameter.person);
@@ -711,6 +712,16 @@ function clearTestData() {
   }
   toDelete.forEach(r => sheet.deleteRow(r));
   return json({ success: true, count: toDelete.length });
+}
+
+// ============================================================
+// 案件マスタのヘッダー行をDEAL_HEADERSに再同期（データ行には触れない）
+// 列追加後にヘッダーラベルが追従していない場合の安全な修復用
+// ============================================================
+function syncDealHeaders() {
+  const sheet = getOrCreateDealSheet();
+  sheet.getRange(1, 1, 1, DEAL_HEADERS.length).setValues([DEAL_HEADERS]);
+  return json({ success: true, headers: DEAL_HEADERS });
 }
 
 // ============================================================
@@ -1396,8 +1407,20 @@ function getMaster() {
   });
   const products = productDetails.map(p => p.name);
 
-  const customers = getOldCustomers();
+  const customers = getCustomersForDealForm_();
   return json({ success: true, persons, personDetails, products, productDetails, customers });
+}
+
+// ============================================================
+// 案件登録フォーム用の顧客候補一覧（顧客マスタが正）
+// customer_master.js の getAllCustomers_() を利用
+// ============================================================
+function getCustomersForDealForm_() {
+  return getAllCustomers_().map(c => ({
+    '顧客ID': c.id,
+    '企業名': c.company,
+    'AFC担当者': c.afcStaff,
+  }));
 }
 
 // ============================================================

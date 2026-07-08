@@ -270,9 +270,13 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;background:var(--bg);
             </div>
             <div class="product-chips" id="product-chips"></div>
             <span class="product-other-label">その他の商材</span>
-            <select class="fsel" id="productName" onchange="onProductChange()">
-              <option value="">── 商材を選ぶ ──</option>
-            </select>
+            <div class="suggest-wrap">
+              <input class="fi" type="text" id="productName"
+                placeholder="商材名を入力（一文字で候補表示）"
+                autocomplete="off" oninput="onProductInput(this.value)">
+              <div class="suggest-list" id="product-suggest-list"></div>
+            </div>
+            <input type="hidden" id="productCode">
           </div>
 
           <div class="fg" style="margin-bottom:0">
@@ -563,33 +567,6 @@ function buildProductOptions(details, topProducts) {
   } else {
     chips.innerHTML = '<span style="font-size:12px;color:var(--text3)">データ取得中...</span>';
   }
-
-  // グループ：ストック（継続）/ スポット（固定）/ スポット（都度見積もり）
-  const groups = { 'ストック（継続契約）': [], 'スポット（固定価格）': [], 'スポット（都度見積もり）': [] };
-  details.forEach(p => {
-    if (p.kind === 'ストック') {
-      groups['ストック（継続契約）'].push(p);
-    } else if (p.priceType === '都度見積もり') {
-      groups['スポット（都度見積もり）'].push(p);
-    } else {
-      groups['スポット（固定価格）'].push(p);
-    }
-  });
-  const sel = document.getElementById('productName');
-  sel.innerHTML = '<option value="">── 商材を選ぶ ──</option>';
-  Object.entries(groups).forEach(([label, items]) => {
-    if (items.length === 0) return;
-    const og = document.createElement('optgroup');
-    og.label = label;
-    items.forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = p.name;
-      opt.dataset.code = p.code || '';  // 商材コードをdata属性に保持
-      opt.textContent = p.name + (p.code ? ` [${p.code}]` : '');
-      og.appendChild(opt);
-    });
-    sel.appendChild(og);
-  });
 }
 
 function buildCompanyOptions(companies) {
@@ -608,6 +585,8 @@ function selProductChip(el, name, code) {
   document.querySelectorAll('.product-chip').forEach(c => c.classList.remove('sel'));
   el.classList.add('sel');
   document.getElementById('productName').value = '';
+  document.getElementById('productCode').value = '';
+  document.getElementById('product-suggest-list').style.display = 'none';
   applyProduct(code || name);
 }
 
@@ -687,16 +666,36 @@ function getSelectedPerson() {
 }
 
 // ============================================================
-// 商材選択：金額自動入力
+// 商材サジェスト（会社名と同じ「1文字入力→候補」方式）
 // ============================================================
-function onProductChange() {
-  const name = document.getElementById('productName').value;
-  if (!name) return;
+function onProductInput(val) {
+  document.getElementById('productCode').value = '';
   document.querySelectorAll('.product-chip').forEach(c => c.classList.remove('sel'));
-  // selectの場合、コードがあればコードで引く
-  const sel = document.getElementById('productName');
-  const opt = sel.options[sel.selectedIndex];
-  applyProduct((opt && opt.dataset.code) || name);
+
+  const list = document.getElementById('product-suggest-list');
+  if (!val || val.length < 1 || !masterData) { list.style.display = 'none'; return; }
+
+  const norm = val.replace(/[\s　]/g,'').toLowerCase();
+  const matches = (masterData.productDetails || []).filter(p =>
+    p.name.replace(/[\s　]/g,'').toLowerCase().includes(norm)
+  ).slice(0, 8);
+
+  if (matches.length === 0) { list.style.display = 'none'; return; }
+
+  list.innerHTML = matches.map(p =>
+    `<div class="suggest-item" onclick="selectProductSuggest('${esc(p.name)}','${esc(p.code)}')">
+      ${esc(p.name)}
+      ${p.code ? '<span class="s-code">商材コード: ' + esc(p.code) + '</span>' : ''}
+    </div>`
+  ).join('');
+  list.style.display = 'block';
+}
+
+function selectProductSuggest(name, code) {
+  document.getElementById('productName').value = name;
+  document.getElementById('productCode').value = code || '';
+  document.getElementById('product-suggest-list').style.display = 'none';
+  applyProduct(code || name);
 }
 
 // nameOrCode: 商材名または商材コード（コード優先でlookup）
@@ -808,11 +807,13 @@ function esc(s) {
 }
 
 document.addEventListener('click', e => {
-  if (!e.target.closest('.suggest-wrap'))
+  if (!e.target.closest('.suggest-wrap')) {
     document.getElementById('suggest-list').style.display = 'none';
+    document.getElementById('product-suggest-list').style.display = 'none';
+  }
 });
 
-// 選択中の商材名を取得（チップ優先、次にセレクト）
+// 選択中の商材名を取得（チップ優先、次にテキスト入力）
 function getSelectedProduct() {
   const chip = document.querySelector('.product-chip.sel');
   if (chip) return chip.dataset.v;  // data-v = 商材名
@@ -823,9 +824,7 @@ function getSelectedProduct() {
 function getSelectedProductCode() {
   const chip = document.querySelector('.product-chip.sel');
   if (chip) return chip.dataset.code || '';
-  const sel = document.getElementById('productName');
-  const opt = sel.options[sel.selectedIndex];
-  return (opt && opt.dataset.code) || '';
+  return document.getElementById('productCode').value || '';
 }
 
 // 商材を名前またはコードから検索（コード優先）
@@ -947,6 +946,7 @@ function reset() {
   document.getElementById('customerId').value  = '';
   document.getElementById('customer-badge').style.display = 'none';
   document.getElementById('productName').value = '';
+  document.getElementById('productCode').value = '';
   document.querySelectorAll('.product-chip').forEach(c => c.classList.remove('sel'));
   document.getElementById('sales').value   = '';
   document.getElementById('cost').value    = '';
