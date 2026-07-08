@@ -425,7 +425,7 @@ body.modal-open{overflow:hidden}
 .skel-sm-card{height:80px;flex:1;border-radius:12px}
 .skel-table{height:160px;width:100%;border-radius:12px}
 
-/* ─── 行動KPI進捗パネル ─── */
+/* ─── KPIの進捗パネル ─── */
 .wkpi-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 22px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
 .wkpi-table{width:100%;border-collapse:collapse;font-size:12px}
 .wkpi-table th{background:#fafafa;border-bottom:2px solid var(--border);padding:7px 10px;text-align:center;font-weight:700;color:var(--text2);font-size:11px;letter-spacing:.02em}
@@ -583,13 +583,13 @@ body.modal-open{overflow:hidden}
     <div id="company-filter-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
   </div>
 
-  <!-- 行動KPI進捗（今週）＋ AIアドバイス -->
+  <!-- KPIの進捗（今週）＋ AIアドバイス -->
   <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;align-items:flex-start">
   <div class="wkpi-card" id="wkpi-card" style="display:none;margin-bottom:0;flex:1 1 480px">
     <div class="card-header" onclick="toggleWkpiCard()" style="cursor:pointer;user-select:none;margin-bottom:0">
       <span class="card-title" style="display:flex;align-items:center;gap:7px">
         <i data-lucide="activity" style="width:15px;height:15px;color:var(--blue)"></i>
-        行動KPI進捗（今週）
+        KPIの進捗（今週）
       </span>
       <span class="card-hint" id="wkpi-week-label" style="margin-left:auto"></span>
       <span id="wkpi-toggle-icon" style="margin-left:8px;font-size:12px;color:var(--text3)">▼</span>
@@ -1997,7 +1997,7 @@ function toggleUnpaidAlert() {
 }
 
 // ============================================================
-// 行動KPI進捗パネル（今週）
+// KPIの進捗パネル（今週）
 // ============================================================
 let wkpiOpen = false;
 function toggleWkpiCard() {
