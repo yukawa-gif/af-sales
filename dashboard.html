@@ -43,7 +43,12 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
 .topbar-spacer{flex:1}
 .topbar-fy{font-size:11px;font-weight:700;background:rgba(255,255,255,.1);
   border:1px solid rgba(255,255,255,.15);padding:4px 12px;border-radius:20px;
-  color:rgba(255,255,255,.8);letter-spacing:.06em}
+  color:rgba(255,255,255,.8);letter-spacing:.06em;cursor:pointer;white-space:nowrap}
+.topbar-fy.fy-not-current{background:rgba(245,158,11,.18);border-color:rgba(245,158,11,.4);color:#fbbf24}
+.fy-nav-group{display:flex;align-items:center;gap:2px}
+.fy-nav-btn{background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;
+  font-size:13px;padding:4px 5px;border-radius:6px;transition:var(--transition);line-height:1}
+.fy-nav-btn:hover{color:#fff;background:rgba(255,255,255,.08)}
 
 /* ─── サイドバー ─── */
 .sidebar{width:var(--sidebar);background:var(--surface);
@@ -324,6 +329,7 @@ body.sidebar-collapsed #sidebar-toggle-icon{transform:rotate(180deg)}
   -webkit-appearance:none;transition:var(--transition)}
 .goal-input-sm:focus{outline:none;border-color:var(--blue);
   box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+.goal-input-inherited{color:var(--text3);border-style:dashed;background:rgba(37,99,235,.05)}
 .goal-th-today{outline:2px solid var(--blue);outline-offset:-2px}
 .goal-hint{font-size:10px;color:var(--text3)}
 .goal-modal-note{font-size:12px;color:var(--text2);padding:0 20px 10px;
@@ -497,7 +503,11 @@ body.modal-open{overflow:hidden}
   </div>
   <div class="topbar-spacer"></div>
   <span id="last-updated" style="font-size:10px;opacity:.45;white-space:nowrap"></span>
-  <span class="topbar-fy" id="fy-badge">FY2025</span>
+  <div class="fy-nav-group">
+    <button class="fy-nav-btn" onclick="changeFY(-1)" title="前年度">◀</button>
+    <span class="topbar-fy" id="fy-badge" onclick="resetFY()" title="クリックで今年度に戻る">FY2025</span>
+    <button class="fy-nav-btn" onclick="changeFY(1)" title="翌年度">▶</button>
+  </div>
   <button id="refresh-btn" onclick="manualRefresh()" style="background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:15px;padding:4px 6px;border-radius:6px;transition:var(--transition)" title="データを更新" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,.5)'">↻</button>
   <div style="position:relative">
     <button class="sidebar-toggle-btn" onclick="toggleSettingsMenu()" title="設定" id="settings-menu-btn">
@@ -843,7 +853,8 @@ body.modal-open{overflow:hidden}
       <div class="modal-title">⚙ 目標設定 <span id="gm-fy" style="color:var(--text3);font-size:14px"></span></div>
     </div>
     <div class="modal-body" style="padding:12px 16px;overflow-x:auto">
-      <p class="goal-modal-note">各月の粗利目標（万円）を入力してください。前期・中期・後期・年間合計が自動計算されます。</p>
+      <p class="goal-modal-note">各月の粗利目標（万円）を入力してください。前期・中期・後期・年間合計が自動計算されます。<br>
+      <span style="color:var(--text3)">点線＝前年度の値を引き継いだ未確定値（そのまま保存すると今年度の目標として確定します。変更する場合は上書きしてください）</span></p>
       <table class="goal-table">
         <thead>
           <tr>
@@ -1132,8 +1143,9 @@ function fmtMan(yen){
 
 const today=new Date();
 const todayYM=yyyyMM(today.getFullYear(),today.getMonth()+1);
-const currentFY=getCurrentFY();
-const fyMonths=getFYMonths(currentFY);
+const realCurrentFY=getCurrentFY(); // 実際の「今」の年度（FY切替UIのリセット基準）
+let currentFY=realCurrentFY;
+let fyMonths=getFYMonths(currentFY);
 
 // 月グループ定義（FY月配列のindex）
 const MG_DEFS=[
@@ -1189,9 +1201,40 @@ document.addEventListener('click', e=>{
 // ============================================================
 // 初期化
 // ============================================================
+// ============================================================
+// 年度(FY)切り替え
+// ============================================================
+function updateFYBadge(){
+  const badge=document.getElementById('fy-badge');
+  badge.textContent='FY'+currentFY;
+  badge.classList.toggle('fy-not-current', currentFY!==realCurrentFY);
+  badge.title = currentFY!==realCurrentFY ? '表示中はFY'+currentFY+'（クリックで今年度FY'+realCurrentFY+'に戻る）' : 'FY'+currentFY+'（今年度）';
+}
+async function reloadGoalsForFY(){
+  try{
+    const d=await gasGet({ mode:'goals', fy:'FY'+currentFY });
+    if(d.success){ goalsData=d.goals; goalsSavedAt=0; }
+  }catch(e){ console.error('目標データ取得失敗:', e.message); }
+}
+async function changeFY(delta){
+  currentFY+=delta;
+  fyMonths=getFYMonths(currentFY);
+  updateFYBadge();
+  await reloadGoalsForFY();
+  if(currentPerson) render(currentPerson);
+}
+async function resetFY(){
+  if(currentFY===realCurrentFY) return;
+  currentFY=realCurrentFY;
+  fyMonths=getFYMonths(currentFY);
+  updateFYBadge();
+  await reloadGoalsForFY();
+  if(currentPerson) render(currentPerson);
+}
+
 async function init(){
   toggleSidebar(localStorage.getItem('sidebar_collapsed')==='1');
-  document.getElementById('fy-badge').textContent='FY'+currentFY;
+  updateFYBadge();
 
   const isAdmin = window.location.hash === '#admin';
 
@@ -2698,7 +2741,7 @@ function openGoalModal(){
         const ym=yyyyMM(fyMonths[i].year,fyMonths[i].month);
         const val=months[ym]!=null?months[ym]:'';
         return `<td class="${period.cls}"><input class="goal-input-sm" type="number" min="0" step="10"
-          data-pi="${pi}" data-ym="${ym}" value="${val}" placeholder="0" oninput="calcGoalRow(${pi})"></td>`;
+          data-pi="${pi}" data-ym="${ym}" value="${val}" placeholder="0" oninput="this.classList.remove('goal-input-inherited');calcGoalRow(${pi})"></td>`;
       }).join('')+`<td class="td-sum" id="gsum-${pi}-${period.cls}">—</td>`
     ).join('');
     return `<tr><td>${esc(p.name)}</td>${monthCells}<td class="td-annual" id="gannual-${pi}">—</td></tr>`;
@@ -2720,6 +2763,43 @@ function openGoalModal(){
   document.getElementById('goal-modal').classList.add('open');
   document.body.classList.add('modal-open');
   setTimeout(()=>document.querySelector('#goal-tbody input')?.focus(),50);
+
+  // 未保存（空欄）の月は前年度の同月の値を引き継いでプリセット表示（保存するまで確定しない）
+  fillInheritedGoalDefaults(persons);
+}
+
+// 前年度目標データのキャッシュ（FY文字列 → goals or null）
+let prevGoalsCache={};
+async function fillInheritedGoalDefaults(persons){
+  const prevFY='FY'+(currentFY-1);
+  let prevGoals=prevGoalsCache[prevFY];
+  if(prevGoals===undefined){
+    try{
+      const d=await gasGet({ mode:'goals', fy:prevFY });
+      prevGoals = d.success ? d.goals : null;
+    }catch(e){ prevGoals=null; }
+    prevGoalsCache[prevFY]=prevGoals;
+  }
+  if(!prevGoals?.persons?.length) return;
+  // フェッチ中にモーダルが閉じられていたら何もしない
+  if(!document.getElementById('goal-modal').classList.contains('open')) return;
+
+  persons.forEach((p,pi)=>{
+    const prevPg=prevGoals.persons.find(g=>g.name===p.name);
+    if(!prevPg?.months) return;
+    let changed=false;
+    document.querySelectorAll(`#goal-tbody input[data-pi="${pi}"]`).forEach(inp=>{
+      if(inp.value!=='') return; // 今年度に既に値がある／入力済みのセルは上書きしない
+      const [y,m]=inp.dataset.ym.split('-');
+      const prevVal=prevPg.months[(Number(y)-1)+'-'+m];
+      if(prevVal!=null){
+        inp.value=prevVal;
+        inp.classList.add('goal-input-inherited');
+        changed=true;
+      }
+    });
+    if(changed) calcGoalRow(pi);
+  });
 }
 
 function goalPersons(){
