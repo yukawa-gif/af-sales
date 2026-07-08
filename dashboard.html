@@ -1144,7 +1144,11 @@ function fmtMan(yen){
 const today=new Date();
 const todayYM=yyyyMM(today.getFullYear(),today.getMonth()+1);
 const realCurrentFY=getCurrentFY(); // 実際の「今」の年度（FY切替UIのリセット基準）
-let currentFY=realCurrentFY;
+const FY_STORAGE_KEY='dashboard_fy_override';
+let currentFY=(()=>{
+  const saved=parseInt(localStorage.getItem(FY_STORAGE_KEY),10);
+  return Number.isFinite(saved)?saved:realCurrentFY;
+})();
 let fyMonths=getFYMonths(currentFY);
 
 // 月グループ定義（FY月配列のindex）
@@ -1219,6 +1223,7 @@ async function reloadGoalsForFY(){
 async function changeFY(delta){
   currentFY+=delta;
   fyMonths=getFYMonths(currentFY);
+  try{ localStorage.setItem(FY_STORAGE_KEY, String(currentFY)); }catch(e){}
   updateFYBadge();
   await reloadGoalsForFY();
   if(currentPerson) render(currentPerson);
@@ -1227,6 +1232,7 @@ async function resetFY(){
   if(currentFY===realCurrentFY) return;
   currentFY=realCurrentFY;
   fyMonths=getFYMonths(currentFY);
+  try{ localStorage.removeItem(FY_STORAGE_KEY); }catch(e){}
   updateFYBadge();
   await reloadGoalsForFY();
   if(currentPerson) render(currentPerson);
