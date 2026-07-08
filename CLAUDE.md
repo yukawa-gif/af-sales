@@ -490,3 +490,39 @@ const badge = hasNoTarget
   ? '<span class="wkpi-badge-danger">譛ｪ險ｭ螳・/span>'
   : (showWarn ? '<span class="wkpi-badge-warn">隕∵ｸ医ｵ</span>' : '');
 ```
+
+---
+
+## 2026-07-08 GASとgitの同期(clasp)導入
+
+### 背景
+
+案件マスタ・顧客マスタ関連のGASコードがgitとGASエディタで乖離していたことが発覚。
+具体的には `customer_master.js`（顧客マスタCRUD）が個人コード対応スキーマに更新されていたのはgit上の`gas_customer_master.js`だけで、
+本番のGASエディタには反映されておらず、スプレッドシート側は既に新スキーマ（F:個人コード, G:営業名, H:顧客ステータス）に変わっていたため、
+本番の顧客管理APIが列ズレを起こしていた（`getCustomerStats`/`getCustomers`のafcStaff/statusが誤った列を読んでいた）。
+
+### 対応
+
+- [clasp](https://github.com/google/clasp)（Google公式のApps Script CLI）を導入し、`yukawa@afactory.co.jp`でログイン
+- GASプロジェクトのスクリプトIDを`.clasp.json`に設定（scriptId: `1AOGc5uk-RH3d65zSnCcnald7QycRwosgS0C6HjVrDm4ppiKRXiW99ONO`）
+- `.claspignore`でpush対象を `appsscript.json` / `gas_v3.js` / `customer_master.js` の3ファイルのみに限定（dashboard.html等のフロントエンドはGASプロジェクトに含めない）
+- `gas_customer_master.js`（未反映だった新スキーマ版）の内容を`customer_master.js`に統合してgit化。重複していた`gas_customer_master.js`は削除
+- GASエディタ上でファイル名が`コード`だったものは、pushにより`gas_v3`にリネームされた（内容はgit の gas_v3.js と完全一致していたため実害なし）
+- `clasp push` → `clasp deploy -i <本番デプロイID>` で本番Web App（バージョン148）に反映し、実APIで`personCode`/`afcStaff`/`status`が正しい値を返すことを確認済み
+
+### 新しいGAS更新ワークフロー（今後はこれに従う）
+
+```bash
+git pull                # gas_v3.js / customer_master.js の最新を取得
+clasp push               # GASエディタのHEADに反映（本番Web Appはまだ変わらない）
+clasp deploy -i AKfycbyAC_jurLseKlw5gw8s15p6Xu1q66-fmcgBDUuruAeg5IlfmAFjU7mNvRwK1Yz1k9dt -d "変更内容の説明"
+                          # ↑これで初めて本番URLに反映される
+```
+
+**重要**: `clasp push`だけでは本番Web App URLの動作は変わらない（HEADが更新されるだけ）。
+必ず`clasp deploy -i <デプロイID>`まで実行して初めて `https://script.google.com/macros/s/AKfycbyAC_ju.../exec` に反映される。
+逆に言うと、pushしただけの状態でエディタを開いても「動いていない」ように見えるのは正常（デプロイ待ちの状態）。
+
+`.clasp.json`・`.claspignore`はgit管理下に置く（scriptIdは秘密情報ではない）。
+ただし`~/.clasprc.json`（OAuth認証情報）は各自のホームディレクトリに保存されるものでリポジトリには含まれない。
