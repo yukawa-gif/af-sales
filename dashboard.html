@@ -584,6 +584,47 @@ body.modal-open{overflow:hidden}
     <div id="company-filter-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
   </div>
 
+  <!-- 月別推移タイムライン -->
+  <div class="timeline-card">
+    <div class="timeline-card-header">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span style="font-size:15px;font-weight:800;flex-shrink:0;display:flex;align-items:center;gap:7px">
+          <i data-lucide="calendar-range" style="width:16px;height:16px;color:var(--blue)"></i> 月別推移
+        </span>
+        <div id="mg-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+        <span style="font-size:11px;color:var(--text3);margin-left:auto" id="timeline-hint"></span>
+      </div>
+    </div>
+    <div class="timeline-scroll">
+      <table class="tl-tbl" id="tl-tbl">
+        <colgroup>
+          <col class="col-co"><col class="col-rank"><col class="col-name">
+          <col class="col-month"><col class="col-month"><col class="col-month">
+          <col class="col-month"><col class="col-month"><col class="col-month">
+          <col class="col-month"><col class="col-month"><col class="col-month">
+          <col class="col-month"><col class="col-month"><col class="col-month">
+        </colgroup>
+        <thead id="tl-thead"></thead>
+        <tbody id="tl-tbody"></tbody>
+        <tfoot id="tl-tfoot"></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- 資金繰り -->
+  <div class="card" id="cashflow-card" style="margin-bottom:16px">
+    <div class="card-header" onclick="toggleCashflowCard()" style="cursor:pointer;user-select:none">
+      <span class="card-title" style="display:flex;align-items:center;gap:7px">
+        <i data-lucide="wallet" style="width:15px;height:15px;color:var(--blue)"></i> 資金繰り
+      </span>
+      <span class="card-hint" style="margin-left:auto">決定・売上（確定分）のみ／単月純額</span>
+      <span id="cashflow-toggle-icon" style="margin-left:8px;font-size:12px;color:var(--text3)">▼</span>
+    </div>
+    <div id="cashflow-body" style="display:none;overflow-x:auto">
+      <table id="cashflow-tbl" style="width:100%;border-collapse:collapse;font-size:12px;min-width:720px"></table>
+    </div>
+  </div>
+
   <!-- KPIの進捗（今週）＋ AIアドバイス -->
   <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;align-items:flex-start">
   <div class="wkpi-card" id="wkpi-card" style="display:none;margin-bottom:0;flex:1 1 480px">
@@ -626,47 +667,6 @@ body.modal-open{overflow:hidden}
       <div class="ai-footer">
         <span class="ai-footer-note" id="ai-footer-note"></span>
       </div>
-    </div>
-  </div>
-
-  <!-- 月別推移タイムライン -->
-  <div class="timeline-card">
-    <div class="timeline-card-header">
-      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-        <span style="font-size:15px;font-weight:800;flex-shrink:0;display:flex;align-items:center;gap:7px">
-          <i data-lucide="calendar-range" style="width:16px;height:16px;color:var(--blue)"></i> 月別推移
-        </span>
-        <div id="mg-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
-        <span style="font-size:11px;color:var(--text3);margin-left:auto" id="timeline-hint"></span>
-      </div>
-    </div>
-    <div class="timeline-scroll">
-      <table class="tl-tbl" id="tl-tbl">
-        <colgroup>
-          <col class="col-co"><col class="col-rank"><col class="col-name">
-          <col class="col-month"><col class="col-month"><col class="col-month">
-          <col class="col-month"><col class="col-month"><col class="col-month">
-          <col class="col-month"><col class="col-month"><col class="col-month">
-          <col class="col-month"><col class="col-month"><col class="col-month">
-        </colgroup>
-        <thead id="tl-thead"></thead>
-        <tbody id="tl-tbody"></tbody>
-        <tfoot id="tl-tfoot"></tfoot>
-      </table>
-    </div>
-  </div>
-
-  <!-- 資金繰り -->
-  <div class="card" id="cashflow-card" style="margin-bottom:16px">
-    <div class="card-header" onclick="toggleCashflowCard()" style="cursor:pointer;user-select:none">
-      <span class="card-title" style="display:flex;align-items:center;gap:7px">
-        <i data-lucide="wallet" style="width:15px;height:15px;color:var(--blue)"></i> 資金繰り
-      </span>
-      <span class="card-hint" style="margin-left:auto">決定・売上（確定分）のみ／単月純額</span>
-      <span id="cashflow-toggle-icon" style="margin-left:8px;font-size:12px;color:var(--text3)">▼</span>
-    </div>
-    <div id="cashflow-body" style="display:none;overflow-x:auto">
-      <table id="cashflow-tbl" style="width:100%;border-collapse:collapse;font-size:12px;min-width:720px"></table>
     </div>
   </div>
 
