@@ -388,9 +388,13 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;background:var(--bg);
           <div class="lower-grid">
             <div>
               <div class="sec" style="margin-top:4px">スケジュール</div>
-              <div class="fg" style="margin-bottom:0">
+              <div class="fg">
                 <label class="fl">売上予定月<span class="req">*</span></label>
-                <input class="fi" type="month" id="expectedMonth">
+                <input class="fi" type="month" id="expectedMonth" oninput="onExpectedMonthChange()">
+              </div>
+              <div class="fg" style="margin-bottom:0">
+                <label class="fl">費用計上月 <span style="font-weight:400;color:var(--text3)">（売上と異なる場合のみ変更）</span></label>
+                <input class="fi" type="month" id="costMonth" oninput="costMonthEdited=true">
               </div>
             </div>
             <div>
@@ -438,6 +442,12 @@ const MASTER_CACHE_TTL = 5 * 60 * 1000; // 5分
 let masterData   = null;
 let selectedRank = 'C';
 let customerList = [];
+let costMonthEdited = false;
+
+// 費用計上月を売上予定月に追従させる（ユーザーが手動変更した場合は追従を止める）
+function onExpectedMonthChange() {
+  if (!costMonthEdited) document.getElementById('costMonth').value = document.getElementById('expectedMonth').value;
+}
 
 // ============================================================
 // 初期化
@@ -449,6 +459,8 @@ async function init() {
   const next = new Date(d.getFullYear(), d.getMonth() + 1, 1);
   document.getElementById('expectedMonth').value =
     next.getFullYear() + '-' + String(next.getMonth() + 1).padStart(2,'0');
+  document.getElementById('costMonth').value = document.getElementById('expectedMonth').value;
+  costMonthEdited = false;
 
   // フォームを即時表示（マスタ読み込みを待たない）
   document.getElementById('loading').style.display   = 'none';
@@ -806,6 +818,17 @@ function esc(s) {
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// GAS側のgenerateDealId()と同形式のIDをクライアントで生成
+// （addDealはno-corsでレスポンスを読めないため、費用計上明細を紐付ける場合はIDを事前に確定させる）
+function generateDealId() {
+  const d = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  const ts = '' + d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) +
+    pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+  const rand = Math.random().toString(36).substr(2,4).toUpperCase();
+  return 'DL-' + ts + '-' + rand;
+}
+
 document.addEventListener('click', e => {
   if (!e.target.closest('.suggest-wrap')) {
     document.getElementById('suggest-list').style.display = 'none';
@@ -885,8 +908,16 @@ async function submit() {
 
   const productCode = getSelectedProductCode();
 
+  const expectedMonth = document.getElementById('expectedMonth').value;
+  const costMonth     = document.getElementById('costMonth').value;
+  // 費用計上月が売上予定月と異なる場合のみ、費用計上明細を分けて保存する
+  // （同じ場合は「未入力＝売上予定月に全額計上」という既存のフォールバック動作に任せる）
+  const needsCostSchedule = costMonth && costMonth !== expectedMonth;
+  const dealId = needsCostSchedule ? generateDealId() : '';
+
   const payload = {
     action:         'addDeal',
+    id:             dealId, // 空文字ならGAS側で自動採番
     person,
     billingCompany: document.getElementById('billingCompany').value,
     companyName:    document.getElementById('companyName').value.trim(),
@@ -896,7 +927,7 @@ async function submit() {
     rankLabel:      document.getElementById('rankLabel').value,
     unitSales, unitCost, courses, qty, months,
     bUnitSales, bUnitCost, bQty,
-    expectedMonth:  document.getElementById('expectedMonth').value,
+    expectedMonth,
     memo:           document.getElementById('memo').value.trim(),
     reason:         document.getElementById('reason').value.trim()
   };
@@ -907,6 +938,19 @@ async function submit() {
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify(payload)
     });
+
+    if (needsCostSchedule) {
+      const totalCost = unitCost * courses * qty * months;
+      await fetch(GAS_URL, {
+        method:'POST', mode:'no-cors',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          action: 'saveCostSchedule',
+          id: dealId,
+          schedule: [{ month: costMonth, amount: totalCost }]
+        })
+      });
+    }
 
     localStorage.setItem('deal_last_person', person);
 
@@ -959,6 +1003,8 @@ function reset() {
   document.getElementById('b-qty').value   = '1';
   document.getElementById('memo').value   = '';
   document.getElementById('reason').value = '';
+  document.getElementById('costMonth').value = document.getElementById('expectedMonth').value;
+  costMonthEdited = false;
   document.getElementById('s-incentive').style.display  = 'none';
   document.getElementById('sbtn').disabled    = false;
   document.getElementById('sbtn').textContent = '案件を登録する';

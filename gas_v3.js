@@ -286,7 +286,9 @@ function addDeal(d) {
 
   const sheet = getOrCreateDealSheet();
   const today = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd');
-  const id = generateDealId();
+  // deal_form.html は no-cors POST でレスポンスを読めないため、費用計上明細を紐付ける場合は
+  // クライアント側で生成したIDを使う（未指定時は従来通りサーバー側で生成）
+  const id = (d.id && String(d.id).trim()) || generateDealId();
 
   // 商材コード優先、なければ商材名でlookup
   const pDetail = getProductDetail(d.productCode || d.productName);
