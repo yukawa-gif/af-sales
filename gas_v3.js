@@ -18,6 +18,10 @@ const SHEET_GOALS_HISTORY = '目標履歴';
 const SHEET_DEALS         = '案件マスタ';
 const SHEET_ACTIVITIES    = '日次活動';
 const SHEET_WEEKLY_GOALS  = '設定_週次目標';
+const SHEET_COST_SCHEDULE = '費用計上明細';
+
+// 費用計上明細の列定義（案件ごとに費用を複数月へ分散計上するための明細）
+const COST_SCHEDULE_HEADERS = ['案件ID', '計上月', '金額'];
 
 const HEADERS = [
   '送信日時','日付','個人コード','営業名','商材',
@@ -247,6 +251,7 @@ function doPost(e) {
       if (action === 'initCustomerHistory') return initCustomerHistoryColumn();
       if (action === 'addDeal')             return addDeal(d);
       if (action === 'updateDeal')          return updateDeal(d);
+      if (action === 'saveCostSchedule')    return saveCostSchedule(d);
       if (action === 'updateDealStatus')    return updateDealStatus(d.id, d.phase, d.rankLabel);
       if (action === 'confirmPayment')      return confirmPayment(d.id, d.date);
       if (action === 'handoverDeal')        return handoverDeal(d.id, d.newPerson, d.date);
@@ -423,6 +428,20 @@ function getDeals(person) {
     return s;
   }
 
+  // 費用計上明細（案件ID → [{month, amount}, ...]）を1回だけ読み込む
+  const costSchedMap = {};
+  const csSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_COST_SCHEDULE);
+  if (csSheet && csSheet.getLastRow() > 1) {
+    const csVals = csSheet.getRange(2, 1, csSheet.getLastRow() - 1, COST_SCHEDULE_HEADERS.length).getValues();
+    csVals.forEach(r => {
+      const dealId = String(r[0] || '').trim();
+      const month = normYM(r[1]);
+      const amount = Number(r[2]) || 0;
+      if (!dealId || !month || amount <= 0) return;
+      (costSchedMap[dealId] = costSchedMap[dealId] || []).push({ month, amount });
+    });
+  }
+
   let deals = vals.slice(1).filter(r => r[0]).map(r => {
     const o = {};
     headers.forEach((h, i) => {
@@ -452,6 +471,7 @@ function getDeals(person) {
     if (o['売上予定月']) {
       o['売上予定月'] = String(o['売上予定月']).trim().slice(0, 7);
     }
+    o['費用スケジュール'] = costSchedMap[o['案件ID']] || [];
     return o;
   });
 
@@ -2108,6 +2128,45 @@ function getOrCreateDealSheet() {
   return sheet;
 }
 
+// ============================================================
+// 費用計上明細シート（案件ごとの費用を複数月へ分散計上する明細）
+// ============================================================
+function getOrCreateCostScheduleSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_COST_SCHEDULE);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_COST_SCHEDULE);
+    const hr = sheet.getRange(1, 1, 1, COST_SCHEDULE_HEADERS.length);
+    hr.setValues([COST_SCHEDULE_HEADERS]);
+    hr.setBackground('#1e3a5f').setFontColor('#fff').setFontWeight('bold').setFontSize(11);
+    sheet.setFrozenRows(1);
+    sheet.setColumnWidth(1, 200); // 案件ID
+    sheet.setColumnWidth(2, 100); // 計上月
+    sheet.setColumnWidth(3, 110); // 金額
+  }
+  return sheet;
+}
+
+// 案件IDの費用計上明細をすべて置き換える（月・金額ともに正しいもののみ保存）
+function saveCostSchedule(d) {
+  if (!d.id) return json({ success: false, error: 'IDが空です' });
+  const sheet = getOrCreateCostScheduleSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow > 1) {
+    const ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+    for (let i = ids.length - 1; i >= 0; i--) {
+      if (String(ids[i][0]).trim() === String(d.id).trim()) sheet.deleteRow(i + 2);
+    }
+  }
+  const schedule = Array.isArray(d.schedule) ? d.schedule : [];
+  schedule.forEach(s => {
+    const month = String(s.month || '').trim();
+    const amount = Number(s.amount) || 0;
+    if (!/^\d{4}-\d{2}$/.test(month) || amount <= 0) return;
+    sheet.appendRow([d.id, month, amount]);
+  });
+  return json({ success: true });
+}
 
 // ============================================================
 // 全データ消去（初期化用）

@@ -656,6 +656,20 @@ body.modal-open{overflow:hidden}
     </div>
   </div>
 
+  <!-- 資金繰り -->
+  <div class="card" id="cashflow-card" style="margin-bottom:16px">
+    <div class="card-header" onclick="toggleCashflowCard()" style="cursor:pointer;user-select:none">
+      <span class="card-title" style="display:flex;align-items:center;gap:7px">
+        <i data-lucide="wallet" style="width:15px;height:15px;color:var(--blue)"></i> 資金繰り
+      </span>
+      <span class="card-hint" style="margin-left:auto">決定・売上（確定分）のみ／単月純額</span>
+      <span id="cashflow-toggle-icon" style="margin-left:8px;font-size:12px;color:var(--text3)">▼</span>
+    </div>
+    <div id="cashflow-body" style="display:none;overflow-x:auto">
+      <table id="cashflow-tbl" style="width:100%;border-collapse:collapse;font-size:12px;min-width:720px"></table>
+    </div>
+  </div>
+
   <!-- パイプライン by 営業（チーム全体選択時のみ表示） -->
   <div class="card" id="pipeline-person-card" style="margin-bottom:16px;display:none">
     <div class="card-header" onclick="togglePipelinePersonCard()" style="cursor:pointer;user-select:none">
@@ -841,6 +855,12 @@ body.modal-open{overflow:hidden}
             <input class="mfi" type="number" id="dm-b-qty" min="0" step="1" placeholder="0">
           </div>
         </div>
+      </div>
+      <!-- 費用計上スケジュール（任意・複数月に分散計上） -->
+      <div class="mfg">
+        <label class="mfl">費用計上スケジュール <span style="font-weight:400;color:#9a9794;font-size:11px">（任意・未入力なら売上予定月に全額計上）</span></label>
+        <div id="dm-cost-schedule-list" style="display:flex;flex-direction:column;gap:6px"></div>
+        <button type="button" onclick="addCostScheduleRow()" style="margin-top:6px;padding:6px 10px;border:1px dashed var(--border);border-radius:6px;background:none;cursor:pointer;font-size:12px;color:var(--text3)">+ 月を追加</button>
       </div>
       <div class="mfg">
         <label class="mfl">メモ</label>
@@ -1579,6 +1599,7 @@ function render(person){
   renderUnpaidAlert(personDeals);
   renderWeeklyKPI(person,isTeam);
   renderTimeline(personDeals,actualByMonth,person,isTeam);
+  renderCashFlow(personDeals);
   renderPipelineByPerson(personDeals,isTeam);
   renderGoalsByPerson(personDeals,isTeam);
   renderPersonDetail(personDeals,isTeam);
@@ -1746,6 +1767,12 @@ function renderPipelineSummary(byRankTotal){
 // ============================================================
 // パイプライン by 担当者テーブル（チーム全体時）
 // ============================================================
+let cashflowOpen = false;
+function toggleCashflowCard() {
+  cashflowOpen = !cashflowOpen;
+  document.getElementById('cashflow-body').style.display = cashflowOpen ? '' : 'none';
+  document.getElementById('cashflow-toggle-icon').textContent = cashflowOpen ? '▲' : '▼';
+}
 let pipelinePersonOpen = false;
 function togglePipelinePersonCard() {
   pipelinePersonOpen = !pipelinePersonOpen;
@@ -2361,6 +2388,48 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
 // ============================================================
 let editingDeal=null;
 
+// 案件編集モーダルで使う月選択肢（FY前後3〜14ヶ月）を共通生成
+function dmMonthList(){
+  const months=[];
+  for(let i=-3;i<=14;i++){
+    const d=new Date(currentFY,7+i,1);
+    months.push(yyyyMM(d.getFullYear(),d.getMonth()+1));
+  }
+  return months;
+}
+function dmMonthOptionsHTML(selected){
+  return dmMonthList().map(ym=>{
+    const [y,m]=ym.split('-');
+    return `<option value="${ym}"${ym===selected?' selected':''}>${y}年${Number(m)}月</option>`;
+  }).join('');
+}
+
+// 費用計上スケジュール（モーダル内の編集用スクラッチ状態）
+let editingCostSchedule=[];
+function renderCostScheduleRows(){
+  const wrap=document.getElementById('dm-cost-schedule-list');
+  wrap.innerHTML=editingCostSchedule.map((row,idx)=>`
+    <div style="display:grid;grid-template-columns:1fr 1fr 32px;gap:6px;align-items:center">
+      <select class="mfsel" onchange="updateCostScheduleRow(${idx},'month',this.value)">
+        ${dmMonthOptionsHTML(row.month)}
+      </select>
+      <input class="mfi" type="number" min="0" step="1000" placeholder="金額（円）" value="${row.amount||''}" oninput="updateCostScheduleRow(${idx},'amount',this.value)">
+      <button type="button" onclick="removeCostScheduleRow(${idx})" style="border:none;background:none;color:var(--red,#dc2626);cursor:pointer;font-size:16px;line-height:1">×</button>
+    </div>`).join('');
+}
+function addCostScheduleRow(){
+  editingCostSchedule.push({month:dmMonthList()[3],amount:0});
+  renderCostScheduleRows();
+}
+function removeCostScheduleRow(idx){
+  editingCostSchedule.splice(idx,1);
+  renderCostScheduleRows();
+}
+function updateCostScheduleRow(idx,field,value){
+  if(!editingCostSchedule[idx])return;
+  editingCostSchedule[idx][field]=field==='amount'?(Number(value)||0):value;
+}
+
 function openDealModal(deal){
   editingDeal=deal;
   document.getElementById('dm-company').value=deal['会社名']||'';
@@ -2413,21 +2482,13 @@ function openDealModal(deal){
   calcDealModalAmount();
 
   // 売上予定月の選択肢（FY前後3ヶ月）
-  const sel=document.getElementById('dm-month');
-  sel.innerHTML='';
-  const months=[];
-  for(let i=-3;i<=14;i++){
-    const d=new Date(currentFY,7+i,1);
-    months.push(yyyyMM(d.getFullYear(),d.getMonth()+1));
-  }
-  months.forEach(ym=>{
-    const [y,m]=ym.split('-');
-    const opt=document.createElement('option');
-    opt.value=ym;
-    opt.textContent=y+'年'+Number(m)+'月';
-    sel.appendChild(opt);
-  });
-  sel.value=(String(deal['売上予定月']||'')).slice(0,7); // 日付型で返った場合も'yyyy-MM'に正規化
+  const expMonth=(String(deal['売上予定月']||'')).slice(0,7); // 日付型で返った場合も'yyyy-MM'に正規化
+  document.getElementById('dm-month').innerHTML=dmMonthOptionsHTML(expMonth);
+  document.getElementById('dm-month').value=expMonth;
+
+  // 費用計上スケジュール
+  editingCostSchedule=(deal['費用スケジュール']||[]).map(s=>({month:s.month,amount:Number(s.amount)||0}));
+  renderCostScheduleRows();
 
   document.getElementById('deal-modal').classList.add('open');
   document.body.classList.add('modal-open');
@@ -2729,6 +2790,8 @@ async function saveDealModal(){
   editingDeal['入金ステータス']=paymentStatus;
   editingDeal['計上会社']=billingCompany;
   if(bRowVisible){ editingDeal['B売上単価']=bUnitSales; editingDeal['B費用単価']=bUnitCost; editingDeal['B件数']=bQty; }
+  const costSchedule=editingCostSchedule.filter(s=>s.month&&s.amount>0);
+  editingDeal['費用スケジュール']=costSchedule;
 
   // GAS更新（デモ以外）
   if(!isDemoMode&&editingDeal['案件ID']){
@@ -2752,6 +2815,8 @@ async function saveDealModal(){
       if(bRowVisible){ payload.bUnitSales=bUnitSales; payload.bUnitCost=bUnitCost; payload.bQty=bQty; }
       const result = await gasPost(payload);
       if(result && !result.success) console.warn('案件更新失敗(GAS):', result.error);
+      const csResult = await gasPost({action:'saveCostSchedule', id:editingDeal['案件ID'], schedule:costSchedule});
+      if(csResult && !csResult.success) console.warn('費用計上スケジュール更新失敗(GAS):', csResult.error);
     }catch(e){ console.warn('案件更新失敗:', e.message); }
   }
 
@@ -3100,6 +3165,90 @@ function toggleTimelineRank(groupId,arrId){
   rows.forEach(r=>{r.style.display=isOpen?'none':'';});
 }
 
+// ============================================================
+// 資金繰り（決定・売上ランクのみ／単月純額）
+// ============================================================
+function renderCashFlow(deals){
+  const tbl=document.getElementById('cashflow-tbl');
+  const validYms=new Set(fyMonths.map(m=>yyyyMM(m.year,m.month)));
+  const cfDeals=deals.filter(d=>['決定','売上'].includes(d['確度ランク']));
+
+  const monthHeaders=fyMonths.map(m=>{
+    const ym=yyyyMM(m.year,m.month);
+    return `<th style="padding:6px 8px;text-align:right;white-space:nowrap;${ym===todayYM?'color:var(--blue)':''}">${m.month}月${ym===todayYM?'◀':''}</th>`;
+  }).join('');
+
+  const revTotals={},costTotals={};
+  fyMonths.forEach(m=>{const ym=yyyyMM(m.year,m.month);revTotals[ym]=0;costTotals[ym]=0;});
+
+  const rowsHtml=cfDeals.map(d=>{
+    const expYM=String(d['売上予定月']||'').slice(0,7);
+
+    const revAmts={};
+    if(validYms.has(expYM)) revAmts[expYM]=(revAmts[expYM]||0)+(Number(d['売上予定額'])||0);
+
+    const costAmts={};
+    const schedule=d['費用スケジュール']||[];
+    if(schedule.length>0){
+      schedule.forEach(s=>{
+        const ym=String(s.month||'').slice(0,7);
+        if(validYms.has(ym)) costAmts[ym]=(costAmts[ym]||0)+(Number(s.amount)||0);
+      });
+    } else if(validYms.has(expYM)){
+      costAmts[expYM]=(costAmts[expYM]||0)+(Number(d['費用（合計）'])||0);
+    }
+
+    Object.entries(revAmts).forEach(([ym,v])=>{revTotals[ym]+=v;});
+    Object.entries(costAmts).forEach(([ym,v])=>{costTotals[ym]+=v;});
+
+    const revCells=fyMonths.map(m=>{
+      const ym=yyyyMM(m.year,m.month);
+      const v=Math.round(revAmts[ym]||0);
+      return `<td style="padding:4px 8px;text-align:right">${v>0?`<span style="color:#16a34a">${fmtYen(v)}</span>`:''}</td>`;
+    }).join('');
+    const costCells=fyMonths.map(m=>{
+      const ym=yyyyMM(m.year,m.month);
+      const v=Math.round(costAmts[ym]||0);
+      return `<td style="padding:4px 8px;text-align:right">${v>0?`<span style="color:#dc2626">−${fmtYen(v)}</span>`:''}</td>`;
+    }).join('');
+
+    return `
+      <tr class="cf-deal-row" style="cursor:pointer">
+        <td rowspan="2" style="padding:4px 8px;border-top:1px solid var(--border)">${esc(d['会社名']||'—')}<div style="font-size:10px;color:var(--text3);font-weight:400">${esc(d['商材名']||'')}</div></td>
+        <td style="padding:4px 8px;color:var(--text3);border-top:1px solid var(--border)">売上</td>${revCells.replace(/<td /g,'<td style="border-top:1px solid var(--border)" ')}
+      </tr>
+      <tr class="cf-deal-row" style="cursor:pointer">
+        <td style="padding:4px 8px;color:var(--text3)">費用</td>${costCells}
+      </tr>`;
+  }).join('');
+
+  const balanceCells=fyMonths.map(m=>{
+    const ym=yyyyMM(m.year,m.month);
+    const bal=Math.round((revTotals[ym]||0)-(costTotals[ym]||0));
+    const col=bal>=0?'#2563eb':'#dc2626';
+    const sign=bal>0?'+':'';
+    return `<td style="padding:6px 8px;text-align:right;border-top:2px solid var(--border)">${bal!==0?`<span style="color:${col};font-weight:700">${sign}${fmtYen(bal)}</span>`:''}</td>`;
+  }).join('');
+
+  tbl.innerHTML=`
+    <thead><tr>
+      <th style="padding:6px 8px;text-align:left">会社名</th>
+      <th style="padding:6px 8px;text-align:left;width:50px"></th>
+      ${monthHeaders}
+    </tr></thead>
+    <tbody>
+      ${rowsHtml||`<tr><td colspan="${fyMonths.length+2}" style="padding:16px 8px;text-align:center;color:var(--text3)">決定・売上ランクの案件がありません</td></tr>`}
+    </tbody>
+    <tfoot><tr>
+      <td colspan="2" style="padding:6px 8px;font-weight:700;border-top:2px solid var(--border)">残高</td>
+      ${balanceCells}
+    </tr></tfoot>`;
+
+  tbl.querySelectorAll('.cf-deal-row').forEach((tr,i)=>{
+    const deal=cfDeals[Math.floor(i/2)];
+    if(deal) tr.onclick=()=>openDealModal(deal);
+  });
+}
 
 // ============================================================
 // KPI期間フィルタ
