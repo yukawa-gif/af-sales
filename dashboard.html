@@ -862,6 +862,17 @@ body.modal-open{overflow:hidden}
         <div id="dm-cost-schedule-list" style="display:flex;flex-direction:column;gap:6px"></div>
         <button type="button" onclick="addCostScheduleRow()" style="margin-top:6px;padding:6px 10px;border:1px dashed var(--border);border-radius:6px;background:none;cursor:pointer;font-size:12px;color:var(--text3)">+ 月を追加</button>
       </div>
+      <!-- 継続課金（顧問契約など。止める月を設定するまで毎月自動計上） -->
+      <div class="mfg">
+        <label class="mfl" style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="checkbox" id="dm-recurring" onchange="toggleDmRecurringEnd()" style="width:16px;height:16px;flex-shrink:0">
+          継続課金（顧問契約など）
+        </label>
+        <div id="dm-recurring-end-wrap" style="display:none;margin-top:6px">
+          <label class="mfl" style="font-size:10px">終了月 <span style="font-weight:400;color:#9a9794">（止める月。空欄なら継続中）</span></label>
+          <select class="mfsel" id="dm-recurring-end"></select>
+        </div>
+      </div>
       <div class="mfg">
         <label class="mfl">メモ</label>
         <textarea class="mfta" id="dm-memo" placeholder="備考など"></textarea>
@@ -2166,8 +2177,10 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
   // 月別合計（全案件）
   const monthTotals={};
   fyMonths.forEach(m=>{monthTotals[yyyyMM(m.year,m.month)]=0});
+  const lastFyYM=yyyyMM(fyMonths[fyMonths.length-1].year,fyMonths[fyMonths.length-1].month);
 
   // 各案件の月別粗利を事前計算（粗利合計÷月数で月別分配）
+  // 継続課金（顧問契約など）の案件は、月数での打ち切りをやめ、継続終了月（未設定なら表示範囲の末尾）まで計上し続ける
   const dealCellAmts=new Map();
   activeDeals.forEach(d=>{
     const expYM=String(d['売上予定月']||'').slice(0,7);
@@ -2176,11 +2189,16 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
     if(!ey||!em||em<1||em>12)return;
     const months=Math.max(1,Number(d['月数'])||1);
     const monthlyAmt=(Number(d['粗利'])||0)/months;
+    const isOngoing=!!d['継続課金'];
+    const endYM=String(d['継続終了月']||'').slice(0,7);
     const cellAmts={};
     const isLost=d['確度ランク']==='失注';
-    for(let i=0;i<months;i++){
+    const loopCap=isOngoing?600:months; // 継続課金は表示範囲末尾か終了月で打ち切る安全弁
+    for(let i=0;i<loopCap;i++){
       const d2=new Date(ey,em-1+i,1);
       const cym=yyyyMM(d2.getFullYear(),d2.getMonth()+1);
+      if(cym>lastFyYM)break; // 表示範囲を超えたら打ち切り
+      if(isOngoing&&endYM&&cym>endYM)break; // 終了月を過ぎたら打ち切り
       if(monthTotals[cym]!==undefined){
         cellAmts[cym]=(cellAmts[cym]||0)+monthlyAmt;
         if(!isLost) monthTotals[cym]+=monthlyAmt; // 失注は合計に含めない
@@ -2430,6 +2448,11 @@ function updateCostScheduleRow(idx,field,value){
   editingCostSchedule[idx][field]=field==='amount'?(Number(value)||0):value;
 }
 
+function toggleDmRecurringEnd(){
+  document.getElementById('dm-recurring-end-wrap').style.display=
+    document.getElementById('dm-recurring').checked?'':'none';
+}
+
 function openDealModal(deal){
   editingDeal=deal;
   document.getElementById('dm-company').value=deal['会社名']||'';
@@ -2489,6 +2512,13 @@ function openDealModal(deal){
   // 費用計上スケジュール
   editingCostSchedule=(deal['費用スケジュール']||[]).map(s=>({month:s.month,amount:Number(s.amount)||0}));
   renderCostScheduleRows();
+
+  // 継続課金（顧問契約など）
+  document.getElementById('dm-recurring').checked=!!deal['継続課金'];
+  const recurEndSel=document.getElementById('dm-recurring-end');
+  recurEndSel.innerHTML='<option value="">（空欄＝継続中）</option>'+dmMonthOptionsHTML(deal['継続終了月']||'');
+  recurEndSel.value=deal['継続終了月']||'';
+  toggleDmRecurringEnd();
 
   document.getElementById('deal-modal').classList.add('open');
   document.body.classList.add('modal-open');
@@ -2793,6 +2823,11 @@ async function saveDealModal(){
   const costSchedule=editingCostSchedule.filter(s=>s.month&&s.amount>0);
   editingDeal['費用スケジュール']=costSchedule;
 
+  const recurring=document.getElementById('dm-recurring').checked;
+  const recurringEndMonth=recurring?document.getElementById('dm-recurring-end').value:'';
+  editingDeal['継続課金']=recurring;
+  editingDeal['継続終了月']=recurringEndMonth;
+
   // GAS更新（デモ以外）
   if(!isDemoMode&&editingDeal['案件ID']){
     try{
@@ -2811,6 +2846,8 @@ async function saveDealModal(){
         reason,
         paymentStatus,
         billingCompany,
+        recurring,
+        recurringEndMonth,
       };
       if(bRowVisible){ payload.bUnitSales=bUnitSales; payload.bUnitCost=bUnitCost; payload.bQty=bQty; }
       const result = await gasPost(payload);
@@ -3181,11 +3218,24 @@ function renderCashFlow(deals){
   const revTotals={},costTotals={};
   fyMonths.forEach(m=>{const ym=yyyyMM(m.year,m.month);revTotals[ym]=0;costTotals[ym]=0;});
 
+  const fyYmList=fyMonths.map(m=>yyyyMM(m.year,m.month));
+
   const rowsHtml=cfDeals.map(d=>{
     const expYM=String(d['売上予定月']||'').slice(0,7);
+    const isOngoing=!!d['継続課金'];
+    const endYM=String(d['継続終了月']||'').slice(0,7);
+    const months=Math.max(1,Number(d['月数'])||1);
 
     const revAmts={};
-    if(validYms.has(expYM)) revAmts[expYM]=(revAmts[expYM]||0)+(Number(d['売上予定額'])||0);
+    if(isOngoing){
+      const monthlyRev=(Number(d['売上予定額'])||0)/months;
+      fyYmList.forEach(ym=>{
+        if(ym<expYM||(endYM&&ym>endYM))return;
+        revAmts[ym]=(revAmts[ym]||0)+monthlyRev;
+      });
+    } else if(validYms.has(expYM)){
+      revAmts[expYM]=(revAmts[expYM]||0)+(Number(d['売上予定額'])||0);
+    }
 
     const costAmts={};
     const schedule=d['費用スケジュール']||[];
@@ -3193,6 +3243,12 @@ function renderCashFlow(deals){
       schedule.forEach(s=>{
         const ym=String(s.month||'').slice(0,7);
         if(validYms.has(ym)) costAmts[ym]=(costAmts[ym]||0)+(Number(s.amount)||0);
+      });
+    } else if(isOngoing){
+      const monthlyCost=(Number(d['費用（合計）'])||0)/months;
+      fyYmList.forEach(ym=>{
+        if(ym<expYM||(endYM&&ym>endYM))return;
+        costAmts[ym]=(costAmts[ym]||0)+monthlyCost;
       });
     } else if(validYms.has(expYM)){
       costAmts[expYM]=(costAmts[expYM]||0)+(Number(d['費用（合計）'])||0);

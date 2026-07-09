@@ -49,7 +49,8 @@ const DEAL_HEADERS = [
   'インセンティブ','売上予定月','入金ステータス','入金確認日',
   'メモ','引継営業名','引継日','理由','最終更新日',
   '計上会社','B売上単価','B費用単価','B件数',
-  '商材コード'  // AE: index 30
+  '商材コード',  // AE: index 30
+  '継続課金','継続終了月'  // AF/AG: 顧問契約など、止めるまで毎月自動計上する案件のフラグと終了月
 ];
 
 // ============================================================
@@ -362,7 +363,9 @@ function addDeal(d) {
     Number(d.bUnitSales) || 0,  // AB: B売上単価
     Number(d.bUnitCost)  || 0,  // AC: B費用単価
     Number(d.bQty)       || 0,  // AD: B件数
-    d.productCode || (pDetail ? pDetail.code : '') || ''  // AE: 商材コード
+    d.productCode || (pDetail ? pDetail.code : '') || '',  // AE: 商材コード
+    !!d.recurring,                // AF: 継続課金
+    ''                            // AG: 継続終了月（登録時は常に空＝継続中）
   ]);
 
   return json({ success: true, id, incentive, grossProfit });
@@ -457,8 +460,10 @@ function getDeals(person) {
         const code = o['個人コード'] || '';
         o[h] = personCodeMap[code] || String(r[i] || '').trim() || code;
         o['担当者'] = o[h]; // 後方互換
-      } else if (h === '売上予定月') {
+      } else if (h === '売上予定月' || h === '継続終了月') {
         o[h] = normYM(r[i]);
+      } else if (h === '継続課金') {
+        o[h] = r[i] === true || String(r[i]).trim().toUpperCase() === 'TRUE';
       } else if (h === '登録日' || h === '入金確認日' || h === '引継日') {
         o[h] = normDate(r[i]);
       } else if (typeof r[i] === 'object' && typeof r[i].getFullYear === 'function') {
@@ -472,6 +477,9 @@ function getDeals(person) {
     o['担当者コード'] = o['個人コード'] || '';
     if (o['売上予定月']) {
       o['売上予定月'] = String(o['売上予定月']).trim().slice(0, 7);
+    }
+    if (o['継続終了月']) {
+      o['継続終了月'] = String(o['継続終了月']).trim().slice(0, 7);
     }
     o['費用スケジュール'] = costSchedMap[o['案件ID']] || [];
     return o;
@@ -509,6 +517,9 @@ function getDeal(id) {
 // ============================================================
 function updateDeal(d) {
   if (!d.id) return json({ success: false, error: 'IDが空です' });
+  if (d.recurringEndMonth && !/^\d{4}-\d{2}$/.test(String(d.recurringEndMonth).trim())) {
+    return json({ success: false, error: '継続終了月の形式が不正です（例: 2026-04）' });
+  }
   // d.grossProfit は常に円単位で受け取る（フロントの dm-amount フォームが円入力）
   // 以前あった「10000未満→万円とみなして変換」の安全弁は誤変換を招くため削除済み
   const sheet = getOrCreateDealSheet();
@@ -538,6 +549,8 @@ function updateDeal(d) {
       if (d.bUnitCost   !== undefined) setCol('B費用単価', Number(d.bUnitCost)  || 0);
       if (d.bQty        !== undefined) setCol('B件数',     Number(d.bQty)       || 0);
       if (d.productCode !== undefined) setCol('商材コード', d.productCode || '');
+      if (d.recurring   !== undefined) setCol('継続課金', !!d.recurring);
+      if (d.recurringEndMonth !== undefined) setCol('継続終了月', d.recurringEndMonth);
 
       const today = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd');
 

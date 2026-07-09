@@ -392,9 +392,15 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;background:var(--bg);
                 <label class="fl">売上予定月<span class="req">*</span></label>
                 <input class="fi" type="month" id="expectedMonth" oninput="onExpectedMonthChange()">
               </div>
-              <div class="fg" style="margin-bottom:0">
+              <div class="fg">
                 <label class="fl">費用計上月 <span style="font-weight:400;color:var(--text3)">（売上と異なる場合のみ変更）</span></label>
                 <input class="fi" type="month" id="costMonth" oninput="costMonthEdited=true">
+              </div>
+              <div class="fg" style="margin-bottom:0">
+                <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer;font-weight:600">
+                  <input type="checkbox" id="isRecurring" style="width:16px;height:16px;flex-shrink:0">
+                  継続課金（顧問契約など。止めるまで毎月自動計上）
+                </label>
               </div>
             </div>
             <div>
@@ -928,6 +934,7 @@ async function submit() {
     unitSales, unitCost, courses, qty, months,
     bUnitSales, bUnitCost, bQty,
     expectedMonth,
+    recurring:      document.getElementById('isRecurring').checked,
     memo:           document.getElementById('memo').value.trim(),
     reason:         document.getElementById('reason').value.trim()
   };
@@ -1005,6 +1012,7 @@ function reset() {
   document.getElementById('reason').value = '';
   document.getElementById('costMonth').value = document.getElementById('expectedMonth').value;
   costMonthEdited = false;
+  document.getElementById('isRecurring').checked = false;
   document.getElementById('s-incentive').style.display  = 'none';
   document.getElementById('sbtn').disabled    = false;
   document.getElementById('sbtn').textContent = '案件を登録する';
