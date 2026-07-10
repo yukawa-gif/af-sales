@@ -406,17 +406,11 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;background:var(--bg);
             <div>
               <div class="sec" style="margin-top:4px">メモ</div>
               <div class="fg" style="margin-bottom:0">
-                <label class="fl">次のアクション・備考</label>
+                <label class="fl">メモ</label>
                 <textarea class="fta" id="memo"
                   placeholder="例: 5/10 商談予定。先方担当は山田部長。提案書を事前送付する。"></textarea>
               </div>
             </div>
-          </div>
-          <!-- 理由 -->
-          <div class="fg" style="margin-top:10px">
-            <label class="fl">理由・背景 <span style="font-weight:400;color:#9a9794">（任意）</span></label>
-            <textarea class="fta" id="reason"
-              placeholder="例: 決定理由、失注理由、検討背景など"></textarea>
           </div>
         </div>
 
@@ -935,8 +929,7 @@ async function submit() {
     bUnitSales, bUnitCost, bQty,
     expectedMonth,
     recurring:      document.getElementById('isRecurring').checked,
-    memo:           document.getElementById('memo').value.trim(),
-    reason:         document.getElementById('reason').value.trim()
+    memo:           document.getElementById('memo').value.trim()
   };
 
   try {
@@ -1009,7 +1002,6 @@ function reset() {
   document.getElementById('b-cost').value  = '0';
   document.getElementById('b-qty').value   = '1';
   document.getElementById('memo').value   = '';
-  document.getElementById('reason').value = '';
   document.getElementById('costMonth').value = document.getElementById('expectedMonth').value;
   costMonthEdited = false;
   document.getElementById('isRecurring').checked = false;

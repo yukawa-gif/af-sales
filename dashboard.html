@@ -821,8 +821,12 @@ body.modal-open{overflow:hidden}
         </div>
         <div class="mfg">
           <label class="mfl">粗利予定月</label>
-          <select class="mfsel" id="dm-month"></select>
+          <select class="mfsel" id="dm-month" onchange="onDmMonthChange()"></select>
         </div>
+      </div>
+      <div class="mfg">
+        <label class="mfl">費用計上月 <span style="font-weight:400;color:var(--text3);font-size:11px">（売上と異なる場合のみ変更）</span></label>
+        <select class="mfsel" id="dm-cost-month" onchange="dmCostMonthEdited=true"></select>
       </div>
       <div class="mfg">
         <label class="mfl">売上単価・費用単価・コース数・件数・月数</label>
@@ -856,12 +860,6 @@ body.modal-open{overflow:hidden}
           </div>
         </div>
       </div>
-      <!-- 費用計上スケジュール（任意・複数月に分散計上） -->
-      <div class="mfg">
-        <label class="mfl">費用計上スケジュール <span style="font-weight:400;color:#9a9794;font-size:11px">（任意・未入力なら売上予定月に全額計上）</span></label>
-        <div id="dm-cost-schedule-list" style="display:flex;flex-direction:column;gap:6px"></div>
-        <button type="button" onclick="addCostScheduleRow()" style="margin-top:6px;padding:6px 10px;border:1px dashed var(--border);border-radius:6px;background:none;cursor:pointer;font-size:12px;color:var(--text3)">+ 月を追加</button>
-      </div>
       <!-- 継続課金（顧問契約など。止める月を設定するまで毎月自動計上） -->
       <div class="mfg">
         <label class="mfl" style="display:flex;align-items:center;gap:6px;cursor:pointer">
@@ -876,10 +874,6 @@ body.modal-open{overflow:hidden}
       <div class="mfg">
         <label class="mfl">メモ</label>
         <textarea class="mfta" id="dm-memo" placeholder="備考など"></textarea>
-      </div>
-      <div class="mfg">
-        <label class="mfl">理由・背景 <span style="font-weight:400;color:#9a9794;font-size:11px">（任意）</span></label>
-        <textarea class="mfta" id="dm-reason" placeholder="決定理由、失注理由、検討背景など"></textarea>
       </div>
     </div>
     <div class="modal-footer">
@@ -2452,30 +2446,10 @@ function dmMonthOptionsHTML(selected){
   }).join('');
 }
 
-// 費用計上スケジュール（モーダル内の編集用スクラッチ状態）
-let editingCostSchedule=[];
-function renderCostScheduleRows(){
-  const wrap=document.getElementById('dm-cost-schedule-list');
-  wrap.innerHTML=editingCostSchedule.map((row,idx)=>`
-    <div style="display:grid;grid-template-columns:1fr 1fr 32px;gap:6px;align-items:center">
-      <select class="mfsel" onchange="updateCostScheduleRow(${idx},'month',this.value)">
-        ${dmMonthOptionsHTML(row.month)}
-      </select>
-      <input class="mfi" type="number" min="0" step="1000" placeholder="金額（円）" value="${row.amount||''}" oninput="updateCostScheduleRow(${idx},'amount',this.value)">
-      <button type="button" onclick="removeCostScheduleRow(${idx})" style="border:none;background:none;color:var(--red,#dc2626);cursor:pointer;font-size:16px;line-height:1">×</button>
-    </div>`).join('');
-}
-function addCostScheduleRow(){
-  editingCostSchedule.push({month:dmMonthList()[3],amount:0});
-  renderCostScheduleRows();
-}
-function removeCostScheduleRow(idx){
-  editingCostSchedule.splice(idx,1);
-  renderCostScheduleRows();
-}
-function updateCostScheduleRow(idx,field,value){
-  if(!editingCostSchedule[idx])return;
-  editingCostSchedule[idx][field]=field==='amount'?(Number(value)||0):value;
+// 費用計上月（粗利予定月に自動追従。ユーザーが手動変更した場合は追従を止める）
+let dmCostMonthEdited=false;
+function onDmMonthChange(){
+  if(!dmCostMonthEdited) document.getElementById('dm-cost-month').value=document.getElementById('dm-month').value;
 }
 
 function toggleDmRecurringEnd(){
@@ -2519,7 +2493,6 @@ function openDealModal(deal){
   document.getElementById('dm-qty').value=Number(deal['件数'])||1;
   document.getElementById('dm-months').value=Number(deal['月数'])||1;
   document.getElementById('dm-memo').value=deal['メモ']||'';
-  document.getElementById('dm-reason').value=deal['理由']||'';
 
   // B行（B件数 > 0 の場合のみ表示）
   const bQty=Number(deal['B件数'])||0;
@@ -2539,9 +2512,12 @@ function openDealModal(deal){
   document.getElementById('dm-month').innerHTML=dmMonthOptionsHTML(expMonth);
   document.getElementById('dm-month').value=expMonth;
 
-  // 費用計上スケジュール
-  editingCostSchedule=(deal['費用スケジュール']||[]).map(s=>({month:s.month,amount:Number(s.amount)||0}));
-  renderCostScheduleRows();
+  // 費用計上月（既存スケジュールがあれば先頭の月、なければ粗利予定月に追従）
+  const costSchedule=deal['費用スケジュール']||[];
+  const costMonth=(costSchedule[0]&&costSchedule[0].month)||expMonth;
+  document.getElementById('dm-cost-month').innerHTML=dmMonthOptionsHTML(costMonth);
+  document.getElementById('dm-cost-month').value=costMonth;
+  dmCostMonthEdited=false;
 
   // 継続課金（顧問契約など）
   document.getElementById('dm-recurring').checked=!!deal['継続課金'];
@@ -2823,8 +2799,11 @@ async function saveDealModal(){
   const btn=document.getElementById('dm-save');
   btn.disabled=true;btn.textContent='保存中...';
   const memo=document.getElementById('dm-memo').value;
-  const reason=document.getElementById('dm-reason').value;
   const billingCompany=document.getElementById('dm-billing-company').value;
+  const costMonth=document.getElementById('dm-cost-month').value;
+  // 費用計上月が粗利予定月と異なる場合のみ、費用計上明細を分けて保存する
+  const needsCostSchedule=costMonth&&costMonth!==month;
+  const costSchedule=needsCostSchedule?[{month:costMonth,amount:unitCost*courses*qty*months}]:[];
 
   // B行
   const bRowVisible=document.getElementById('dm-b-row').style.display!=='none';
@@ -2846,11 +2825,9 @@ async function saveDealModal(){
   editingDeal['月数']=months;
   editingDeal['粗利']=amount;
   editingDeal['メモ']=memo;
-  editingDeal['理由']=reason;
   editingDeal['入金ステータス']=paymentStatus;
   editingDeal['計上会社']=billingCompany;
   if(bRowVisible){ editingDeal['B売上単価']=bUnitSales; editingDeal['B費用単価']=bUnitCost; editingDeal['B件数']=bQty; }
-  const costSchedule=editingCostSchedule.filter(s=>s.month&&s.amount>0);
   editingDeal['費用スケジュール']=costSchedule;
 
   const recurring=document.getElementById('dm-recurring').checked;
@@ -2873,7 +2850,6 @@ async function saveDealModal(){
         qty,
         months,
         memo,
-        reason,
         paymentStatus,
         billingCompany,
         recurring,
