@@ -803,11 +803,11 @@ body.modal-open{overflow:hidden}
         <label class="mfl">会社名</label>
         <input class="mfi" type="text" id="dm-company" placeholder="会社名">
       </div>
-      <div class="mfg">
-        <label class="mfl">計上会社</label>
-        <select class="mfsel" id="dm-billing-company"></select>
-      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="mfg">
+          <label class="mfl">計上会社</label>
+          <select class="mfsel" id="dm-billing-company"></select>
+        </div>
         <div class="mfg">
           <label class="mfl">確度ランク</label>
           <select class="mfsel" id="dm-rank">
@@ -819,23 +819,37 @@ body.modal-open{overflow:hidden}
             <option value="失注">失注</option>
           </select>
         </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div class="mfg">
           <label class="mfl">粗利予定月</label>
           <select class="mfsel" id="dm-month" onchange="onDmMonthChange()"></select>
         </div>
+        <div class="mfg">
+          <label class="mfl">費用計上月 <span style="font-weight:400;color:var(--text3);font-size:11px">（売上と異なる場合のみ変更）</span></label>
+          <select class="mfsel" id="dm-cost-month" onchange="dmCostMonthEdited=true"></select>
+        </div>
       </div>
-      <div class="mfg">
-        <label class="mfl">費用計上月 <span style="font-weight:400;color:var(--text3);font-size:11px">（売上と異なる場合のみ変更）</span></label>
-        <select class="mfsel" id="dm-cost-month" onchange="dmCostMonthEdited=true"></select>
-      </div>
-      <div class="mfg">
-        <label class="mfl">売上単価・費用単価・コース数・件数・月数</label>
-        <div style="display:grid;grid-template-columns:1fr 1fr 56px 56px 56px;gap:6px">
-          <input class="mfi" type="number" id="dm-sales" min="0" step="1000" placeholder="売上単価" oninput="calcDealModalAmount()">
-          <input class="mfi" type="number" id="dm-cost" min="0" step="1000" placeholder="費用単価" oninput="calcDealModalAmount()">
-          <input class="mfi" type="number" id="dm-courses" min="1" step="1" placeholder="コース" oninput="calcDealModalAmount()">
-          <input class="mfi" type="number" id="dm-qty" min="1" step="1" placeholder="件数" oninput="calcDealModalAmount()">
-          <input class="mfi" type="number" id="dm-months" min="1" max="24" step="1" placeholder="月数" oninput="calcDealModalAmount()">
+      <div style="display:grid;grid-template-columns:1fr 1fr 64px 64px 64px;gap:6px;margin-bottom:12px">
+        <div class="mfg" style="margin:0">
+          <label class="mfl" style="font-size:10px">売上単価</label>
+          <input class="mfi" type="number" id="dm-sales" min="0" step="1000" placeholder="0" oninput="calcDealModalAmount()">
+        </div>
+        <div class="mfg" style="margin:0">
+          <label class="mfl" style="font-size:10px">費用単価</label>
+          <input class="mfi" type="number" id="dm-cost" min="0" step="1000" placeholder="0" oninput="calcDealModalAmount()">
+        </div>
+        <div class="mfg" style="margin:0">
+          <label class="mfl" style="font-size:10px">コース数</label>
+          <input class="mfi" type="number" id="dm-courses" min="1" step="1" placeholder="1" oninput="calcDealModalAmount()">
+        </div>
+        <div class="mfg" style="margin:0">
+          <label class="mfl" style="font-size:10px">件数</label>
+          <input class="mfi" type="number" id="dm-qty" min="1" step="1" placeholder="1" oninput="calcDealModalAmount()">
+        </div>
+        <div class="mfg" style="margin:0">
+          <label class="mfl" style="font-size:10px">月数</label>
+          <input class="mfi" type="number" id="dm-months" min="1" max="24" step="1" placeholder="1" oninput="calcDealModalAmount()">
         </div>
       </div>
       <div class="mfg">
