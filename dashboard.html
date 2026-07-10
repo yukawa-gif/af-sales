@@ -2301,6 +2301,36 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
   actualRow.onclick=()=>toggleTimelineRank('tl-group-売上','tl-arr-売上');
   tbody.appendChild(actualRow);
 
+  // 資金繰り残高行（決定・売上ランクの売上−費用、単月純額）
+  const cfBalanceByMonth=computeCashFlowBalanceByMonth(activeDeals);
+  const cfCells=fyMonths.map(m=>{
+    const ym=yyyyMM(m.year,m.month);
+    const mgId=ymToMG[ym];
+    const bal=toMan(cfBalanceByMonth[ym]||0);
+    if(bal===0) return `<td class="${ym===todayYM?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}"></td>`;
+    const col=bal>=0?'#2563eb':'#dc2626';
+    const sign=bal>0?'+':'';
+    return `<td class="${ym===todayYM?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}">
+      <span class="tl-amt" style="color:${col};font-weight:700">${sign}${fmt(bal)}万</span>
+    </td>`;
+  }).join('');
+  const cfRow=document.createElement('tr');
+  cfRow.style.cursor='pointer';
+  cfRow.title='資金繰りカードで詳細（売上・費用の内訳）を表示';
+  cfRow.innerHTML=`
+    <td class="td-co" style="color:var(--text2)" colspan="2">
+      <i data-lucide="wallet" style="width:12px;height:12px;vertical-align:-2px"></i> 資金繰り残高
+    </td>
+    <td class="td-name" style="color:var(--text3)">決定・売上／単月純額</td>
+    ${cfCells}`;
+  cfRow.onclick=()=>{
+    const body=document.getElementById('cashflow-body');
+    if(body&&body.style.display==='none') toggleCashflowCard();
+    document.getElementById('cashflow-card')?.scrollIntoView({behavior:'smooth',block:'start'});
+  };
+  tbody.appendChild(cfRow);
+  if(window.lucide) lucide.createIcons();
+
   // ランク別グループ（売上はactualRowをヘッダーとして使うためヘッダー行をスキップ）
   RANKS.forEach(rank=>{
     const list=byRank[rank.v]||[];
@@ -3205,6 +3235,58 @@ function toggleTimelineRank(groupId,arrId){
 // ============================================================
 // 資金繰り（決定・売上ランクのみ／単月純額）
 // ============================================================
+// 案件1件分の月別売上・費用額を算出（renderCashFlow / renderTimeline の資金繰り残高行で共用）
+function computeDealCashFlowAmts(d,validYms,fyYmList){
+  const expYM=String(d['売上予定月']||'').slice(0,7);
+  const isOngoing=!!d['継続課金'];
+  const endYM=String(d['継続終了月']||'').slice(0,7);
+  const months=Math.max(1,Number(d['月数'])||1);
+
+  const revAmts={};
+  if(isOngoing){
+    const monthlyRev=(Number(d['売上予定額'])||0)/months;
+    fyYmList.forEach(ym=>{
+      if(ym<expYM||(endYM&&ym>endYM))return;
+      revAmts[ym]=(revAmts[ym]||0)+monthlyRev;
+    });
+  } else if(validYms.has(expYM)){
+    revAmts[expYM]=(revAmts[expYM]||0)+(Number(d['売上予定額'])||0);
+  }
+
+  const costAmts={};
+  const schedule=d['費用スケジュール']||[];
+  if(schedule.length>0){
+    schedule.forEach(s=>{
+      const ym=String(s.month||'').slice(0,7);
+      if(validYms.has(ym)) costAmts[ym]=(costAmts[ym]||0)+(Number(s.amount)||0);
+    });
+  } else if(isOngoing){
+    const monthlyCost=(Number(d['費用（合計）'])||0)/months;
+    fyYmList.forEach(ym=>{
+      if(ym<expYM||(endYM&&ym>endYM))return;
+      costAmts[ym]=(costAmts[ym]||0)+monthlyCost;
+    });
+  } else if(validYms.has(expYM)){
+    costAmts[expYM]=(costAmts[expYM]||0)+(Number(d['費用（合計）'])||0);
+  }
+  return {revAmts,costAmts};
+}
+
+// 決定・売上ランク案件の月別資金繰り残高（売上−費用）を算出
+function computeCashFlowBalanceByMonth(deals){
+  const validYms=new Set(fyMonths.map(m=>yyyyMM(m.year,m.month)));
+  const fyYmList=fyMonths.map(m=>yyyyMM(m.year,m.month));
+  const cfDeals=deals.filter(d=>['決定','売上'].includes(d['確度ランク']));
+  const balance={};
+  fyYmList.forEach(ym=>{balance[ym]=0;});
+  cfDeals.forEach(d=>{
+    const {revAmts,costAmts}=computeDealCashFlowAmts(d,validYms,fyYmList);
+    Object.entries(revAmts).forEach(([ym,v])=>{balance[ym]+=v;});
+    Object.entries(costAmts).forEach(([ym,v])=>{balance[ym]-=v;});
+  });
+  return balance;
+}
+
 function renderCashFlow(deals){
   const tbl=document.getElementById('cashflow-tbl');
   const validYms=new Set(fyMonths.map(m=>yyyyMM(m.year,m.month)));
@@ -3221,38 +3303,7 @@ function renderCashFlow(deals){
   const fyYmList=fyMonths.map(m=>yyyyMM(m.year,m.month));
 
   const rowsHtml=cfDeals.map(d=>{
-    const expYM=String(d['売上予定月']||'').slice(0,7);
-    const isOngoing=!!d['継続課金'];
-    const endYM=String(d['継続終了月']||'').slice(0,7);
-    const months=Math.max(1,Number(d['月数'])||1);
-
-    const revAmts={};
-    if(isOngoing){
-      const monthlyRev=(Number(d['売上予定額'])||0)/months;
-      fyYmList.forEach(ym=>{
-        if(ym<expYM||(endYM&&ym>endYM))return;
-        revAmts[ym]=(revAmts[ym]||0)+monthlyRev;
-      });
-    } else if(validYms.has(expYM)){
-      revAmts[expYM]=(revAmts[expYM]||0)+(Number(d['売上予定額'])||0);
-    }
-
-    const costAmts={};
-    const schedule=d['費用スケジュール']||[];
-    if(schedule.length>0){
-      schedule.forEach(s=>{
-        const ym=String(s.month||'').slice(0,7);
-        if(validYms.has(ym)) costAmts[ym]=(costAmts[ym]||0)+(Number(s.amount)||0);
-      });
-    } else if(isOngoing){
-      const monthlyCost=(Number(d['費用（合計）'])||0)/months;
-      fyYmList.forEach(ym=>{
-        if(ym<expYM||(endYM&&ym>endYM))return;
-        costAmts[ym]=(costAmts[ym]||0)+monthlyCost;
-      });
-    } else if(validYms.has(expYM)){
-      costAmts[expYM]=(costAmts[expYM]||0)+(Number(d['費用（合計）'])||0);
-    }
+    const {revAmts,costAmts}=computeDealCashFlowAmts(d,validYms,fyYmList);
 
     Object.entries(revAmts).forEach(([ym,v])=>{revTotals[ym]+=v;});
     Object.entries(costAmts).forEach(([ym,v])=>{costTotals[ym]+=v;});
