@@ -561,8 +561,8 @@ installableトリガーを登録すること（登録しないと onEdit は発�
 - ダッシュボードの粗利直接編集（単価は据え置きで粗利だけ手動修正したケース）は単価が一致しているため自動反映対象になり粗利が上書きされる可能性がある
 
 **追記（2026-07-21）**：下記の複数月案件ロジック修正と合わせて `clasp push --force` → `clasp deploy` 済み（バージョン160）。
-ただし `setupProductPriceTrigger` のGASエディタでの手動実行（installableトリガー登録）はまだ行っていないため、
-onEditトリガーは未登録のまま＝この自動反映機能はまだ動作しない。
+`setupProductPriceTrigger` はyukawaさんが以前のセッションでGASエディタから既に手動実行済み（認可ダイアログも
+通過済み）とのことなので、onEditのinstallableトリガーは登録済み＝この自動反映機能は稼働中。
 
 ---
 
