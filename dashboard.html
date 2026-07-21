@@ -2388,14 +2388,13 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
   });
 
   // 粗利確定ランク案件を粗利（確定）に合算
-  // 継続課金（顧問契約など）の案件は、まだ到来していない月まで実績計上してしまわないよう
-  // 当月以前（ym<=todayYM）の分だけを確定実績に含める。未到来分はヨミ合計（決定側）の見込みのまま
+  // まだ到来していない月まで実績計上してしまわないよう、当月以前（ym<=todayYM）の分だけを
+  // 確定実績に含める（継続課金の案件だけでなく、分割前の既存データ等でも未到来分を実績扱いにしない）
   const augActual={...actualByMonth};
   activeDeals.filter(d=>d['確度ランク']==='売上').forEach(d=>{
     const ca=dealCellAmts.get(d)||{};
-    const isOngoing=!!d['継続課金'];
     Object.entries(ca).forEach(([ym,v])=>{
-      if(isOngoing&&ym>todayYM)return;
+      if(ym>todayYM)return;
       if(augActual[ym]!==undefined) augActual[ym]+=v/10000; // 円→万円
     });
   });
