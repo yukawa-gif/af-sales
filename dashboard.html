@@ -27,9 +27,10 @@
   --transition:.15s cubic-bezier(.4,0,.2,1);
   --topbar-h:52px
 }
+html{overflow-x:hidden;max-width:100%}
 body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Segoe UI',sans-serif;
   background:var(--bg);color:var(--text);font-size:14px;min-height:100vh;
-  -webkit-font-smoothing:antialiased}
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;max-width:100vw}
 
 /* ─── トップバー ─── */
 .topbar{background:var(--navy);color:#fff;height:var(--topbar-h);
@@ -38,7 +39,7 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
   border-bottom:1px solid rgba(255,255,255,.06);
   box-shadow:0 1px 0 rgba(255,255,255,.04),0 2px 16px rgba(0,0,0,.3)}
 .topbar-logo{font-size:13px;font-weight:800;letter-spacing:.01em;white-space:nowrap;
-  color:#fff;line-height:1.2}
+  color:#fff;line-height:1.2;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .topbar-sub{font-size:10px;color:rgba(255,255,255,.38);letter-spacing:.02em;line-height:1.2}
 .topbar-spacer{flex:1}
 .topbar-fy{font-size:11px;font-weight:700;background:rgba(255,255,255,.1);
@@ -160,12 +161,17 @@ body.sidebar-collapsed #sidebar-toggle-icon{transform:rotate(180deg)}
   font-size:10px;font-weight:700;color:#fff}
 .detail-count{font-size:11px;color:var(--text3);margin-left:auto}
 
+/* ─── 横スクロールテーブル共通（列数が多いテーブルの折り返し崩れ防止）─── */
+.table-scroll{overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch}
+.table-scroll::-webkit-scrollbar{height:8px}
+.table-scroll::-webkit-scrollbar-thumb{background:var(--border-strong,#d1d5db);border-radius:99px}
+
 /* ─── 月別推移タイムライン ─── */
 .timeline-card{background:var(--surface);border:1px solid var(--border);
   border-radius:var(--r-lg);padding:20px 0 0;margin-bottom:16px;overflow:hidden;
   box-shadow:var(--shadow-sm)}
 .timeline-card-header{padding:0 22px 14px}
-.timeline-scroll{overflow-x:auto}
+.timeline-scroll{overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch}
 .tl-tbl{border-collapse:collapse;font-size:12px;width:100%;table-layout:fixed}
 .tl-tbl colgroup .col-co{width:104px}
 .tl-tbl colgroup .col-rank{width:38px}
@@ -395,6 +401,7 @@ body.modal-open{overflow:hidden}
   border:1px solid #fbbf24;background:#fffbeb;color:#b45309;cursor:pointer;
   white-space:nowrap;margin-left:4px;transition:var(--transition)}
 .mail-btn:hover{background:#fef3c7;border-color:#f59e0b}
+.mail-btn:disabled{opacity:.5;cursor:not-allowed;background:#fffbeb}
 .row-stale td{background:#fffbeb !important}
 
 /* ─── ローディング ─── */
@@ -464,9 +471,48 @@ body.modal-open{overflow:hidden}
 .test-label{font-weight:700;margin-right:6px}
 .test-detail{color:var(--text2);font-size:12px;margin-top:2px}
 .admin-status-bar{font-size:12px;color:var(--text3);margin-top:12px;min-height:20px}
+
+/* ─── トースト通知（非ブロッキングのエラー/警告表示）─── */
+.toast-stack{position:fixed;top:calc(var(--topbar-h) + 12px);right:16px;z-index:400;
+  display:flex;flex-direction:column;gap:8px;max-width:min(360px,calc(100vw - 32px))}
+.toast{display:flex;align-items:flex-start;gap:8px;padding:11px 14px;border-radius:10px;
+  font-size:12.5px;line-height:1.4;box-shadow:var(--shadow-lg);
+  background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--red);
+  color:var(--text);animation:toast-in .2s ease-out}
+.toast.toast-warn{border-left-color:var(--amber)}
+.toast.toast-info{border-left-color:var(--blue)}
+.toast-close{background:none;border:none;color:var(--text3);cursor:pointer;
+  font-size:14px;line-height:1;padding:0 0 0 6px;flex-shrink:0}
+@keyframes toast-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.offline-banner{position:fixed;top:var(--topbar-h);left:0;right:0;z-index:300;
+  background:var(--red);color:#fff;text-align:center;font-size:12.5px;font-weight:600;
+  padding:7px 12px;display:none}
+.offline-banner.show{display:block}
+
+/* ─── 狭幅デバイス対応（テーブル・サマリーカードのレイアウト崩れ防止）───
+   列数の多いテーブルは各テーブル自身の .table-scroll / .timeline-scroll で
+   横スクロールするため、ここではスクロールに頼らないグリッド類のみ調整する */
+@media (max-width:900px){
+  .pipeline-summary{grid-template-columns:repeat(3,1fr)}
+}
+@media (max-width:560px){
+  .main{padding:14px}
+  .pipeline-summary{grid-template-columns:repeat(2,1fr);gap:8px}
+  .ps-card{padding:12px 14px}
+  .ps-value{font-size:18px}
+  /* トップバーの最終更新時刻は優先度が低いため、狭幅では非表示にして
+     ロゴ・FYバッジ・更新ボタンの表示スペースを確保する */
+  #last-updated{display:none}
+}
 </style>
 </head>
 <body>
+
+<!-- オフライン通知バー -->
+<div class="offline-banner" id="offline-banner">⚠️ ネットワーク接続がありません。回復すると自動的に再取得します。</div>
+
+<!-- トースト通知 -->
+<div class="toast-stack" id="toast-stack"></div>
 
 <!-- ローディング -->
 <div class="loading-overlay" id="loading">
@@ -490,8 +536,8 @@ body.modal-open{overflow:hidden}
   <button class="sidebar-toggle-btn" onclick="toggleSidebar()" title="サイドバーの折りたたみ">
     <i data-lucide="panel-left" id="sidebar-toggle-icon" style="width:17px;height:17px"></i>
   </button>
-  <div style="display:flex;align-items:center;gap:10px;margin-right:4px">
-    <div>
+  <div style="display:flex;align-items:center;gap:10px;margin-right:4px;min-width:0;overflow:hidden">
+    <div style="min-width:0;overflow:hidden">
       <div class="topbar-logo">エー・ファクトリー株式会社｜ダッシュボード</div>
     </div>
   </div>
@@ -584,6 +630,7 @@ body.modal-open{overflow:hidden}
       <span id="wkpi-toggle-icon" style="margin-left:8px;font-size:12px;color:var(--text3)">▼</span>
     </div>
     <div id="wkpi-body" style="display:none;margin-top:14px">
+    <div class="table-scroll">
       <table class="wkpi-table" id="wkpi-table">
         <thead><tr>
           <th style="width:100px">営業</th>
@@ -591,6 +638,7 @@ body.modal-open{overflow:hidden}
         </tr></thead>
         <tbody id="wkpi-tbody"></tbody>
       </table>
+    </div>
       <div style="font-size:10px;color:var(--text3);margin-top:8px;text-align:right">
         <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#fef3c7;border:1px solid #fcd34d;display:inline-block;border-radius:2px"></span>50%未満</span>
         <span style="margin-left:8px;display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#fee2e2;border:1px solid #fca5a5;display:inline-block;border-radius:2px"></span>目標未設定 or 0</span>
@@ -634,7 +682,7 @@ body.modal-open{overflow:hidden}
       <span class="card-hint" style="margin-left:auto">粗利（万円）/ 失注除く</span>
       <span id="pipeline-person-icon" style="margin-left:8px;font-size:12px;color:var(--text3)">▼</span>
     </div>
-    <div id="pipeline-person-body" style="display:none;overflow-x:auto">
+    <div id="pipeline-person-body" class="table-scroll" style="display:none">
       <table id="pipeline-person-tbl" style="width:100%;border-collapse:collapse;font-size:12px;min-width:560px"></table>
     </div>
   </div>
@@ -648,7 +696,7 @@ body.modal-open{overflow:hidden}
       <span class="card-hint" style="margin-left:auto">通期目標・今月目標・ヨミ（万円）</span>
       <span id="goals-person-icon" style="margin-left:8px;font-size:12px;color:var(--text3)">▼</span>
     </div>
-    <div id="goals-person-body" style="display:none;overflow-x:auto">
+    <div id="goals-person-body" class="table-scroll" style="display:none">
       <table id="goals-person-tbl" style="width:100%;border-collapse:collapse;font-size:12px"></table>
     </div>
   </div>
@@ -680,7 +728,7 @@ body.modal-open{overflow:hidden}
       <span class="detail-count" id="detail-count"></span>
       <span id="detail-toggle-icon" style="margin-left:8px;font-size:12px;color:var(--text3);flex-shrink:0">▼</span>
     </div>
-    <div id="detail-table-wrap" style="overflow-x:auto;display:none">
+    <div id="detail-table-wrap" class="table-scroll" style="display:none">
       <table class="detail-tbl">
         <thead id="detail-thead-row">
           <tr>
@@ -842,8 +890,9 @@ body.modal-open{overflow:hidden}
     <div class="modal-header">
       <div class="modal-title">⚙ 目標設定 <span id="gm-fy" style="color:var(--text3);font-size:14px"></span></div>
     </div>
-    <div class="modal-body" style="padding:12px 16px;overflow-x:auto">
+    <div class="modal-body" style="padding:12px 16px">
       <p class="goal-modal-note">各月の粗利目標（万円）を入力してください。前期・中期・後期・年間合計が自動計算されます。</p>
+      <div class="table-scroll">
       <table class="goal-table">
         <thead>
           <tr>
@@ -858,6 +907,7 @@ body.modal-open{overflow:hidden}
         <tbody id="goal-tbody"></tbody>
         <tfoot id="goal-tfoot"></tfoot>
       </table>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="modal-btn" style="margin-right:auto;background:var(--bg);border:1px solid var(--border);color:var(--text2)" onclick="showGoalsHistory()">📋 履歴</button>
@@ -1016,7 +1066,7 @@ body.modal-open{overflow:hidden}
       <div class="card-title">📋 挿入済みテストデータ一覧</div>
       <div class="card-hint" id="test-data-count">— 件</div>
     </div>
-    <div id="test-data-table" style="font-size:12px;color:var(--text3)">
+    <div id="test-data-table" class="table-scroll" style="font-size:12px;color:var(--text3)">
       「テストデータ生成」を実行するとここに一覧が表示されます。
     </div>
   </div>
@@ -1072,6 +1122,36 @@ async function gasPost(payload, { timeoutMs = 15000 } = {}) {
     clearTimeout(timer);
   }
 }
+
+// ============================================================
+// トースト通知（画面をブロックしない軽量なエラー/警告表示）
+// ============================================================
+function showToast(msg, type){
+  const stack=document.getElementById('toast-stack');
+  if(!stack) return;
+  const el=document.createElement('div');
+  el.className='toast'+(type?' toast-'+type:'');
+  el.innerHTML='<span style="flex:1">'+esc(msg)+'</span><button class="toast-close" aria-label="閉じる">✕</button>';
+  el.querySelector('.toast-close').onclick=()=>el.remove();
+  stack.appendChild(el);
+  setTimeout(()=>el.remove(),6000);
+}
+
+// ============================================================
+// オフライン検知（ネットワーク切断時に画面をフリーズさせず明示する）
+// ============================================================
+function updateOfflineBanner(){
+  const banner=document.getElementById('offline-banner');
+  if(!banner) return;
+  banner.classList.toggle('show', !navigator.onLine);
+}
+window.addEventListener('offline', updateOfflineBanner);
+window.addEventListener('online', ()=>{
+  updateOfflineBanner();
+  showToast('オフラインから復帰しました。データを再取得します。','info');
+  manualRefresh();
+});
+updateOfflineBanner();
 
 const PERSON_COLORS=['#2563eb','#16a34a','#dc2626','#d97706','#7c3aed','#0891b2','#be185d'];
 
@@ -1160,6 +1240,9 @@ let personColorMap={};
 let kpiPeriod='month'; // 'today'|'week'|'month'|'fy'
 let achievementChart=null;
 let currentCompanyFilter='all'; // 会社フィルター: 'all'|'kabushiki'|'sharoushi'|個社名
+let aiRequestToken=0; // AIアドバイス：担当者切替時に古いレスポンスを破棄するためのトークン
+let mailRequestToken=0; // フォローアップメール下書き：連打・切替時の古いレスポンス破棄用
+let mailRequestInFlight=false; // フォローアップメール下書き：多重リクエスト防止フラグ
 
 // ============================================================
 // サイドバー折りたたみ
@@ -1189,7 +1272,19 @@ document.addEventListener('click', e=>{
 // ============================================================
 // 初期化
 // ============================================================
+let initInFlight=false;
 async function init(){
+  // 再試行ボタンの連打やhashchange連発による多重初期化を防ぐ
+  if(initInFlight) return;
+  initInFlight=true;
+  try{
+    await initImpl();
+  } finally {
+    initInFlight=false;
+  }
+}
+
+async function initImpl(){
   toggleSidebar(localStorage.getItem('sidebar_collapsed')==='1');
   document.getElementById('fy-badge').textContent='FY'+currentFY;
 
@@ -1213,11 +1308,16 @@ async function init(){
     if(isAdmin){ initAdminPanel(); return; }
     // 常にバックグラウンドで最新データを取得
     fetchDashboardData().then(fresh=>{
-      if(!fresh) return;
+      if(!fresh){
+        showToast('最新データの取得に失敗しました。表示中のデータを継続利用します。','warn');
+        return;
+      }
       applyDashboardData(fresh);
       if(currentPerson) render(currentPerson);
       updateLastUpdated(Date.now());
-    }).catch(()=>{});
+    }).catch(e=>{
+      showToast('最新データの取得に失敗しました：'+e.message,'warn');
+    });
     return;
   }
 
@@ -1243,8 +1343,9 @@ async function init(){
       hideLoading();
       const main=document.getElementById('main');
       main.style.display='block';
+      const offlineNote=navigator.onLine?'':'<br>（現在オフラインのようです。接続を確認してください）';
       main.innerHTML='<div style="text-align:center;padding:60px 20px;color:var(--red)">'+
-        '読み込み失敗: '+esc(e.message)+'<br><br>'+
+        '読み込み失敗: '+esc(e.message)+offlineNote+'<br><br>'+
         '<button onclick="init()" style="padding:8px 18px;background:var(--blue);color:#fff;'+
         'border:none;border-radius:6px;cursor:pointer;font-family:inherit;margin-right:8px">再試行</button>'+
         '<a href="deal_form.html" style="padding:8px 18px;background:var(--surface);border:1.5px solid var(--border);'+
@@ -1264,16 +1365,25 @@ function updateLastUpdated(ts){
 }
 
 // 手動リフレッシュ
+let manualRefreshInFlight=false;
 async function manualRefresh(){
+  if(manualRefreshInFlight) return;
+  manualRefreshInFlight=true;
   const btn=document.getElementById('refresh-btn');
-  if(btn){btn.textContent='🔄';btn.disabled=true;}
-  const fresh=await fetchDashboardData(true);
-  if(fresh){
-    applyDashboardData(fresh);
-    if(currentPerson) render(currentPerson);
-    updateLastUpdated(Date.now());
+  if(btn){btn.style.opacity='.5';btn.disabled=true;}
+  try{
+    const fresh=await fetchDashboardData(true);
+    if(fresh){
+      applyDashboardData(fresh);
+      if(currentPerson) render(currentPerson);
+      updateLastUpdated(Date.now());
+    } else {
+      showToast('データの更新に失敗しました。表示中のデータを継続利用します。','warn');
+    }
+  } finally {
+    manualRefreshInFlight=false;
+    if(btn){btn.style.opacity='';btn.disabled=false;}
   }
-  if(btn){btn.textContent='🔄';btn.disabled=false;}
 }
 
 function loadDashboardCache(){
@@ -1314,6 +1424,18 @@ async function fetchDashboardData(forceFresh){
   }
 }
 
+// E2Eシステムテストが挿入する検証用データ（TEST-001〜010／担当者名「テスト担当者」）を
+// 判定するヘルパー。月別推移・資金繰り・KPI・インセンティブなど本番集計は必ずこれで除外する。
+// サーバー側（gas_v3.js getAllData）でも同様に除外しているが、古いキャッシュや将来の
+// 呼び出し経路変更に備えてクライアント側でも二重に防御する。
+function isTestDeal(d){
+  if(!d) return false;
+  const id=String(d['案件ID']||'').trim();
+  if(id.startsWith('TEST-')) return true;
+  const person=String(d['担当者']||d['営業名']||'').trim();
+  return person==='テスト担当者';
+}
+
 function applyDashboardData(cache){
   if(cache.master&&cache.master.success){
     masterData=cache.master;
@@ -1325,7 +1447,7 @@ function applyDashboardData(cache){
   // 30秒以内に保存した場合はバックグラウンドフェッチによる上書きを防ぐ
   if(cache.goals&&cache.goals.success&&Date.now()-goalsSavedAt>30000) goalsData=cache.goals.goals;
   if(cache.actual&&cache.actual.success) actualData=cache.actual.data||[];
-  if(cache.deals&&cache.deals.success)   dealsData=cache.deals.deals||[];
+  if(cache.deals&&cache.deals.success)   dealsData=(cache.deals.deals||[]).filter(d=>!isTestDeal(d));
   if(cache.pipelineByPerson) pipelineByPersonData=cache.pipelineByPerson;
   if(cache.confidenceMap) confidenceMap=cache.confidenceMap;
   if(cache.weeklyKpi)     weeklyKpiData=cache.weeklyKpi;
@@ -1377,6 +1499,16 @@ function selectPerson(name){
   if(card) card.classList.add('active');
   currentPerson=name;
   localStorage.setItem('dashboard_person',name);
+  // 担当者切替時：進行中のAIアドバイス取得があれば結果を無効化し、パネルを初期状態に戻す
+  aiRequestToken++;
+  const aiBtn=document.getElementById('ai-fetch-btn');
+  if(aiBtn){
+    aiBtn.disabled=false; aiBtn.textContent='AIに聞く';
+    document.getElementById('ai-body').innerHTML=
+      '<div class="ai-placeholder">「AIに聞く」ボタンを押すと、現在の営業データを分析してアドバイスを生成します。</div>';
+    document.getElementById('ai-error').style.display='none';
+    document.getElementById('ai-footer-note').textContent='';
+  }
   render(name);
 }
 
@@ -2561,6 +2693,13 @@ function isStale(deal){
 }
 
 async function openMailModal(deal){
+  // 行の「メール」ボタン連打・複数案件の同時クリックによる二重送信・表示崩れを防止
+  if(mailRequestInFlight) return;
+  mailRequestInFlight=true;
+  const myToken=++mailRequestToken;
+  const mailBtns=document.querySelectorAll('.mail-btn');
+  mailBtns.forEach(b=>b.disabled=true);
+
   document.getElementById('mail-loading').style.display='';
   document.getElementById('mail-form').style.display='none';
   document.getElementById('mail-error').style.display='none';
@@ -2569,6 +2708,7 @@ async function openMailModal(deal){
   document.body.classList.add('modal-open');
   try{
     const data=await gasGet({ mode:'followup', company:deal['会社名']||'', person:deal['担当者']||'' });
+    if(myToken!==mailRequestToken) return; // モーダルが閉じられた/別案件が選ばれた後の古いレスポンスは破棄
     if(!data.success)throw new Error(data.error||'取得失敗');
     document.getElementById('mail-to').value=data.recipientEmail||'';
     document.getElementById('mail-subject').value=data.subject||'';
@@ -2579,13 +2719,19 @@ async function openMailModal(deal){
     document.getElementById('mail-form').style.display='';
     document.getElementById('mail-footer').style.display='';
   }catch(e){
+    if(myToken!==mailRequestToken) return;
     document.getElementById('mail-loading').style.display='none';
     document.getElementById('mail-error').textContent=e.message;
     document.getElementById('mail-error').style.display='';
+  }finally{
+    mailRequestInFlight=false;
+    if(myToken===mailRequestToken) mailBtns.forEach(b=>b.disabled=false);
   }
 }
 
 function closeMailModal(){
+  mailRequestToken++; // 表示中の取得が完了しても結果を反映しないようにする
+  document.querySelectorAll('.mail-btn').forEach(b=>b.disabled=false);
   document.getElementById('mail-modal').classList.remove('open');
   document.body.classList.remove('modal-open');
 }
@@ -2673,9 +2819,33 @@ const GOAL_PERIODS=[
   {cls:'q3',label:'後期',indices:[8,9,10,11]},
 ];
 
-function openGoalModal(){
-  const persons=goalPersons();
+async function openGoalModal(){
   document.getElementById('gm-fy').textContent='FY'+currentFY;
+  document.getElementById('goal-modal').classList.add('open');
+  document.body.classList.add('modal-open');
+
+  // 編集の元データが古いキャッシュのままだと、保存時に他PCの更新を
+  // 意図せず上書きしてしまうため、開く直前に必ずスプレッドシートの最新値を取り直す
+  const tbody=document.getElementById('goal-tbody');
+  const saveBtn=document.getElementById('gm-save');
+  document.getElementById('goal-tfoot').innerHTML='';
+  tbody.innerHTML='<tr><td colspan="17" style="text-align:center;padding:24px;color:var(--text3)">最新データを読み込み中...</td></tr>';
+  saveBtn.disabled=true;
+
+  try{
+    const fresh=await gasGet({ mode:'goals', fy:'FY'+currentFY });
+    if(fresh&&fresh.success&&fresh.goals) goalsData=fresh.goals;
+  }catch(e){
+    console.warn('目標データの再取得に失敗、表示中のキャッシュを使用します:', e.message);
+    showToast('最新の目標データを取得できませんでした。表示中のキャッシュを編集します（保存時に再確認してください）。','warn');
+  }
+
+  saveBtn.disabled=false;
+  renderGoalModalTable();
+}
+
+function renderGoalModalTable(){
+  const persons=goalPersons();
 
   // 月ヘッダー行
   document.getElementById('goal-month-header').innerHTML=GOAL_PERIODS.map(p=>
@@ -2717,8 +2887,6 @@ function openGoalModal(){
   // 初期計算
   persons.forEach((_,pi)=>calcGoalRow(pi));
 
-  document.getElementById('goal-modal').classList.add('open');
-  document.body.classList.add('modal-open');
   setTimeout(()=>document.querySelector('#goal-tbody input')?.focus(),50);
 }
 
@@ -2798,10 +2966,30 @@ async function saveGoalModal(){
   });
 
   const goals={persons:Object.values(personMap)};
+
+  // 保存が実際にスプレッドシートへ反映されたことを確認してからローカル状態を更新する。
+  // 失敗を握りつぶすと「このPCの画面だけ新しい数字」というPC間の食い違いの原因になるため、
+  // 失敗時は必ずユーザーに知らせ、入力内容を保持したままモーダルを開いておく。
+  if(!isDemoMode){
+    try{
+      const result=await gasPost({ action:'saveGoals', fy:'FY'+currentFY, goals });
+      if(!result||result.success===false){
+        alert('目標の保存に失敗しました：'+(result&&result.error?result.error:'不明なエラー')+
+          '\n\n入力内容は保持されています。もう一度「保存」を押してください。');
+        btn.disabled=false; btn.textContent='保存';
+        return;
+      }
+    }catch(e){
+      alert('目標の保存に失敗しました（通信エラー）：'+e.message+
+        '\n\n入力内容は保持されています。もう一度「保存」を押してください。');
+      btn.disabled=false; btn.textContent='保存';
+      return;
+    }
+  }
+
+  // 保存成功後にローカル状態・キャッシュを更新
   goalsData=goals;
   goalsSavedAt=Date.now();
-
-  // localStorageキャッシュも即時更新（リロード後も反映されるよう）
   try{
     const raw=localStorage.getItem(CACHE_KEY);
     if(raw){
@@ -2811,12 +2999,6 @@ async function saveGoalModal(){
       localStorage.setItem(CACHE_KEY,JSON.stringify(c));
     }
   }catch(e){}
-
-  if(!isDemoMode){
-    try{
-      await gasPost({ action:'saveGoals', fy:'FY'+currentFY, goals });
-    }catch(e){ console.warn('目標保存失敗:', e.message); }
-  }
 
   btn.disabled=false; btn.textContent='保存';
   closeGoalModal();
@@ -2882,7 +3064,7 @@ function renderGoalsHistory(history){
         <span style="font-weight:700;color:var(--text1)">${item.savedAt}</span>
         <span style="color:var(--text3);font-size:13px">年間合計: <strong style="color:var(--blue)">${total}万円</strong></span>
       </summary>
-      <div style="overflow-x:auto;padding:8px">
+      <div class="table-scroll" style="padding:8px">
         <table style="width:100%;border-collapse:collapse">
           <thead><tr>
             <th style="text-align:left;padding:3px 8px;font-size:11px;color:var(--text3)">営業</th>
@@ -3435,23 +3617,28 @@ function generateDemoData(){
 // ============================================================
 async function fetchAIAdvice(){
   const btn=document.getElementById('ai-fetch-btn');
+  if(btn.disabled) return; // 連続クリックによる二重送信防止
+  const myToken=++aiRequestToken;
+  const requestedPerson=currentPerson||'__all__';
   btn.disabled=true; btn.textContent='分析中...';
   document.getElementById('ai-error').style.display='none';
   document.getElementById('ai-body').innerHTML='<div class="ai-loading"><div class="ai-spin"></div>Geminiが分析中です...</div>';
   try{
-    const data=await gasGet({ mode:'ai', person: currentPerson||'__all__' });
+    const data=await gasGet({ mode:'ai', person: requestedPerson });
+    if(myToken!==aiRequestToken) return; // 待機中に担当者が切り替わった等、古いレスポンスは破棄
     if(!data.success) throw new Error(data.error||'取得失敗');
     document.getElementById('ai-body').innerHTML=
       `<div class="ai-body">${esc(data.text).replace(/\n/g,'<br>')}</div>`;
     document.getElementById('ai-footer-note').textContent=
       '生成: '+new Date().toLocaleTimeString('ja-JP');
   }catch(e){
+    if(myToken!==aiRequestToken) return;
     document.getElementById('ai-body').innerHTML=
       '<div class="ai-placeholder">データを取得できませんでした。</div>';
     const el=document.getElementById('ai-error');
     el.textContent='エラー: '+e.message; el.style.display='block';
   }finally{
-    btn.disabled=false; btn.textContent='AIに聞く';
+    if(myToken===aiRequestToken){ btn.disabled=false; btn.textContent='AIに聞く'; }
   }
 }
 
@@ -3510,8 +3697,9 @@ async function runE2ETests() {
     { id: 'master',    label: 'マスタJSONパース',            detail: 'personDetails・productDetails が正しく読み込まれているか' },
     { id: 'goals',     label: '目標JSONパース',               detail: 'goalsData.persons が配列で取得できているか' },
     { id: 'normalize', label: '表記揺れ正規化（normalizeCompany）', detail: '" loTy " と "株式会社LOTY" が同一キーに変換されるか' },
-    { id: 'stock',     label: 'ストック按分計算',              detail: '月数≧2の案件で月次粗利=粗利÷月数 が正しく算出されるか' },
-    { id: 'calc',      label: '売上−費用＝粗利 整合性',        detail: '全案件で 売上予定額−費用合計≒粗利 であるか（±1円誤差許容）' },
+    { id: 'stock',     label: 'ストック按分計算',              detail: 'テストデータ（TEST-*）の月数≧2案件で月次粗利=粗利÷月数 が正しく算出されるか' },
+    { id: 'calc',      label: '売上−費用＝粗利 整合性',        detail: '本番案件（テストデータ除く）で 売上予定額−費用合計≒粗利 であるか（±1円誤差許容）' },
+    { id: 'isolation', label: 'テストデータ隔離',              detail: '月別推移・KPI・インセンティブ等の集計対象（dealsData）にTEST-*/テスト担当者が混入していないか' },
     { id: 'gas',       label: 'GAS接続確認',                  detail: 'GASエンドポイントが正常にレスポンスを返すか' },
   ];
 
@@ -3575,10 +3763,14 @@ async function runE2ETests() {
   }
 
   // ── Test 4: ストック按分計算 ─────────────────────────────
+  // ダッシュボードの本番集計（dealsData）はテストデータを除外済みのため、
+  // この検証専用にGASから生データを取得し、TEST-*行のみを対象にする
   try {
-    const stockDeals = (dealsData || []).filter(d => (Number(d['月数']) || 1) >= 2 && (Number(d['粗利']) || 0) > 0);
+    const rawRes = await gasGet({ mode: 'deals' }, { retries: 0, timeoutMs: 15000 });
+    const testDeals = (rawRes.deals || []).filter(d => isTestDeal(d));
+    const stockDeals = testDeals.filter(d => (Number(d['月数']) || 1) >= 2 && (Number(d['粗利']) || 0) > 0);
     if (stockDeals.length === 0) {
-      renderTestItem('stock', 'pass', 'ストック按分計算', 'ストック案件（月数≧2）が0件のためスキップ（テストデータ生成後に再実行）');
+      renderTestItem('stock', 'pass', 'ストック按分計算', 'テストデータ（TEST-*）のストック案件が0件のためスキップ（「テストデータ生成」後に再実行してください）');
     } else {
       const errors = [];
       stockDeals.slice(0, 20).forEach(d => {
@@ -3590,7 +3782,7 @@ async function runE2ETests() {
         }
       });
       if (errors.length > 0) throw new Error(errors[0]);
-      renderTestItem('stock', 'pass', 'ストック按分計算', `${stockDeals.length}件のストック案件で月次按分が正常（NaN/Infinityなし）`);
+      renderTestItem('stock', 'pass', 'ストック按分計算', `${stockDeals.length}件のテストストック案件で月次按分が正常（NaN/Infinityなし）`);
     }
     passed++;
   } catch(e) {
@@ -3601,6 +3793,7 @@ async function runE2ETests() {
   // ── Test 5: 売上−費用＝粗利 整合性 ──────────────────────
   // ※ダッシュボードモーダルで粗利を直接上書きできる仕様のため、
   //   不一致は「手動上書き」として警告扱い（エラーではない）
+  // ※テストデータ（TEST-*）は本番集計と同じくここでも除外し、実データのみを検証する
   try {
     const checkDeals = (dealsData || []).filter(d =>
       (Number(d['売上予定額']) || 0) > 0
@@ -3624,6 +3817,23 @@ async function runE2ETests() {
     passed++;
   } catch(e) {
     renderTestItem('calc', 'fail', '売上−費用＝粗利 整合性', '異常: ' + e.message);
+    failed++;
+  }
+
+  // ── Test: テストデータ隔離 ────────────────────────────────
+  // 本番集計の起点であるグローバル dealsData に TEST-* / テスト担当者 が
+  // 混入していないかを直接検証する（月別推移・KPI・インセンティブ計算の防御確認）
+  try {
+    const leaked = (dealsData || []).filter(d => isTestDeal(d));
+    if (leaked.length > 0) {
+      throw new Error(`${leaked.length}件のテストデータが集計対象(dealsData)に混入しています: ` +
+        leaked.slice(0, 5).map(d => d['案件ID']).join(', '));
+    }
+    renderTestItem('isolation', 'pass', 'テストデータ隔離',
+      `dealsData ${(dealsData || []).length}件を検証、テストデータの混入なし`);
+    passed++;
+  } catch(e) {
+    renderTestItem('isolation', 'fail', 'テストデータ隔離', '異常: ' + e.message);
     failed++;
   }
 
