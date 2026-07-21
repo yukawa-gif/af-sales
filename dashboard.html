@@ -584,6 +584,12 @@ body.modal-open{overflow:hidden}
     <div id="company-filter-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
   </div>
 
+  <!-- 商材フィルター -->
+  <div id="product-filter-bar" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:12px">
+    <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:8px;letter-spacing:.05em">商材フィルター</div>
+    <div id="product-filter-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+  </div>
+
   <!-- 月別推移タイムライン -->
   <div class="timeline-card">
     <div class="timeline-card-header">
@@ -1227,6 +1233,13 @@ let personColorMap={};
 let kpiPeriod='month'; // 'today'|'week'|'month'|'fy'
 let achievementChart=null;
 let currentCompanyFilter='all'; // 会社フィルター: 'all'|'kabushiki'|'sharoushi'|個社名
+let currentProductFilter='all'; // 商材フィルター: 'all'|'リスキリング'|'HubCast'|'IT導入補助金'
+const PRODUCT_FILTERS=[
+  {key:'all',label:'全商材'},
+  {key:'リスキリング',label:'リスキリング'},
+  {key:'HubCast',label:'HubCast'},
+  {key:'IT導入補助金',label:'IT導入補助金'},
+];
 
 // ============================================================
 // サイドバー折りたたみ
@@ -1422,6 +1435,7 @@ function applyDashboardData(cache){
     buildSidebar(pd);
     buildCompanyFilterBtns();
   }
+  buildProductFilterBtns();
   // 30秒以内に保存した場合はバックグラウンドフェッチによる上書きを防ぐ
   if(cache.goals&&cache.goals.success&&Date.now()-goalsSavedAt>30000) goalsData=cache.goals.goals;
   if(cache.actual&&cache.actual.success) actualData=cache.actual.data||[];
@@ -1523,6 +1537,7 @@ function render(person){
     if(!isTeam&&d['担当者']!==person)return false;
     const ym=String(d['売上予定月']||'').slice(0,7);
     if(!fyMonths.some(m=>yyyyMM(m.year,m.month)===ym))return false;
+    if(currentProductFilter!=='all' && !String(d['商材名']||'').includes(currentProductFilter)) return false;
     if(currentCompanyFilter==='all') return true;
     const bc=d['計上会社']||'';
     if(currentCompanyFilter==='kabushiki') return kabushikiNames.has(bc);
@@ -3194,6 +3209,30 @@ function buildCompanyFilterBtns(){
 function setCompanyFilter(key){
   currentCompanyFilter=key;
   buildCompanyFilterBtns();
+  if(currentPerson) render(currentPerson);
+}
+
+// ============================================================
+// 商材フィルター
+// ============================================================
+function buildProductFilterBtns(){
+  const c=document.getElementById('product-filter-btns');
+  if(!c)return;
+  c.innerHTML=PRODUCT_FILTERS.map(f=>{
+    const active=currentProductFilter===f.key;
+    return `<button onclick="setProductFilter('${f.key}')" style="padding:4px 10px;border-radius:20px;
+      border:1.5px solid ${active?'var(--blue)':'var(--border)'};
+      background:${active?'var(--blue-bg)':'transparent'};
+      color:${active?'var(--blue)':'var(--text2)'};
+      font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;transition:.12s">
+      ${esc(f.label)}
+    </button>`;
+  }).join('');
+}
+
+function setProductFilter(key){
+  currentProductFilter=key;
+  buildProductFilterBtns();
   if(currentPerson) render(currentPerson);
 }
 
