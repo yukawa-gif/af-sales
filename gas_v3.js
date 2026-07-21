@@ -19,6 +19,13 @@ const SHEET_DEALS         = '案件マスタ';
 const SHEET_ACTIVITIES    = '日次活動';
 const SHEET_WEEKLY_GOALS  = '設定_週次目標';
 const SHEET_COST_SCHEDULE = '費用計上明細';
+const SHEET_PRICE_HISTORY = '商材価格変更履歴';
+
+// 商材価格変更履歴の列定義
+const PRICE_HISTORY_HEADERS = [
+  '変更日時','商材コード','商材名','変更項目','旧値','新値',
+  '反映件数','スキップ件数','反映した案件ID','実行者'
+];
 
 // 費用計上明細の列定義（案件ごとに費用を複数月へ分散計上するための明細）
 const COST_SCHEDULE_HEADERS = ['案件ID', '計上月', '金額'];
@@ -807,6 +814,126 @@ function getProductDetail(nameOrCode) {
     bUnitPrice:    Number(row[7]) || 0,            // H: B単価
     bCost:         Number(row[8]) || 0,            // I: B費用
   };
+}
+
+// ============================================================
+// 商材マスタの単価変更 → 案件マスタへの自動反映
+// ============================================================
+// 設定_商材シートのD/E/H/I列（売上単価・費用・B単価・B費用）が編集された際に
+// installableトリガー経由で呼ばれる。GASエディタ or setupProductPriceTrigger() で
+// 一度だけトリガー登録が必要（clasp pushだけではトリガーは登録されない）。
+function onProductPriceEdit(e) {
+  if (!e || !e.range) return;
+  const sheet = e.range.getSheet();
+  if (sheet.getName() !== SHEET_PRODUCTS) return;
+  if (e.range.getRow() === 1) return; // ヘッダー行
+
+  const TARGET_COLS = { 4: '売上単価', 5: '費用', 8: 'B単価', 9: 'B費用' }; // D,E,H,I
+  const field = TARGET_COLS[e.range.getColumn()];
+  if (!field) return;
+
+  const productCode = String(sheet.getRange(e.range.getRow(), 1).getValue() || '').trim(); // A列
+  if (!productCode) return;
+
+  const oldValue = Number(e.oldValue) || 0;
+  const newValue = Number(e.value) || 0;
+  if (oldValue === newValue) return;
+
+  const result = syncDealsForProductPriceChange_(productCode, field, oldValue, newValue);
+  try {
+    SpreadsheetApp.getActiveSpreadsheet().toast(
+      `${result.updated}件反映 / ${result.skipped}件は個別単価のため対象外`,
+      '商材単価の一括反映', 8
+    );
+  } catch (err) {}
+}
+
+// 商材マスタの単価変更を案件マスタに反映する中核ロジック（onEdit・手動実行の両方から呼べる）
+// field: '売上単価' | '費用' | 'B単価' | 'B費用'
+function syncDealsForProductPriceChange_(productCode, field, oldValue, newValue) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const dealSheet = ss.getSheetByName(SHEET_DEALS);
+  if (!dealSheet || dealSheet.getLastRow() <= 1) return { updated: 0, skipped: 0 };
+
+  const idx = h => DEAL_HEADERS.indexOf(h);
+  const COL_MAP = {
+    '売上単価': { priceCol: idx('売上（単価）'), isB: false },
+    '費用':     { priceCol: idx('費用（単価）'), isB: false },
+    'B単価':    { priceCol: idx('B売上単価'),   isB: true  },
+    'B費用':    { priceCol: idx('B費用単価'),   isB: true  },
+  };
+  const target = COL_MAP[field];
+  if (!target) return { updated: 0, skipped: 0 };
+
+  const range = dealSheet.getRange(2, 1, dealSheet.getLastRow() - 1, DEAL_HEADERS.length);
+  const vals = range.getValues();
+  const pDetail = getProductDetail(productCode); // 更新後の最新マスタ値（インセンティブ率など）
+
+  let updated = 0, skipped = 0;
+  const updatedIds = [];
+
+  vals.forEach(row => {
+    if (String(row[idx('商材コード')]).trim() !== productCode) return;
+    // B系の変更はB行を持つ案件（B件数 > 0）のみ対象
+    if (target.isB && (Number(row[idx('B件数')]) || 0) <= 0) return;
+
+    const currentPrice = Number(row[target.priceCol]) || 0;
+    // ガード: 現在値がマスタの「変更前の値」と一致する案件だけを自動反映する。
+    // 値引き等で既にマスタと異なる単価にカスタマイズ済みの案件は対象外（スキップ）。
+    if (currentPrice !== oldValue) { skipped++; return; }
+
+    row[target.priceCol] = newValue;
+
+    if (!target.isB) {
+      // A行の単価変更は売上予定額・費用合計・粗利・インセンティブを再計算
+      // （現行仕様どおりB行の金額はこの合計には含めない）
+      const unitSales = Number(row[idx('売上（単価）')]) || 0;
+      const unitCost  = Number(row[idx('費用（単価）')]) || 0;
+      const courses   = Math.max(1, Number(row[idx('コース数')]) || 1);
+      const qty       = Math.max(1, Number(row[idx('件数')])     || 1);
+      const months    = Math.max(1, Number(row[idx('月数')])     || 1);
+      const monthlyGP = (unitSales - unitCost) * courses * qty;
+
+      row[idx('売上予定額')]   = unitSales * courses * qty * months;
+      row[idx('費用（合計）')] = unitCost  * courses * qty * months;
+      row[idx('粗利')]         = monthlyGP * months;
+      row[idx('インセンティブ')] = calcIncentive(monthlyGP, months, pDetail ? pDetail.incentiveRate : 0);
+    }
+    row[idx('最終更新日')] = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd');
+
+    updatedIds.push(row[idx('案件ID')]);
+    updated++;
+  });
+
+  if (updated) {
+    range.setValues(vals);
+    appendPriceChangeHistory_(productCode, pDetail ? pDetail.name : '', field, oldValue, newValue, updated, skipped, updatedIds);
+    invalidateAllDataCache_();
+  }
+  return { updated, skipped };
+}
+
+function appendPriceChangeHistory_(productCode, productName, field, oldValue, newValue, updated, skipped, updatedIds) {
+  const sheet = getOrCreateMasterSheet(SHEET_PRICE_HISTORY, PRICE_HISTORY_HEADERS);
+  let executor = '';
+  try { executor = Session.getActiveUser().getEmail(); } catch (e) {}
+  sheet.appendRow([
+    new Date(), productCode, productName, field, oldValue, newValue,
+    updated, skipped, updatedIds.join(','), executor
+  ]);
+}
+
+// 設定_商材シートの単価編集を検知するinstallableトリガーを登録する。
+// GASエディタから一度だけ手動実行すること（clasp pushだけではトリガーは登録されない）。
+function setupProductPriceTrigger() {
+  ScriptApp.getProjectTriggers()
+    .filter(t => t.getHandlerFunction() === 'onProductPriceEdit')
+    .forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('onProductPriceEdit')
+    .forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet())
+    .onEdit()
+    .create();
+  Logger.log('onProductPriceEdit トリガーを登録しました');
 }
 
 // ============================================================
