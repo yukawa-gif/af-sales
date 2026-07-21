@@ -3036,6 +3036,7 @@ async function saveDealModal(){
   editingDeal['継続終了月']=recurringEndMonth;
 
   // GAS更新（デモ以外）
+  let splitOccurred=false;
   if(!isDemoMode&&editingDeal['案件ID']){
     try{
       const payload={
@@ -3058,6 +3059,9 @@ async function saveDealModal(){
       if(bRowVisible){ payload.bUnitSales=bUnitSales; payload.bUnitCost=bUnitCost; payload.bQty=bQty; }
       const result = await gasPost(payload);
       if(result && !result.success) console.warn('案件更新失敗(GAS):', result.error);
+      // 複数月案件を「決定」→「売上」へ更新すると、当月分と翌月以降の繰越分の2件に
+      // サーバー側で分割される。ローカルの楽観更新は分割前提のままなので、最新データを取り直す
+      if(result && result.splitDealId) splitOccurred=true;
       const csResult = await gasPost({action:'saveCostSchedule', id:editingDeal['案件ID'], schedule:costSchedule});
       if(csResult && !csResult.success) console.warn('費用計上スケジュール更新失敗(GAS):', csResult.error);
     }catch(e){ console.warn('案件更新失敗:', e.message); }
@@ -3065,6 +3069,16 @@ async function saveDealModal(){
 
   btn.disabled=false;btn.textContent='保存';
   closeDealModal();
+  if(splitOccurred){
+    try{
+      const fresh=await fetchDashboardData(true);
+      if(fresh) applyDashboardData(fresh);
+      else showToast('分割後の最新データ取得に失敗しました。手動で更新してください。','warn');
+    }catch(e){
+      console.warn('分割後の再取得に失敗:', e.message);
+      showToast('分割後の最新データ取得に失敗しました。手動で更新してください。','warn');
+    }
+  }
   if(currentPerson)render(currentPerson);
 }
 

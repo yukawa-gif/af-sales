@@ -548,6 +548,7 @@ function updateDeal(d) {
   for (let i = 0; i < vals.length; i++) {
     if (String(vals[i][0]).trim() === d.id.trim()) {
       const row = i + 2;
+      const prevRank = String(vals[i][DEAL_HEADERS.indexOf('確度ランク')] || '').trim();
       const setCol = (key, val) => {
         if (val === undefined || val === null) return;
         const col = DEAL_HEADERS.indexOf(key) + 1;
@@ -588,12 +589,84 @@ function updateDeal(d) {
         const courses   = Math.max(1, Number(d.courses !== undefined ? d.courses : vals[i][DEAL_HEADERS.indexOf('コース数')]) || 1);
         const qty       = Math.max(1, Number(d.qty     !== undefined ? d.qty     : vals[i][DEAL_HEADERS.indexOf('件数')])   || 1);
         const months    = Math.max(1, Math.min(24, Number(d.months !== undefined ? d.months : vals[i][DEAL_HEADERS.indexOf('月数')]) || 1));
-        const totalSales  = unitSales * courses * qty * months;
-        const totalCost   = unitCost  * courses * qty * months;
-        const grossProfit = (unitSales - unitCost) * courses * qty * months;
-        const monthlyGP   = (unitSales - unitCost) * courses * qty;
+        const monthlyGP = (unitSales - unitCost) * courses * qty;
         const pDetail = getProductDetail(String(vals[i][DEAL_HEADERS.indexOf('商材名')]));
         const incentiveRate = pDetail ? pDetail.incentiveRate : 0;
+
+        // 顧問契約・リスキリング分割払いなど複数月に跨る案件を「決定」→「売上」へ更新する場合、
+        // 当月分（1ヶ月分）のみを本レコードで売上確定し、残りの月数は新規レコードとして
+        // 「決定」ランクのまま翌月以降に繰り越す（従来は月数分の全額が当月の売上になっていた）。
+        // 継続課金（顧問契約の継続分・終了月未定）フラグの案件は別ロジック（継続終了月まで毎月計上）で
+        // 扱われているため対象外。
+        const isRecurring = !!vals[i][DEAL_HEADERS.indexOf('継続課金')];
+        const becomingSold = String(d.rankLabel || '').trim() === '売上' && prevRank !== '売上';
+        if (becomingSold && months > 1 && !isRecurring) {
+          const monthlySales = unitSales * courses * qty;
+          const monthlyCost  = unitCost  * courses * qty;
+          const soldIncentive = calcIncentive(monthlyGP, 1, incentiveRate);
+
+          // 当月分：本レコードを月数=1として売上確定
+          setCol('売上（単価）', unitSales);
+          setCol('費用（単価）', unitCost);
+          setCol('コース数', courses);
+          setCol('件数', qty);
+          setCol('月数', 1);
+          setCol('売上予定額', monthlySales);
+          setCol('費用（合計）', monthlyCost);
+          setCol('粗利', monthlyGP);
+          setCol('インセンティブ', soldIncentive);
+          setCol('最終更新日', today);
+
+          // 残り月数分：新規レコードとして「決定」ランク・翌月以降に繰り越す
+          const curExpMonth  = String(d.expectedMonth || vals[i][DEAL_HEADERS.indexOf('売上予定月')] || '').slice(0, 7);
+          const nextExpMonth = addMonthsToYM_(curExpMonth, 1);
+          const remMonths    = months - 1;
+          const remTotalSales   = unitSales * courses * qty * remMonths;
+          const remTotalCost    = unitCost  * courses * qty * remMonths;
+          const remGrossProfit  = monthlyGP * remMonths;
+          const remIncentive    = calcIncentive(monthlyGP, remMonths, incentiveRate);
+
+          const newRow = DEAL_HEADERS.map((h, hi) => vals[i][hi]);
+          const set = (key, val) => { newRow[DEAL_HEADERS.indexOf(key)] = val; };
+          set('案件ID', generateDealId());
+          set('登録日', today);
+          set('確度ランク', '決定');
+          if (d.companyName !== undefined) set('会社名', d.companyName);
+          if (d.customerId  !== undefined) set('顧客ID', d.customerId);
+          if (d.phase       !== undefined) set('フェーズ', d.phase);
+          set('売上（単価）', unitSales);
+          set('費用（単価）', unitCost);
+          set('コース数', courses);
+          set('件数', qty);
+          set('月数', remMonths);
+          set('売上予定額', remTotalSales);
+          set('費用（合計）', remTotalCost);
+          set('粗利', remGrossProfit);
+          set('インセンティブ', remIncentive);
+          set('売上予定月', nextExpMonth);
+          set('入金ステータス', '未入金');
+          set('入金確認日', '');
+          if (d.memo   !== undefined) set('メモ', d.memo);
+          set('引継営業名', '');
+          set('引継日', '');
+          if (d.reason !== undefined) set('理由', d.reason);
+          set('最終更新日', today);
+          if (d.billingCompany !== undefined) set('計上会社', d.billingCompany);
+          // B行は当月分の一回計上のため、繰り越しレコードには引き継がない
+          set('B売上単価', 0);
+          set('B費用単価', 0);
+          set('B件数', 0);
+          if (d.productCode !== undefined) set('商材コード', d.productCode);
+          set('継続課金', false);
+          set('継続終了月', '');
+          sheet.appendRow(newRow);
+
+          return json({ success: true, grossProfit: monthlyGP, incentive: soldIncentive, splitDealId: newRow[DEAL_HEADERS.indexOf('案件ID')] });
+        }
+
+        const totalSales  = unitSales * courses * qty * months;
+        const totalCost   = unitCost  * courses * qty * months;
+        const grossProfit = monthlyGP * months;
         const incentive = calcIncentive(monthlyGP, months, incentiveRate);
         setCol('売上（単価）', unitSales);
         setCol('費用（単価）', unitCost);
@@ -796,6 +869,18 @@ function generateDealId() {
   const ts   = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyyMMddHHmmss');
   const rand = Math.random().toString(36).substr(2, 4).toUpperCase();
   return 'DL-' + ts + '-' + rand;
+}
+
+// ============================================================
+// 'yyyy-MM' 文字列に n ヶ月加算した 'yyyy-MM' 文字列を返す
+// ============================================================
+function addMonthsToYM_(ym, n) {
+  const m = String(ym || '').match(/^(\d{4})-(\d{2})$/);
+  const now = new Date();
+  const y  = m ? Number(m[1]) : now.getFullYear();
+  const mo = m ? Number(m[2]) : (now.getMonth() + 1);
+  const d = new Date(y, mo - 1 + Number(n), 1);
+  return Utilities.formatDate(d, 'Asia/Tokyo', 'yyyy-MM');
 }
 
 // ============================================================
