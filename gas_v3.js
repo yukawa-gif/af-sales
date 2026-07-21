@@ -64,6 +64,18 @@ const DEAL_HEADERS = [
 // 会社名正規化（法人格・空白除去・小文字統一）
 // "株式会社loty" と "loty" を同一とみなすための共通ヘルパー
 // ============================================================
+// ============================================================
+// E2Eシステムテストが挿入する検証用データ（案件ID: TEST-001〜010、
+// 担当者名: テスト担当者）を判定する。月別推移・KPI・インセンティブ等
+// 本番集計に使うエンドポイント（getAllData）はこれで必ず除外すること。
+// ============================================================
+function isTestDeal_(d) {
+  var id = String((d && d['案件ID']) || '').trim();
+  if (id.indexOf('TEST-') === 0) return true;
+  var person = String((d && (d['担当者'] || d['営業名'])) || '').trim();
+  return person === 'テスト担当者';
+}
+
 function normalizeCompany_(s) {
   return String(s || '').trim()
     .replace(/株式会社|有限会社|合同会社|一般社団法人|一般財団法人|特定非営利活動法人/g, '')
@@ -1378,10 +1390,19 @@ function getAllData(force) {
     }
 
     // deals
-    const dealsResult = JSON.parse(getDeals(null).getContent());
+    // ダッシュボードの本番集計（月別推移・資金繰り・KPI・インセンティブ等）に
+    // E2Eテストデータ（TEST-*／テスト担当者）が混入しないよう、mode=all の
+    // レスポンスからは必ず除外する（テストデータの参照は mode=deals 経由に限定）
+    const dealsResultRaw = JSON.parse(getDeals(null).getContent());
+    const cleanDeals = (dealsResultRaw.deals || []).filter(function(d) { return !isTestDeal_(d); });
+    const dealsResult = {
+      success: dealsResultRaw.success,
+      deals: cleanDeals,
+      count: cleanDeals.length
+    };
 
     // パイプライン by 担当者（確度ランク × 担当者別 粗利集計）
-    const pipelineByPerson = buildPipelineByPerson_(dealsResult.deals || []);
+    const pipelineByPerson = buildPipelineByPerson_(cleanDeals);
 
     // 確度マッピング（確度ランク → 着地確率）
     const confidenceMap = getConfidenceMapping_();
