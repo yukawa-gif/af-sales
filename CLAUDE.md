@@ -526,3 +526,36 @@ clasp deploy -i AKfycbyAC_jurLseKlw5gw8s15p6Xu1q66-fmcgBDUuruAeg5IlfmAFjU7mNvRwK
 
 `.clasp.json`・`.claspignore`はgit管理下に置く（scriptIdは秘密情報ではない）。
 ただし`~/.clasprc.json`（OAuth認証情報）は各自のホームディレクトリに保存されるものでリポジトリには含まれない。
+
+---
+
+## 2026-07-21 実装内容
+
+### 商材マスタ単価変更 → SFA案件への自動反映
+
+設定_商材シートのD/E/H/I列（売上単価・費用・B単価・B費用）を編集すると、
+その商材コードを使っている案件マスタの該当案件へ自動で金額を反映する仕組みを追加。
+
+- `onProductPriceEdit(e)`：installableなonEditトリガーのハンドラ。設定_商材のD/E/H/I列編集を検知
+- `syncDealsForProductPriceChange_(productCode, field, oldValue, newValue)`：反映の中核ロジック
+  - 商材コード（案件マスタAE列）が一致する案件のみが対象
+  - **ガード条件**：現在の単価がマスタの「変更前の値」と一致する案件のみ自動反映（値引き等で個別カスタマイズ済みの案件は対象外・スキップ）
+  - 確度ランク（決定/売上含む全ランク）を問わず反映　※合意済み方針
+  - A行（売上単価・費用）変更時は売上予定額・費用（合計）・粗利・インセンティブを標準式で再計算
+  - B行（B単価・B費用）変更時はB件数>0の案件のみ対象、AB/AC列の単価だけ書き換え（現行仕様どおりQ列の粗利合計にはB行を含めない）
+  - 反映後 `invalidateAllDataCache_()` でキャッシュ破棄 → ダッシュボードに即反映
+- `appendPriceChangeHistory_(...)`：新シート「商材価格変更履歴」に変更日時・商材コード/名・変更項目・旧値・新値・反映件数・スキップ件数・反映した案件ID・実行者を記録（監査ログ）
+- `setupProductPriceTrigger()`：installableトリガー登録用。**GASエディタから一度だけ手動実行が必要**（`clasp push`だけではトリガーは登録されない）
+
+**デプロイ手順（要手動実行・このセッションではGoogleログイン情報がないため実行不可）**：
+```bash
+git pull
+clasp push
+clasp deploy -i AKfycbyAC_jurLseKlw5gw8s15p6Xu1q66-fmcgBDUuruAeg5IlfmAFjU7mNvRwK1Yz1k9dt -d "商材単価変更の案件自動反映を追加"
+```
+デプロイ後、GASエディタの関数選択で `setupProductPriceTrigger` を選んで一度だけ実行し、
+installableトリガーを登録すること（登録しないと onEdit は発火しない）。
+
+**既知の制約・今後の検討課題**：
+- 決定/売上ランク（受注確定・入金済み）の案件も自動で書き換わるため、実際に請求・入金済みの金額と食い違う可能性がある（合意済みの仕様）
+- ダッシュボードの粗利直接編集（単価は据え置きで粗利だけ手動修正したケース）は単価が一致しているため自動反映対象になり粗利が上書きされる可能性がある
