@@ -958,8 +958,11 @@ async function submit() {
     const gpB = bQty > 0 ? (bUnitSales - bUnitCost) * bQty : 0;
     const gp  = (unitSales - unitCost) * courses * qty + gpB; // 月次粗利（A+B）
     const p  = findProduct(productCode || productName) ?? null;
+    const incentiveFixedAmount = p ? (p.incentiveFixedAmount || 0) : 0;
     const incentiveRate = p ? (p.incentiveRate || 0) : 0;
-    const incentive = Math.floor(gp * months * incentiveRate);
+    const incentive = incentiveFixedAmount > 0
+      ? Math.floor(incentiveFixedAmount * qty)
+      : Math.floor(gp * months * incentiveRate);
 
     showSuccess(payload.companyName, productName, incentive);
   } catch(e) {

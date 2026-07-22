@@ -3849,7 +3849,10 @@ function renderIncentiveCard(person, isTeam){
     // 保存済みインセンティブ優先、0なら商材マスタから計算（コード優先lookup）
     const pDetail=findProd(d);
     let totalIncentive=Number(d['インセンティブ'])||0;
-    if(totalIncentive===0 && pDetail?.incentiveRate){
+    if(totalIncentive===0 && pDetail?.incentiveFixedAmount){
+      const qty =Math.max(1,Number(d['件数'])||1);
+      totalIncentive =Math.floor(pDetail.incentiveFixedAmount*qty);
+    } else if(totalIncentive===0 && pDetail?.incentiveRate){
       const unitSales=Number(d['売上（単価）'])||0;
       const unitCost =Number(d['費用（単価）'])||0;
       const courses  =Math.max(1,Number(d['コース数'])||1);

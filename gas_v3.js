@@ -40,10 +40,12 @@ const HEADERS = [
 
 // 商材マスタの列定義
 // A:商材コード B:商材名 C:種別 D:売上単価 E:費用 F:インセンティブ率
-// G:価格タイプ H:B単価（円） I:B費用（円）
+// G:価格タイプ H:B単価（円） I:B費用（円） J:インセンティブ固定額（円）
+// J列に値がある商材は、インセンティブ率（F列）による粗利×率の計算ではなく
+// 「固定額 × 件数」で計算する（例: HubCastは1件成約につき21,000円固定）
 const PRODUCT_HEADERS_V3 = [
   '商材コード','商材名','種別','売上単価（円）','費用（円）','インセンティブ率',
-  '価格タイプ','B単価（円）','B費用（円）'
+  '価格タイプ','B単価（円）','B費用（円）','インセンティブ固定額（円）'
 ];
 
 // 案件マスタの列定義
@@ -57,7 +59,9 @@ const DEAL_HEADERS = [
   'メモ','引継営業名','引継日','理由','最終更新日',
   '計上会社','B売上単価','B費用単価','B件数',
   '商材コード',  // AE: index 30
-  '継続課金','継続終了月'  // AF/AG: 顧問契約など、止めるまで毎月自動計上する案件のフラグと終了月
+  '継続課金','継続終了月',  // AF/AG: 顧問契約など、止めるまで毎月自動計上する案件のフラグと終了月
+  'インセンティブ計上済み'  // AH: index 33。ストック案件は契約全期間分を初回の決定→売上確定時に一括計上するため、
+                            // 二重計上・多重計上を防ぐための一度払ったら立てるフラグ（分割・繰越・編集時に参照）
 ];
 
 // ============================================================
@@ -264,7 +268,7 @@ function doPost(e) {
       if (action === 'addPerson')           return addPerson(d.name, d.role, d.code || '');
       if (action === 'setPersonStatus')     return setPersonStatus(d.name, d.status);
       if (action === 'deletePerson')        return deletePerson(d.name);
-      if (action === 'addProduct')          return addProductToSheet(d.code, d.name, d.kind, d.unitPrice, d.cost, d.incentiveRate, d.priceType);
+      if (action === 'addProduct')          return addProductToSheet(d.code, d.name, d.kind, d.unitPrice, d.cost, d.incentiveRate, d.priceType, d.incentiveFixedAmount);
       if (action === 'updateProduct')       return updateProduct(d);
       if (action === 'saveGoals')           return saveGoals(d);
       if (action === 'changeCompanyPerson') return changeCompanyPerson(d.code, d.person);
@@ -327,7 +331,8 @@ function addDeal(d) {
   const monthlyGP   = (unitSales - unitCost) * courses * qty;
 
   const incentiveRate = pDetail ? pDetail.incentiveRate : 0;
-  const incentive = calcIncentive(monthlyGP, months, incentiveRate);
+  const incentiveFixedAmount = pDetail ? pDetail.incentiveFixedAmount : 0;
+  const incentive = calcIncentive(monthlyGP, months, incentiveRate, incentiveFixedAmount, qty);
 
   const codeMap = {};
   getPersonDetails().forEach(p => { if (p.code) codeMap[p.code] = p.name; });
@@ -385,7 +390,8 @@ function addDeal(d) {
     Number(d.bQty)       || 0,  // AD: B件数
     d.productCode || (pDetail ? pDetail.code : '') || '',  // AE: 商材コード
     !!d.recurring,                // AF: 継続課金
-    ''                            // AG: 継続終了月（登録時は常に空＝継続中）
+    '',                            // AG: 継続終了月（登録時は常に空＝継続中）
+    String(d.rankLabel || '').trim() === '売上',  // AH: インセンティブ計上済み
   ]);
 
   return json({ success: true, id, incentive, grossProfit });
@@ -593,6 +599,7 @@ function updateDeal(d) {
         const monthlyGP = (unitSales - unitCost) * courses * qty;
         const pDetail = getProductDetail(String(vals[i][DEAL_HEADERS.indexOf('商材名')]));
         const incentiveRate = pDetail ? pDetail.incentiveRate : 0;
+        const incentiveFixedAmount = pDetail ? pDetail.incentiveFixedAmount : 0;
 
         // 顧問契約・リスキリング分割払いなど複数月に跨る案件を「決定」→「売上」へ更新する場合、
         // 当月分（1ヶ月分）のみを本レコードで売上確定し、残りの月数は新規レコードとして
@@ -601,10 +608,19 @@ function updateDeal(d) {
         // 扱われているため対象外。
         const isRecurring = !!vals[i][DEAL_HEADERS.indexOf('継続課金')];
         const becomingSold = String(d.rankLabel || '').trim() === '売上' && prevRank !== '売上';
+        // ストック案件のインセンティブは月割りではなく、契約全期間分（例: 12ヶ月×レート）を
+        // 初回の「決定→売上」確定時に一括計上する。繰り越した「決定」レコードを翌月以降また
+        // 「売上」に確定する運用（毎月このsplit処理を通る）でも二重計上しないよう、
+        // 一度計上したら「インセンティブ計上済み」フラグを立てて以降は0にする。
+        const incentivePaidAlready = !!vals[i][DEAL_HEADERS.indexOf('インセンティブ計上済み')];
         if (becomingSold && months > 1 && !isRecurring) {
           const monthlySales = unitSales * courses * qty;
           const monthlyCost  = unitCost  * courses * qty;
-          const soldIncentive = calcIncentive(monthlyGP, 1, incentiveRate);
+          // 初回のみ、この時点の月数（＝繰り越されていない契約全期間、または残りの繰り越し月数）
+          // 分をまとめて計上。2回目以降（計上済み）は0。
+          const soldIncentive = incentivePaidAlready
+            ? 0
+            : calcIncentive(monthlyGP, months, incentiveRate, incentiveFixedAmount, qty);
 
           // 当月分：本レコードを月数=1として売上確定
           setCol('売上（単価）', unitSales);
@@ -616,6 +632,7 @@ function updateDeal(d) {
           setCol('費用（合計）', monthlyCost);
           setCol('粗利', monthlyGP);
           setCol('インセンティブ', soldIncentive);
+          setCol('インセンティブ計上済み', true);
           setCol('最終更新日', today);
 
           // 残り月数分：新規レコードとして「決定」ランク・翌月以降に繰り越す
@@ -625,7 +642,8 @@ function updateDeal(d) {
           const remTotalSales   = unitSales * courses * qty * remMonths;
           const remTotalCost    = unitCost  * courses * qty * remMonths;
           const remGrossProfit  = monthlyGP * remMonths;
-          const remIncentive    = calcIncentive(monthlyGP, remMonths, incentiveRate);
+          // インセンティブは当月分（soldIncentive）で払い済みのため、繰り越し分は常に0
+          const remIncentive    = 0;
 
           const newRow = DEAL_HEADERS.map((h, hi) => vals[i][hi]);
           const set = (key, val) => { newRow[DEAL_HEADERS.indexOf(key)] = val; };
@@ -660,6 +678,8 @@ function updateDeal(d) {
           if (d.productCode !== undefined) set('商材コード', d.productCode);
           set('継続課金', false);
           set('継続終了月', '');
+          // 繰り越しレコードも「計上済み」扱いにする（翌月以降また売上に確定しても再計上しないため）
+          set('インセンティブ計上済み', true);
           sheet.appendRow(newRow);
 
           return json({ success: true, grossProfit: monthlyGP, incentive: soldIncentive, splitDealId: newRow[DEAL_HEADERS.indexOf('案件ID')] });
@@ -668,7 +688,12 @@ function updateDeal(d) {
         const totalSales  = unitSales * courses * qty * months;
         const totalCost   = unitCost  * courses * qty * months;
         const grossProfit = monthlyGP * months;
-        const incentive = calcIncentive(monthlyGP, months, incentiveRate);
+        // 計上済みなら金額を再計算せず維持する（ダッシュボードの編集モーダルは保存の度に
+        // 月数・単価を含む全項目を送ってくるため、計上済みインセンティブが月割りに
+        // 縮んでしまうのを防ぐ）
+        const incentive = incentivePaidAlready
+          ? (Number(vals[i][DEAL_HEADERS.indexOf('インセンティブ')]) || 0)
+          : calcIncentive(monthlyGP, months, incentiveRate, incentiveFixedAmount, qty);
         setCol('売上（単価）', unitSales);
         setCol('費用（単価）', unitCost);
         setCol('コース数', courses);
@@ -678,6 +703,10 @@ function updateDeal(d) {
         setCol('費用（合計）', totalCost);
         setCol('粗利', grossProfit);
         setCol('インセンティブ', incentive);
+        const nowSold = String(d.rankLabel !== undefined ? d.rankLabel : prevRank).trim() === '売上';
+        if (!incentivePaidAlready && nowSold && incentive > 0) {
+          setCol('インセンティブ計上済み', true);
+        }
         setCol('最終更新日', today);
         return json({ success: true, grossProfit, incentive });
       }
@@ -873,7 +902,10 @@ function syncDealHeaders() {
 // ============================================================
 // インセンティブ計算
 // ============================================================
-function calcIncentive(grossProfitMonthly, months, incentiveRate) {
+function calcIncentive(grossProfitMonthly, months, incentiveRate, fixedAmount, qty) {
+  // 固定額商材（例: HubCast）は「固定額 × 件数」で計算し、率・月数は無視する
+  const fixed = Number(fixedAmount) || 0;
+  if (fixed > 0) return Math.floor(fixed * (Number(qty) || 1));
   const gp   = Number(grossProfitMonthly) || 0;
   const m    = Number(months) || 1;
   const rate = Number(incentiveRate) || 0;
@@ -929,6 +961,7 @@ function getProductDetail(nameOrCode) {
     priceType:     String(row[6]).trim() || (Number(row[3]) > 0 ? '固定' : '都度見積もり'), // G
     bUnitPrice:    Number(row[7]) || 0,            // H: B単価
     bCost:         Number(row[8]) || 0,            // I: B費用
+    incentiveFixedAmount: Number(row[9]) || 0,     // J: インセンティブ固定額
   };
 }
 
@@ -1013,7 +1046,17 @@ function syncDealsForProductPriceChange_(productCode, field, oldValue, newValue)
       row[idx('売上予定額')]   = unitSales * courses * qty * months;
       row[idx('費用（合計）')] = unitCost  * courses * qty * months;
       row[idx('粗利')]         = monthlyGP * months;
-      row[idx('インセンティブ')] = calcIncentive(monthlyGP, months, pDetail ? pDetail.incentiveRate : 0);
+      // 計上済み（インセンティブ計上済み=true）の案件は、単価変更があっても
+      // 月割りの再計算はしない（既に確定支給された金額を縮小させないため）
+      const alreadyPaid = !!row[idx('インセンティブ計上済み')];
+      if (!alreadyPaid) {
+        row[idx('インセンティブ')] = calcIncentive(
+          monthlyGP, months,
+          pDetail ? pDetail.incentiveRate : 0,
+          pDetail ? pDetail.incentiveFixedAmount : 0,
+          qty
+        );
+      }
     }
     row[idx('最終更新日')] = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd');
 
@@ -1160,7 +1203,7 @@ function deletePerson(name) {
 // 商材追加（新列対応）
 // ============================================================
 // code: 商材コード（A列）を先頭引数に
-function addProductToSheet(code, name, kind, unitPrice, cost, incentiveRate, priceType) {
+function addProductToSheet(code, name, kind, unitPrice, cost, incentiveRate, priceType, incentiveFixedAmount) {
   if (!name || !name.trim()) return json({ success: false, error: '商材名が空です' });
   name = name.trim();
   code = String(code || '').trim();
@@ -1172,7 +1215,7 @@ function addProductToSheet(code, name, kind, unitPrice, cost, incentiveRate, pri
     if (names.includes(name)) return json({ success: false, error: '既に存在します: ' + name });
   }
   const nextRow = sheet.getLastRow() + 1;
-  sheet.getRange(nextRow, 1, 1, 7).setValues([[
+  sheet.getRange(nextRow, 1, 1, 9).setValues([[
     code,                        // A: 商材コード
     name,                        // B: 商材名
     kind          || 'スポット', // C: 種別
@@ -1180,6 +1223,9 @@ function addProductToSheet(code, name, kind, unitPrice, cost, incentiveRate, pri
     Number(cost)          || 0,  // E: 費用
     Number(incentiveRate) || 0,  // F: インセンティブ率
     priceType     || '固定',     // G: 価格タイプ
+    0,                            // H: B単価
+    0,                            // I: B費用
+    Number(incentiveFixedAmount) || 0, // J: インセンティブ固定額
   ]]);
   return json({ success: true, name: name, code: code });
 }
@@ -1203,6 +1249,7 @@ function updateProduct(d) {
     if (d.priceType    !== undefined) sheet.getRange(i+1, 7).setValue(d.priceType);
     if (d.bUnitPrice   !== undefined) sheet.getRange(i+1, 8).setValue(Number(d.bUnitPrice)||0);
     if (d.bCost        !== undefined) sheet.getRange(i+1, 9).setValue(Number(d.bCost)||0);
+    if (d.incentiveFixedAmount !== undefined) sheet.getRange(i+1, 10).setValue(Number(d.incentiveFixedAmount)||0);
     return json({ success: true, name, code });
   }
   return json({ success: false, error: '商材が見つかりません: ' + nameOrCode });
@@ -1677,7 +1724,7 @@ function getMaster() {
   const pVals = productSheet.getDataRange().getValues();
   const productDetails = pVals.slice(1).filter(r => String(r[1]).trim()).map(r => {
     // A(0)=商材コード B(1)=商材名 C(2)=種別 D(3)=売上単価 E(4)=費用
-    // F(5)=インセンティブ率 G(6)=価格タイプ H(7)=B単価 I(8)=B費用
+    // F(5)=インセンティブ率 G(6)=価格タイプ H(7)=B単価 I(8)=B費用 J(9)=インセンティブ固定額
     const kind = String(r[2] || 'スポット').trim();
     return {
       code:          String(r[0] || '').trim(),
@@ -1690,6 +1737,7 @@ function getMaster() {
       priceType:     String(r[6]).trim() || (Number(r[3]) > 0 ? '固定' : '都度見積もり'),
       bUnitPrice:    Number(r[7]) || 0,
       bCost:         Number(r[8]) || 0,
+      incentiveFixedAmount: Number(r[9]) || 0,
     };
   });
   const products = productDetails.map(p => p.name);
@@ -3010,6 +3058,7 @@ function importFromSheet() {
         kind:          String(r[2]||'スポット').trim(),
         months:        String(r[2]).trim() === 'ストック' ? 12 : 1,
         incentiveRate: Number(r[5]) || 0,
+        incentiveFixedAmount: Number(r[9]) || 0,
       };
       prodByName[name.toLowerCase()] = obj;
       if (code) prodByCode[code] = obj;
@@ -3112,8 +3161,8 @@ function importFromSheet() {
     const pDetail      = prodByCode[product] || prodByName[product.toLowerCase()];
     const importMonths = pDetail ? pDetail.months : 1;
     const monthlyGP    = (sales - cost) * 1 * 1; // コース数=1・件数=1 固定のため
-    const incentive    = (pDetail && pDetail.incentiveRate)
-      ? calcIncentive(monthlyGP, importMonths, pDetail.incentiveRate)
+    const incentive    = (pDetail && (pDetail.incentiveRate || pDetail.incentiveFixedAmount))
+      ? calcIncentive(monthlyGP, importMonths, pDetail.incentiveRate, pDetail.incentiveFixedAmount, 1)
       : 0;
 
     const rowMap = {
@@ -3124,7 +3173,8 @@ function importFromSheet() {
       'インセンティブ': incentive, '売上予定月': expMonth,
       '入金ステータス': payStatus, '入金確認日': '', 'メモ': memo,
       '引継営業名': '', '引継日': '', '理由': '', '最終更新日': today,
-      '計上会社': billingCo, 'B売上単価': bUnitSales, 'B費用単価': bUnitCost, 'B件数': bQty
+      '計上会社': billingCo, 'B売上単価': bUnitSales, 'B費用単価': bUnitCost, 'B件数': bQty,
+      'インセンティブ計上済み': rank === '売上' && incentive > 0
     };
     const newRow = DEAL_HEADERS.map(h => rowMap[h] !== undefined ? rowMap[h] : '');
     dest.appendRow(newRow);
