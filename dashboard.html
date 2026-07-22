@@ -399,6 +399,8 @@ body.modal-open{overflow:hidden}
 .modal-btn-save{background:var(--blue);color:#fff}
 .modal-btn-save:hover{background:var(--blue-dark)}
 .modal-btn-save:disabled{background:var(--text3);cursor:not-allowed}
+.modal-btn-delete{flex:0 0 auto;background:none;color:#dc2626;border:1.5px solid #dc2626}
+.modal-btn-delete:hover{background:#dc2626;color:#fff}
 
 /* ─── タスク・メールボタン ─── */
 .task-btn{font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;
@@ -995,6 +997,7 @@ body.modal-open{overflow:hidden}
       </div>
     </div>
     <div class="modal-footer">
+      <button class="modal-btn modal-btn-delete" id="dm-delete" onclick="deleteDealModal()">削除</button>
       <button class="modal-btn modal-btn-cancel" onclick="closeDealModal()">キャンセル</button>
       <button class="modal-btn modal-btn-save" id="dm-save" onclick="saveDealModal()">保存</button>
     </div>
@@ -3189,6 +3192,37 @@ async function saveDealModal(){
       showToast('分割後の最新データ取得に失敗しました。手動で更新してください。','warn');
     }
   }
+  if(currentPerson)render(currentPerson);
+}
+
+async function deleteDealModal(){
+  if(!editingDeal)return;
+  const label=`${editingDeal['会社名']||''} / ${editingDeal['商材名']||''}`;
+  if(!confirm(`この案件を削除しますか？\n${label}\n\nこの操作は取り消せません。`))return;
+
+  const btn=document.getElementById('dm-delete');
+  btn.disabled=true;btn.textContent='削除中...';
+
+  if(!isDemoMode&&editingDeal['案件ID']){
+    try{
+      const result=await gasPost({action:'deleteDeal', id:editingDeal['案件ID']});
+      if(!result||!result.success){
+        alert('削除に失敗しました: '+(result&&result.error?result.error:'不明なエラー'));
+        btn.disabled=false;btn.textContent='削除';
+        return;
+      }
+    }catch(e){
+      alert('削除に失敗しました: '+e.message);
+      btn.disabled=false;btn.textContent='削除';
+      return;
+    }
+  }
+
+  const dealId=editingDeal['案件ID'];
+  dealsData=dealsData.filter(d=>d['案件ID']!==dealId);
+
+  btn.disabled=false;btn.textContent='削除';
+  closeDealModal();
   if(currentPerson)render(currentPerson);
 }
 

@@ -271,6 +271,7 @@ function doPost(e) {
       if (action === 'initCustomerHistory') return initCustomerHistoryColumn();
       if (action === 'addDeal')             return addDeal(d);
       if (action === 'updateDeal')          return updateDeal(d);
+      if (action === 'deleteDeal')          return deleteDeal(d.id);
       if (action === 'saveCostSchedule')    return saveCostSchedule(d);
       if (action === 'updateDealStatus')    return updateDealStatus(d.id, d.phase, d.rankLabel);
       if (action === 'confirmPayment')      return confirmPayment(d.id, d.date);
@@ -686,6 +687,24 @@ function updateDeal(d) {
     }
   }
   return json({ success: false, error: '見つかりません: ' + d.id });
+}
+
+// ============================================================
+// 案件削除
+// ============================================================
+function deleteDeal(id) {
+  if (!id) return json({ success: false, error: 'IDが空です' });
+  const sheet = getOrCreateDealSheet();
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return json({ success: false, error: '見つかりません: ' + id });
+  const vals = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  for (let i = 0; i < vals.length; i++) {
+    if (String(vals[i][0]).trim() === String(id).trim()) {
+      sheet.deleteRow(i + 2);
+      return json({ success: true });
+    }
+  }
+  return json({ success: false, error: '見つかりません: ' + id });
 }
 
 // ============================================================
