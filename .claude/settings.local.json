@@ -59,7 +59,23 @@
       "Bash(powershell -Command \"Get-ChildItem -Path . -Filter '*.html' | Select-Object Name, LastWriteTime\")",
       "Bash(gh auth *)",
       "Bash(git fetch *)",
-      "Bash(git rev-list *)"
+      "Bash(git rev-list *)",
+      "Bash(npx clasp *)",
+      "Bash(npm --version)",
+      "Bash(npm list *)",
+      "Bash(npm install *)",
+      "Bash(clasp --version)",
+      "Bash(clasp login *)",
+      "Read(//c/Users/湯川悦英/**)",
+      "Bash(clasp --help)",
+      "Bash(clasp show-authorized-user *)",
+      "Bash(clasp status *)",
+      "Bash(clasp push *)",
+      "Bash(clasp deploy *)",
+      "Bash(curl -s -X POST \"https://script.google.com/macros/s/AKfycbyAC_jurLseKlw5gw8s15p6Xu1q66-fmcgBDUuruAeg5IlfmAFjU7mNvRwK1Yz1k9dt/exec\" -d '{\"action\":\"deleteDeal\",\"id\":\"VERIFY-NONEXISTENT-ID-12345\"}' -H \"Content-Type: text/plain\")",
+      "Bash(curl -s -L -X POST \"https://script.google.com/macros/s/AKfycbyAC_jurLseKlw5gw8s15p6Xu1q66-fmcgBDUuruAeg5IlfmAFjU7mNvRwK1Yz1k9dt/exec\" -d '{\"action\":\"deleteDeal\",\"id\":\"VERIFY-NONEXISTENT-ID-12345\"}' -H \"Content-Type: text/plain\")",
+      "Bash(curl -s -L --post302 --post303 -X POST \"https://script.google.com/macros/s/AKfycbyAC_jurLseKlw5gw8s15p6Xu1q66-fmcgBDUuruAeg5IlfmAFjU7mNvRwK1Yz1k9dt/exec\" -d '{\"action\":\"deleteDeal\",\"id\":\"VERIFY-NONEXISTENT-ID-12345\"}' -H \"Content-Type: text/plain\")",
+      "Bash(clasp deployments *)"
     ]
   }
 }
