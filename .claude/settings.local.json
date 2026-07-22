@@ -45,7 +45,21 @@
       "Bash(git rebase *)",
       "Bash(GIT_EDITOR=true git rebase --continue)",
       "Bash(git grep *)",
-      "Bash(GIT_EDITOR=\":\" git rebase --continue)"
+      "Bash(GIT_EDITOR=\":\" git rebase --continue)",
+      "mcp__96604b27-852e-46ae-968f-87757e61bbbd__read_file_content",
+      "Bash(git stash *)",
+      "Bash(python -m http.server 8081)",
+      "Bash(curl -s http://localhost:8081/dashboard.html)",
+      "Bash(git check-ignore *)",
+      "Bash(git -C C:/develop/af-sales status)",
+      "Bash(git -C C:/develop/af-sales add dashboard.html)",
+      "Bash(git -C C:/develop/af-sales commit -m ' *)",
+      "Bash(git -C C:/develop/af-sales push origin main)",
+      "Bash(xargs -I{} echo {})",
+      "Bash(powershell -Command \"Get-ChildItem -Path . -Filter '*.html' | Select-Object Name, LastWriteTime\")",
+      "Bash(gh auth *)",
+      "Bash(git fetch *)",
+      "Bash(git rev-list *)"
     ]
   }
 }
