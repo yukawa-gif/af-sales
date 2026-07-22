@@ -877,6 +877,30 @@ body.modal-open{overflow:hidden}
           <span class="modal-info-label">顧客担当</span>
           <span class="modal-info-val" id="dm-contact"></span>
         </div>
+        <div class="modal-info-row" style="grid-column:1/-1;margin-top:2px">
+          <button type="button" id="dm-dup-toggle" onclick="toggleDmDuplicate()"
+            style="align-self:start;background:none;border:1px solid var(--border);border-radius:var(--r);
+            padding:4px 10px;font-size:11px;font-weight:700;color:var(--blue);cursor:pointer;font-family:inherit">
+            ⧉ 同じ会社・営業で商材を変えて複製登録
+          </button>
+        </div>
+      </div>
+      <div id="dm-dup-panel" style="display:none;background:#eff6ff;border:1px solid var(--blue);
+        border-radius:var(--r);padding:10px 12px;margin-bottom:12px">
+        <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:8px">
+          同じ会社「<span id="dm-dup-company"></span>」・担当「<span id="dm-dup-person"></span>」で、
+          別の商材の案件を新規登録します（確度ランクは「C」・件数などは登録後に編集できます）。
+        </div>
+        <div class="mfg" style="margin-bottom:8px">
+          <label class="mfl">複製先の商材</label>
+          <select class="mfsel" id="dm-dup-product"></select>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button type="button" class="modal-btn modal-btn-cancel" style="flex:0 0 auto;padding:10px 14px"
+            onclick="toggleDmDuplicate(false)">キャンセル</button>
+          <button type="button" class="modal-btn modal-btn-save" id="dm-dup-save"
+            onclick="duplicateDealAsNewProduct()">この商材で複製登録</button>
+        </div>
       </div>
       <div class="mfg">
         <label class="mfl">会社名</label>
@@ -2648,6 +2672,7 @@ function toggleDmRecurringEnd(){
 
 function openDealModal(deal){
   editingDeal=deal;
+  toggleDmDuplicate(false);
   document.getElementById('dm-company').value=deal['会社名']||'';
   document.getElementById('dm-product').textContent=deal['商材名']||'—';
   document.getElementById('dm-person').textContent=deal['担当者']||'—';
@@ -2723,6 +2748,87 @@ function closeDealModal(){
   document.getElementById('deal-modal').classList.remove('open');
   document.body.classList.remove('modal-open');
   editingDeal=null;
+  toggleDmDuplicate(false);
+}
+
+function toggleDmDuplicate(force){
+  const panel=document.getElementById('dm-dup-panel');
+  const show=force!==undefined?force:panel.style.display==='none';
+  panel.style.display=show?'':'none';
+  if(show&&editingDeal){
+    document.getElementById('dm-dup-company').textContent=document.getElementById('dm-company').value||editingDeal['会社名']||'';
+    document.getElementById('dm-dup-person').textContent=editingDeal['担当者']||editingDeal['営業名']||'';
+    const curCode=editingDeal['商材コード']||'';
+    const sel=document.getElementById('dm-dup-product');
+    sel.innerHTML=(masterData?.productDetails||[]).map(p=>
+      `<option value="${esc(p.code)}"${p.code===curCode?' selected':''}>${esc(p.name)}</option>`
+    ).join('');
+  }
+}
+
+async function duplicateDealAsNewProduct(){
+  if(!editingDeal)return;
+  const code=document.getElementById('dm-dup-product').value;
+  const pDetail=(masterData?.productDetails||[]).find(p=>p.code===code);
+  if(!pDetail){showToast('複製先の商材を選択してください。','warn');return;}
+
+  const person=editingDeal['個人コード']||editingDeal['担当者コード']||'';
+  const billingCompany=document.getElementById('dm-billing-company').value||editingDeal['計上会社']||'';
+  const companyName=document.getElementById('dm-company').value.trim()||editingDeal['会社名']||'';
+  const customerId=editingDeal['顧客ID']||'';
+  const expectedMonth=document.getElementById('dm-month').value||editingDeal['売上予定月']||'';
+
+  if(!person){showToast('担当者（個人コード）が不明なため複製できません。','warn');return;}
+  if(!companyName){showToast('会社名を入力してください。','warn');return;}
+  if(!expectedMonth){showToast('粗利予定月を選択してください。','warn');return;}
+
+  const isQuote=pDetail.priceType==='都度見積もり';
+  const isComposite=(pDetail.bUnitPrice||0)>0||(pDetail.bCost||0)>0;
+
+  const payload={
+    action:'addDeal',
+    person,
+    billingCompany,
+    companyName,
+    customerId,
+    productName:pDetail.name,
+    productCode:pDetail.code,
+    rankLabel:'C',
+    unitSales:isQuote?0:(pDetail.unitPrice||0),
+    unitCost:isQuote?0:(pDetail.cost||0),
+    courses:1,
+    qty:1,
+    months:pDetail.months||1,
+    expectedMonth,
+    recurring:false,
+    memo:'',
+  };
+  if(isComposite){payload.bUnitSales=pDetail.bUnitPrice||0;payload.bUnitCost=pDetail.bCost||0;payload.bQty=1;}
+
+  if(isDemoMode){
+    showToast('デモモードのため複製は保存されません。','warn');
+    closeDealModal();
+    return;
+  }
+
+  const btn=document.getElementById('dm-dup-save');
+  btn.disabled=true;btn.textContent='登録中...';
+  try{
+    const result=await gasPost(payload);
+    if(result&&result.success){
+      showToast('「'+pDetail.name+'」で案件を複製登録しました。','info');
+      closeDealModal();
+      const fresh=await fetchDashboardData(true);
+      if(fresh)applyDashboardData(fresh);
+      if(currentPerson)render(currentPerson);
+    }else{
+      showToast('複製登録に失敗しました: '+((result&&result.error)||'不明なエラー'),'warn');
+    }
+  }catch(e){
+    showToast('複製登録に失敗しました: '+e.message,'warn');
+  }finally{
+    btn.disabled=false;btn.textContent='この商材で複製登録';
+  }
 }
 
 
