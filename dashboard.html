@@ -371,9 +371,10 @@ body.modal-open{overflow:hidden}
 .modal-close:hover{background:var(--border);color:var(--text)}
 .modal-body{padding:16px 20px}
 .modal-info{background:var(--bg);border-radius:var(--r);padding:10px 14px;
-  margin-bottom:12px;font-size:12px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;
-  border:1px solid var(--border)}
-.modal-info-row{display:flex;flex-direction:column;gap:2px}
+  margin-bottom:12px;font-size:12px;display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px 18px;
+  border:1px solid var(--border);align-items:start}
+.modal-info-row{display:flex;flex-direction:column;gap:2px;min-width:0}
+.modal-info-row-tight{white-space:nowrap;text-align:right}
 .modal-info-label{color:var(--text3);font-size:10px;font-weight:700;
   text-transform:uppercase;letter-spacing:.04em}
 .modal-info-val{font-weight:600;color:var(--text);font-size:12px}
@@ -869,11 +870,11 @@ body.modal-open{overflow:hidden}
           <span class="modal-info-label">商材</span>
           <span class="modal-info-val" id="dm-product"></span>
         </div>
-        <div class="modal-info-row">
+        <div class="modal-info-row modal-info-row-tight">
           <span class="modal-info-label">AFC営業</span>
           <span class="modal-info-val" id="dm-person"></span>
         </div>
-        <div class="modal-info-row" id="dm-contact-row" style="display:none">
+        <div class="modal-info-row modal-info-row-tight" id="dm-contact-row" style="display:none">
           <span class="modal-info-label">顧客担当</span>
           <span class="modal-info-val" id="dm-contact"></span>
         </div>
