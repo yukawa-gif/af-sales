@@ -300,11 +300,15 @@ function addDeal(d) {
   const courses   = Math.max(1, Number(d.courses) || 1);
   const qty       = Math.max(1, Number(d.qty)     || 1);
   const months    = Math.max(1, Math.min(24, Number(d.months) || (pDetail ? pDetail.months : 1)));
+  // B行（複合商材：社労士顧問・リスキリング・嘱託産業医など。月数はA行と共有）
+  const bUnitSales = Number(d.bUnitSales) || 0;
+  const bUnitCost  = Number(d.bUnitCost)  || 0;
+  const bQty       = Number(d.bQty)       || 0;
 
-  const totalSales  = unitSales * courses * qty * months;
-  const totalCost   = unitCost  * courses * qty * months;
-  const grossProfit = (unitSales - unitCost) * courses * qty * months;
-  const monthlyGP   = (unitSales - unitCost) * courses * qty;
+  const totalSales  = (unitSales * courses * qty + bUnitSales * bQty) * months;
+  const totalCost   = (unitCost  * courses * qty + bUnitCost  * bQty) * months;
+  const monthlyGP   = (unitSales - unitCost) * courses * qty + (bUnitSales - bUnitCost) * bQty;
+  const grossProfit = monthlyGP * months;
 
   const incentiveRate = pDetail ? pDetail.incentiveRate : 0;
   const incentive = calcIncentive(monthlyGP, months, incentiveRate);
@@ -563,16 +567,21 @@ function updateDeal(d) {
 
       // フォームからの単価・コース数・件数・月数更新（全再計算）
       if (d.unitSales !== undefined || d.unitCost !== undefined ||
-          d.courses !== undefined || d.qty !== undefined || d.months !== undefined) {
+          d.courses !== undefined || d.qty !== undefined || d.months !== undefined ||
+          d.bUnitSales !== undefined || d.bUnitCost !== undefined || d.bQty !== undefined) {
         const unitSales = Number(d.unitSales !== undefined ? d.unitSales : vals[i][DEAL_HEADERS.indexOf('売上（単価）')]);
         const unitCost  = Number(d.unitCost  !== undefined ? d.unitCost  : vals[i][DEAL_HEADERS.indexOf('費用（単価）')]);
         const courses   = Math.max(1, Number(d.courses !== undefined ? d.courses : vals[i][DEAL_HEADERS.indexOf('コース数')]) || 1);
         const qty       = Math.max(1, Number(d.qty     !== undefined ? d.qty     : vals[i][DEAL_HEADERS.indexOf('件数')])   || 1);
         const months    = Math.max(1, Math.min(24, Number(d.months !== undefined ? d.months : vals[i][DEAL_HEADERS.indexOf('月数')]) || 1));
-        const totalSales  = unitSales * courses * qty * months;
-        const totalCost   = unitCost  * courses * qty * months;
-        const grossProfit = (unitSales - unitCost) * courses * qty * months;
-        const monthlyGP   = (unitSales - unitCost) * courses * qty;
+        // B行（複合商材：社労士顧問・リスキリング・嘱託産業医など。月数はA行と共有）
+        const bUnitSales = Number(d.bUnitSales !== undefined ? d.bUnitSales : vals[i][DEAL_HEADERS.indexOf('B売上単価')]) || 0;
+        const bUnitCost  = Number(d.bUnitCost  !== undefined ? d.bUnitCost  : vals[i][DEAL_HEADERS.indexOf('B費用単価')]) || 0;
+        const bQty       = Number(d.bQty       !== undefined ? d.bQty       : vals[i][DEAL_HEADERS.indexOf('B件数')])     || 0;
+        const totalSales  = (unitSales * courses * qty + bUnitSales * bQty) * months;
+        const totalCost   = (unitCost  * courses * qty + bUnitCost  * bQty) * months;
+        const monthlyGP   = (unitSales - unitCost) * courses * qty + (bUnitSales - bUnitCost) * bQty;
+        const grossProfit = monthlyGP * months;
         const pDetail = getProductDetail(String(vals[i][DEAL_HEADERS.indexOf('商材名')]));
         const incentiveRate = pDetail ? pDetail.incentiveRate : 0;
         const incentive = calcIncentive(monthlyGP, months, incentiveRate);
