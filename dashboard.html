@@ -111,22 +111,7 @@ body.sidebar-collapsed #sidebar-toggle-icon{transform:rotate(180deg)}
 .card-title{font-size:14px;font-weight:700;color:var(--text);letter-spacing:-.01em}
 .card-hint{font-size:11px;color:var(--text3)}
 
-/* ─── パイプラインサマリー（最上段 6枚） ─── */
-.pipeline-summary{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px}
-.ps-card{background:var(--surface);border:1px solid var(--border);
-  border-radius:14px;padding:18px 20px;border-top:3px solid var(--border);
-  box-shadow:0 1px 3px rgba(0,0,0,.06);transition:var(--transition)}
-.ps-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.1);transform:translateY(-1px)}
-.ps-label{font-size:10px;color:var(--text3);font-weight:700;margin-bottom:10px;
-  letter-spacing:.08em;text-transform:uppercase}
-.ps-value{font-size:22px;font-weight:800;line-height:1.1;letter-spacing:-.03em}
-
 /* ─── アラート ─── */
-.alert{padding:11px 16px;border-radius:var(--r);font-size:13px;
-  margin-bottom:14px;border-left:3px solid;font-weight:500}
-.alert-ok{background:var(--green-bg);border-color:var(--green);color:#14532d}
-.alert-warn{background:var(--amber-bg);border-color:var(--amber);color:#92400e}
-.alert-danger{background:var(--red-bg);border-color:var(--red);color:#7f1d1d}
 .unpaid-alert{background:var(--red-bg);border:1px solid #fca5a5;border-left:3px solid var(--red);
   border-radius:var(--r);padding:12px 16px;margin-bottom:14px}
 .unpaid-alert-header{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none}
@@ -225,13 +210,14 @@ body.sidebar-collapsed #sidebar-toggle-icon{transform:rotate(180deg)}
 .tl-rank-row td{cursor:pointer;user-select:none;padding:8px 12px;
   border-top:2px solid var(--border);border-bottom:1px solid var(--border)}
 .tl-rank-row:hover td{filter:brightness(.97)}
-.tl-rank-row td.td-deal{display:flex;align-items:center;gap:8px}
-.tl-rank-row-label{font-weight:700;font-size:13px}
-.tl-rank-row-desc{font-size:11px;color:var(--text3);flex:1}
-.tl-rank-row-cnt{font-size:11px;color:var(--text3)}
+.tl-rank-row td.td-co{display:flex;align-items:center;gap:8px;overflow:hidden}
+.tl-rank-row-label{font-weight:700;font-size:13px;flex-shrink:0}
+.tl-rank-row-desc{font-size:11px;color:var(--text3);flex:1;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tl-rank-row-cnt{font-size:11px;color:var(--text3);flex-shrink:0;white-space:nowrap}
 .tl-rank-row-arr{font-size:10px;color:var(--text3);transition:transform .2s;flex-shrink:0}
 .tl-rank-row-arr.open{transform:rotate(90deg)}
-.tl-rank-row td:not(.td-deal){font-weight:700;font-size:11px}
+.tl-rank-row td:not(.td-co){font-weight:700;font-size:11px}
 .tl-deal-row td{transition:background .1s}
 
 /* ─── 下段グリッド ─── */
@@ -502,14 +488,8 @@ body.modal-open{overflow:hidden}
 /* ─── 狭幅デバイス対応（テーブル・サマリーカードのレイアウト崩れ防止）───
    列数の多いテーブルは各テーブル自身の .table-scroll / .timeline-scroll で
    横スクロールするため、ここではスクロールに頼らないグリッド類のみ調整する */
-@media (max-width:900px){
-  .pipeline-summary{grid-template-columns:repeat(3,1fr)}
-}
 @media (max-width:560px){
   .main{padding:14px}
-  .pipeline-summary{grid-template-columns:repeat(2,1fr);gap:8px}
-  .ps-card{padding:12px 14px}
-  .ps-value{font-size:18px}
   /* トップバーの最終更新時刻は優先度が低いため、狭幅では非表示にして
      ロゴ・FYバッジ・更新ボタンの表示スペースを確保する */
   #last-updated{display:none}
@@ -617,15 +597,32 @@ body.modal-open{overflow:hidden}
     </div>
   </div>
 
-  <!-- アラート -->
-  <div id="alert-area"></div>
-  <div id="unpaid-alert-area"></div>
-
-  <!-- ヨミ着地ヒーローカード -->
-  <div id="yomi-hero" style="margin-bottom:12px"></div>
-
-  <!-- パイプラインサマリー（ヒーローKPI行） -->
-  <div id="pipeline-summary" class="pipeline-summary"></div>
+  <!-- 月別推移タイムライン -->
+  <div class="timeline-card">
+    <div class="timeline-card-header">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span style="font-size:15px;font-weight:800;flex-shrink:0;display:flex;align-items:center;gap:7px">
+          <i data-lucide="calendar-range" style="width:16px;height:16px;color:var(--blue)"></i> 月別推移
+        </span>
+        <div id="mg-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+        <span style="font-size:11px;color:var(--text3);margin-left:auto" id="timeline-hint"></span>
+      </div>
+    </div>
+    <div class="timeline-scroll">
+      <table class="tl-tbl" id="tl-tbl">
+        <colgroup>
+          <col class="col-co"><col class="col-rank"><col class="col-name">
+          <col class="col-month"><col class="col-month"><col class="col-month">
+          <col class="col-month"><col class="col-month"><col class="col-month">
+          <col class="col-month"><col class="col-month"><col class="col-month">
+          <col class="col-month"><col class="col-month"><col class="col-month">
+        </colgroup>
+        <thead id="tl-thead"></thead>
+        <tbody id="tl-tbody"></tbody>
+        <tfoot id="tl-tfoot"></tfoot>
+      </table>
+    </div>
+  </div>
 
   <!-- 会社フィルター -->
   <div id="company-filter-bar" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:12px">
@@ -638,6 +635,12 @@ body.modal-open{overflow:hidden}
     <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:8px;letter-spacing:.05em">商材フィルター</div>
     <div id="product-filter-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
   </div>
+
+  <!-- アラート -->
+  <div id="unpaid-alert-area"></div>
+
+  <!-- ヨミ着地ヒーローカード -->
+  <div id="yomi-hero" style="margin-bottom:12px"></div>
 
   <!-- 行動KPI進捗（今週） -->
   <div class="wkpi-card" id="wkpi-card" style="display:none">
@@ -663,33 +666,6 @@ body.modal-open{overflow:hidden}
         <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#fef3c7;border:1px solid #fcd34d;display:inline-block;border-radius:2px"></span>50%未満</span>
         <span style="margin-left:8px;display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#fee2e2;border:1px solid #fca5a5;display:inline-block;border-radius:2px"></span>目標未設定 or 0</span>
       </div>
-    </div>
-  </div>
-
-  <!-- 月別推移タイムライン -->
-  <div class="timeline-card">
-    <div class="timeline-card-header">
-      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-        <span style="font-size:15px;font-weight:800;flex-shrink:0;display:flex;align-items:center;gap:7px">
-          <i data-lucide="calendar-range" style="width:16px;height:16px;color:var(--blue)"></i> 月別推移
-        </span>
-        <div id="mg-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
-        <span style="font-size:11px;color:var(--text3);margin-left:auto" id="timeline-hint"></span>
-      </div>
-    </div>
-    <div class="timeline-scroll">
-      <table class="tl-tbl" id="tl-tbl">
-        <colgroup>
-          <col class="col-co"><col class="col-rank"><col class="col-name">
-          <col class="col-month"><col class="col-month"><col class="col-month">
-          <col class="col-month"><col class="col-month"><col class="col-month">
-          <col class="col-month"><col class="col-month"><col class="col-month">
-          <col class="col-month"><col class="col-month"><col class="col-month">
-        </colgroup>
-        <thead id="tl-thead"></thead>
-        <tbody id="tl-tbody"></tbody>
-        <tfoot id="tl-tfoot"></tfoot>
-      </table>
     </div>
   </div>
 
@@ -1287,15 +1263,6 @@ const RANKS=[
 const RANK_COLOR={'売上':'#7c3aed','決定':'#dc2626','A':'#d97706','B':'#2563eb','C':'#6b7280','失注':'#9ca3af'};
 const RANK_PROB={'売上':1.0,'決定':1.0,'A':0.70,'B':0.40,'C':0.10,'失注':0};
 
-const PS_CONFIG=[
-  {key:'売上', label:'売上（確定）',color:'#16a34a',border:'#bbf7d0'},
-  {key:'決定', label:'決定',        color:'#dc2626',border:'#fca5a5'},
-  {key:'A',    label:'見込A',       color:'#d97706',border:'#fcd34d'},
-  {key:'B',    label:'見込B',       color:'#2563eb',border:'#93c5fd'},
-  {key:'C',    label:'見込C',       color:'#6b7280',border:'#d1d5db'},
-  {key:'失注', label:'失注',        color:'#9ca3af',border:'#e5e7eb'},
-];
-
 function getCurrentFY(d){d=d||new Date();return d.getMonth()>=7?d.getFullYear():d.getFullYear()-1}
 function getFYMonths(fy){const a=[];for(let m=8;m<=12;m++)a.push({year:fy,month:m});for(let m=1;m<=7;m++)a.push({year:fy+1,month:m});return a}
 function hideLoading(){
@@ -1740,13 +1707,6 @@ function render(person){
   const yomiTotal=toMan(yomiDeals.reduce((s,d)=>s+(Number(d['粗利'])||0),0));
   const forecast=uriageTotal+yomiTotal;
 
-  // ランク別集計（粗利ベース）
-  const byRankTotal={売上:uriageTotal,決定:0,A:0,B:0,C:0,失注:0};
-  personDeals.forEach(d=>{
-    const rank=d['確度ランク'];
-    if(byRankTotal[rank]!==undefined) byRankTotal[rank]+=toMan(Number(d['粗利'])||0);
-  });
-  renderPipelineSummary(byRankTotal);
   // renderYomiHero(personDeals); // 非表示（再表示したい場合はコメントアウトを外す）
 
   // KPI集計 - 今月・今週・今日の3期間を同時計算
@@ -1788,33 +1748,6 @@ function render(person){
     referrals: weeklyKpi.referrals > 0 ? Math.round(weeklyKpi.referrals / 5) : 0,
   };
 
-  // 今月目標・今月実績（months があれば当月値を使用、なければ monthlyTarget にフォールバック）
-  const getMonthlyGP=p=>p?.months?p.months[todayYM]||0:Math.round(p?.monthlyTarget||0);
-  let monthlyTarget=0;
-  if(isTeam){
-    monthlyTarget=(goalsData?.persons||[]).reduce((s,p)=>s+getMonthlyGP(p),0);
-  }else{
-    monthlyTarget=getMonthlyGP(personGoal);
-  }
-  const thisMonthActual=toMan(personDeals
-    .filter(d=>d['確度ランク']==='売上'&&String(d['売上予定月']||'').slice(0,7)===todayYM)
-    .reduce((s,d)=>s+(Number(d['粗利'])||0),0));
-
-  // 翌月データ
-  const nextDate=new Date(today.getFullYear(),today.getMonth()+1,1);
-  const nextYM=yyyyMM(nextDate.getFullYear(),nextDate.getMonth()+1);
-  const getNextGP=p=>p?.months?p.months[nextYM]||0:0;
-  const nextMonthTarget=isTeam
-    ?(goalsData?.persons||[]).reduce((s,p)=>s+getNextGP(p),0)
-    :getNextGP(personGoal);
-  const nextMonthYomi=toMan(personDeals
-    .filter(d=>['決定','A','B'].includes(d['確度ランク'])&&String(d['売上予定月']||'').slice(0,7)===nextYM)
-    .reduce((s,d)=>s+(Number(d['粗利'])||0),0));
-  const nextMonthActual=toMan(personDeals
-    .filter(d=>d['確度ランク']==='売上'&&String(d['売上予定月']||'').slice(0,7)===nextYM)
-    .reduce((s,d)=>s+(Number(d['粗利'])||0),0));
-
-  renderAlert(monthlyTarget,thisMonthActual,nextMonthTarget,nextMonthActual+nextMonthYomi);
   renderUnpaidAlert(personDeals);
   renderWeeklyKPI(person,isTeam);
   renderTimeline(personDeals,actualByMonth,person,isTeam);
@@ -1970,17 +1903,6 @@ function renderYomiHero(deals){
           </div>`).join('')}
       </div>
     </div>`;
-}
-
-// ============================================================
-// パイプラインサマリー
-// ============================================================
-function renderPipelineSummary(byRankTotal){
-  document.getElementById('pipeline-summary').innerHTML=PS_CONFIG.map(cfg=>`
-    <div class="ps-card" style="border-top-color:${cfg.border}">
-      <div class="ps-label">${cfg.label}</div>
-      <div class="ps-value" style="color:${cfg.color}">${fmtMan((cfg.key==='売上'?byRankTotal[cfg.key]*10000:(byRankTotal[cfg.key]||0)*10000))}</div>
-    </div>`).join('');
 }
 
 // ============================================================
@@ -2148,35 +2070,6 @@ function renderGoalsByPerson(personDeals, isTeam) {
       <th style="text-align:right;padding:4px 8px;font-size:10px;color:var(--text3);border-bottom:1px solid var(--border)">決定+A+B</th>
     </tr></thead>
     <tbody>${rows}</tbody>`;
-}
-
-// ============================================================
-// アラート
-// ============================================================
-function renderAlert(thisTarget,thisActual,nextTarget,nextYomi){
-  const area=document.getElementById('alert-area');
-  area.innerHTML='';
-  if(thisTarget<=0&&nextTarget<=0)return;
-
-  const thisM=today.getMonth()+1;
-  const nextM=new Date(today.getFullYear(),today.getMonth()+1,1).getMonth()+1;
-  const daysInMonth=new Date(today.getFullYear(),today.getMonth()+1,0).getDate();
-  const elapsedPct=Math.round(today.getDate()/daysInMonth*100);
-
-  const thisPct=thisTarget>0?Math.round(thisActual/thisTarget*100):null;
-  const nextPct=nextTarget>0?Math.round(nextYomi/nextTarget*100):null;
-
-  let cls='alert-ok';
-  if(thisPct!==null&&thisPct<elapsedPct-20) cls='alert-danger';
-  else if(thisPct!==null&&thisPct<elapsedPct-5) cls='alert-warn';
-  else if(nextPct!==null&&nextPct<50) cls='alert-warn';
-
-  const icon=cls==='alert-danger'?'⚠️':cls==='alert-warn'?'📌':'✅';
-  const parts=[];
-  if(thisTarget>0) parts.push(`当月（${thisM}月）: 実績 ${fmt(thisActual)}万円 / 目標 ${fmt(thisTarget)}万円（${thisPct}%）`);
-  if(nextTarget>0) parts.push(`翌月（${nextM}月）: ヨミ ${fmt(nextYomi)}万円 / 目標 ${fmt(nextTarget)}万円（${nextPct!==null?nextPct:'-'}%）`);
-
-  area.innerHTML=`<div class="alert ${cls}">${icon} ${parts.join(' ／ ')}</div>`;
 }
 
 // ============================================================
