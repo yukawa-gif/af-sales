@@ -164,7 +164,6 @@ body.sidebar-collapsed #sidebar-toggle-icon{transform:rotate(180deg)}
 .timeline-scroll{overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch}
 .tl-tbl{border-collapse:collapse;font-size:12px;width:100%;table-layout:fixed}
 .tl-tbl colgroup .col-co{width:104px}
-.tl-tbl colgroup .col-rank{width:38px}
 .tl-tbl colgroup .col-name{width:100px}
 .tl-tbl colgroup .col-month{width:60px}
 .tl-tbl thead th{background:#fafafa;color:var(--text3);font-weight:700;font-size:10px;
@@ -172,18 +171,14 @@ body.sidebar-collapsed #sidebar-toggle-icon{transform:rotate(180deg)}
   border-right:1px solid var(--border);white-space:nowrap;letter-spacing:.04em}
 .tl-tbl thead th.th-co{text-align:left;position:sticky;left:0;z-index:2;
   background:#fafafa;padding:8px 8px;min-width:104px}
-.tl-tbl thead th.th-rank{text-align:center;position:sticky;left:104px;z-index:2;
-  background:#fafafa;border-right:none}
-.tl-tbl thead th.th-name{text-align:left;position:sticky;left:142px;z-index:2;
+.tl-tbl thead th.th-name{text-align:left;position:sticky;left:104px;z-index:2;
   background:#fafafa;border-right:2px solid var(--border);padding:8px 6px}
 .tl-tbl thead th.th-cur{background:#dbeafe;color:#1d4ed8}
 .tl-tbl tbody td{padding:7px 5px;text-align:right;border-bottom:1px solid #f1f5f9;
   border-right:1px solid #fafafa;white-space:nowrap;vertical-align:middle;font-size:11px}
 .tl-tbl tbody td.td-co{text-align:left;position:sticky;left:0;z-index:1;
   background:var(--surface);padding:7px 8px;font-weight:600;font-size:12px}
-.tl-tbl tbody td.td-rank{text-align:center;position:sticky;left:104px;z-index:1;
-  background:var(--surface);border-right:none;padding:7px 4px}
-.tl-tbl tbody td.td-name{text-align:left;position:sticky;left:142px;z-index:1;
+.tl-tbl tbody td.td-name{text-align:left;position:sticky;left:104px;z-index:1;
   background:var(--surface);border-right:2px solid var(--border);
   padding:7px 6px;font-size:11px;color:var(--text2);
   max-width:100px;overflow:hidden;text-overflow:ellipsis}
@@ -194,8 +189,7 @@ body.sidebar-collapsed #sidebar-toggle-icon{transform:rotate(180deg)}
   border-right:1px solid var(--border)}
 .tl-tbl tfoot td.td-co{text-align:left;position:sticky;left:0;
   background:#fafafa;padding:8px 8px}
-.tl-tbl tfoot td.td-rank{position:sticky;left:104px;background:#fafafa;border-right:none}
-.tl-tbl tfoot td.td-name{position:sticky;left:142px;
+.tl-tbl tfoot td.td-name{position:sticky;left:104px;
   background:#fafafa;border-right:2px solid var(--border);padding:8px 6px}
 .tl-rank-badge{display:inline-flex;align-items:center;justify-content:center;
   width:22px;height:22px;border-radius:50%;font-size:10px;font-weight:800;
@@ -212,9 +206,7 @@ body.sidebar-collapsed #sidebar-toggle-icon{transform:rotate(180deg)}
 .tl-rank-row:hover td{filter:brightness(.97)}
 .tl-rank-row td.td-co{display:flex;align-items:center;gap:8px;overflow:hidden}
 .tl-rank-row-label{font-weight:700;font-size:13px;flex-shrink:0}
-.tl-rank-row-desc{font-size:11px;color:var(--text3);flex:1;min-width:0;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tl-rank-row-cnt{font-size:11px;color:var(--text3);flex-shrink:0;white-space:nowrap}
+.tl-rank-row-cnt{font-size:11px;color:var(--text3);flex:1;min-width:0;white-space:nowrap}
 .tl-rank-row-arr{font-size:10px;color:var(--text3);transition:transform .2s;flex-shrink:0}
 .tl-rank-row-arr.open{transform:rotate(90deg)}
 .tl-rank-row td:not(.td-co){font-weight:700;font-size:11px}
@@ -611,7 +603,7 @@ body.modal-open{overflow:hidden}
     <div class="timeline-scroll">
       <table class="tl-tbl" id="tl-tbl">
         <colgroup>
-          <col class="col-co"><col class="col-rank"><col class="col-name">
+          <col class="col-co"><col class="col-name">
           <col class="col-month"><col class="col-month"><col class="col-month">
           <col class="col-month"><col class="col-month"><col class="col-month">
           <col class="col-month"><col class="col-month"><col class="col-month">
@@ -2258,7 +2250,6 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
   }).join('');
   thead.innerHTML=`<tr>
     <th class="th-co">会社名</th>
-    <th class="th-rank">見込</th>
     <th class="th-name">案件名</th>
     ${monthHeaders}
   </tr>`;
@@ -2372,7 +2363,6 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
   const gapRow=document.createElement('tr');
   gapRow.innerHTML=`
     <td class="td-co" style="color:#6366f1;font-weight:700">GAP</td>
-    <td class="td-rank"><span class="tl-rank-badge" style="background:#6366f1;width:18px;height:18px;font-size:9px">G</span></td>
     <td class="td-name" style="color:var(--text3)">実績−目標</td>
     ${gapCells}`;
   tbody.appendChild(gapRow);
@@ -2389,7 +2379,6 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
   const targetRow=document.createElement('tr');
   targetRow.innerHTML=`
     <td class="td-co" style="color:var(--text2)">粗利目標</td>
-    <td class="td-rank"><span class="tl-rank-badge" style="background:#94a3b8;width:18px;height:18px;font-size:9px">目</span></td>
     <td class="td-name" style="color:var(--text3)">月別目標</td>
     ${targetCells}`;
   tbody.appendChild(targetRow);
@@ -2418,10 +2407,9 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
   actualRow.className='tl-rank-row';
   actualRow.style.cursor='pointer';
   actualRow.innerHTML=`
-    <td class="td-co" style="background:#f0fdf4;cursor:pointer" colspan="3">
+    <td class="td-co" style="background:#f0fdf4;cursor:pointer" colspan="2">
       <span class="tl-rank-badge" style="background:#16a34a">✓</span>
       <span class="tl-rank-row-label" style="color:#16a34a">売上（確定）</span>
-      <span class="tl-rank-row-desc">入金済み確定実績</span>
       <span class="tl-rank-row-cnt" id="uriage-cnt"></span>
       <span class="tl-rank-row-arr" id="tl-arr-売上">▶</span>
     </td>${actualCells}`;
@@ -2471,10 +2459,9 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
       headerRow.className='tl-rank-row';
       headerRow.onclick=()=>toggleTimelineRank(groupId,arrId);
       headerRow.innerHTML=`
-        <td class="td-co" style="background:${color}10;cursor:pointer" colspan="3">
+        <td class="td-co" style="background:${color}10;cursor:pointer" colspan="2">
           <span class="tl-rank-badge" style="background:${color}">${rank.av}</span>
           <span class="tl-rank-row-label" style="color:${color}">${rank.label}</span>
-          <span class="tl-rank-row-desc">${rank.desc}</span>
           <span class="tl-rank-row-cnt">${list.length}件 / ${fmt(rankTotalAmt)}万円</span>
           <span class="tl-rank-row-arr ${defaultOpen?'open':''}" id="${arrId}">▶</span>
         </td>${rankCells}`;
@@ -2503,7 +2490,6 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
       tr.onclick=()=>openDealModal(d);
       tr.innerHTML=`
         <td class="td-co">${esc(d['会社名']||'—')}${isTeam?`<div style="font-size:10px;color:var(--text3);font-weight:400">${esc(d['担当者']||'')}</div>`:''}</td>
-        <td class="td-rank"><span class="tl-rank-badge" style="background:${color};width:18px;height:18px;font-size:9px">${rank.av}</span></td>
         <td class="td-name">${esc(d['商材名']||'—')}</td>
         ${cells}`;
       tbody.appendChild(tr);
@@ -2522,7 +2508,6 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
   }).join('');
   document.getElementById('tl-tfoot').innerHTML=`<tr style="border-top:2px solid var(--border)">
     <td class="td-co" style="color:#2563eb;font-weight:700">確定合計</td>
-    <td class="td-rank"><span class="tl-rank-badge" style="background:#2563eb;width:18px;height:18px;font-size:9px">∑</span></td>
     <td class="td-name" style="color:var(--text3);font-size:11px">売上＋決定</td>
     ${yomiCells}
   </tr>`;
