@@ -324,14 +324,20 @@ function addDeal(d) {
   const courses   = Math.max(1, Number(d.courses) || 1);
   const qty       = Math.max(1, Number(d.qty)     || 1);
   const months    = Math.max(1, Math.min(24, Number(d.months) || (pDetail ? pDetail.months : 1)));
+  // B行（複合商材：社労士顧問・リスキリング・嘱託産業医など。月数に関わらず一回きりの金額）
+  const bUnitSales = Number(d.bUnitSales) || 0;
+  const bUnitCost  = Number(d.bUnitCost)  || 0;
+  const bQty       = Number(d.bQty)       || 0;
+  const bLumpGP    = (bUnitSales - bUnitCost) * bQty;
 
-  const totalSales  = unitSales * courses * qty * months;
-  const totalCost   = unitCost  * courses * qty * months;
-  const grossProfit = (unitSales - unitCost) * courses * qty * months;
+  const totalSales  = unitSales * courses * qty * months + bUnitSales * bQty;
+  const totalCost   = unitCost  * courses * qty * months + bUnitCost  * bQty;
   const monthlyGP   = (unitSales - unitCost) * courses * qty;
+  const grossProfit = monthlyGP * months + bLumpGP;
 
   const incentiveRate = pDetail ? pDetail.incentiveRate : 0;
   const incentiveFixedAmount = pDetail ? pDetail.incentiveFixedAmount : 0;
+  // インセンティブはA行（月次経常GP）のみを対象とし、B行の一回きり金額は含めない
   const incentive = calcIncentive(monthlyGP, months, incentiveRate, incentiveFixedAmount, qty);
 
   const codeMap = {};
@@ -590,13 +596,19 @@ function updateDeal(d) {
 
       // フォームからの単価・コース数・件数・月数更新（全再計算）
       if (d.unitSales !== undefined || d.unitCost !== undefined ||
-          d.courses !== undefined || d.qty !== undefined || d.months !== undefined) {
+          d.courses !== undefined || d.qty !== undefined || d.months !== undefined ||
+          d.bUnitSales !== undefined || d.bUnitCost !== undefined || d.bQty !== undefined) {
         const unitSales = Number(d.unitSales !== undefined ? d.unitSales : vals[i][DEAL_HEADERS.indexOf('売上（単価）')]);
         const unitCost  = Number(d.unitCost  !== undefined ? d.unitCost  : vals[i][DEAL_HEADERS.indexOf('費用（単価）')]);
         const courses   = Math.max(1, Number(d.courses !== undefined ? d.courses : vals[i][DEAL_HEADERS.indexOf('コース数')]) || 1);
         const qty       = Math.max(1, Number(d.qty     !== undefined ? d.qty     : vals[i][DEAL_HEADERS.indexOf('件数')])   || 1);
         const months    = Math.max(1, Math.min(24, Number(d.months !== undefined ? d.months : vals[i][DEAL_HEADERS.indexOf('月数')]) || 1));
         const monthlyGP = (unitSales - unitCost) * courses * qty;
+        // B行（複合商材：社労士顧問・リスキリング・嘱託産業医など。月数に関わらず一回きりの金額）
+        const bUnitSales = Number(d.bUnitSales !== undefined ? d.bUnitSales : vals[i][DEAL_HEADERS.indexOf('B売上単価')]) || 0;
+        const bUnitCost  = Number(d.bUnitCost  !== undefined ? d.bUnitCost  : vals[i][DEAL_HEADERS.indexOf('B費用単価')]) || 0;
+        const bQty       = Number(d.bQty       !== undefined ? d.bQty       : vals[i][DEAL_HEADERS.indexOf('B件数')])     || 0;
+        const bLumpGP    = (bUnitSales - bUnitCost) * bQty;
         const pDetail = getProductDetail(String(vals[i][DEAL_HEADERS.indexOf('商材名')]));
         const incentiveRate = pDetail ? pDetail.incentiveRate : 0;
         const incentiveFixedAmount = pDetail ? pDetail.incentiveFixedAmount : 0;
@@ -614,10 +626,12 @@ function updateDeal(d) {
         // 一度計上したら「インセンティブ計上済み」フラグを立てて以降は0にする。
         const incentivePaidAlready = !!vals[i][DEAL_HEADERS.indexOf('インセンティブ計上済み')];
         if (becomingSold && months > 1 && !isRecurring) {
-          const monthlySales = unitSales * courses * qty;
-          const monthlyCost  = unitCost  * courses * qty;
+          // B行（一回きりの金額）は当月分の確定時にまとめて計上する
+          const monthlySales = unitSales * courses * qty + bUnitSales * bQty;
+          const monthlyCost  = unitCost  * courses * qty + bUnitCost  * bQty;
           // 初回のみ、この時点の月数（＝繰り越されていない契約全期間、または残りの繰り越し月数）
           // 分をまとめて計上。2回目以降（計上済み）は0。
+          // インセンティブはA行（月次経常GP）のみを対象とし、B行の一回きり金額は含めない
           const soldIncentive = incentivePaidAlready
             ? 0
             : calcIncentive(monthlyGP, months, incentiveRate, incentiveFixedAmount, qty);
@@ -630,7 +644,7 @@ function updateDeal(d) {
           setCol('月数', 1);
           setCol('売上予定額', monthlySales);
           setCol('費用（合計）', monthlyCost);
-          setCol('粗利', monthlyGP);
+          setCol('粗利', monthlyGP + bLumpGP);
           setCol('インセンティブ', soldIncentive);
           setCol('インセンティブ計上済み', true);
           setCol('最終更新日', today);
@@ -682,12 +696,12 @@ function updateDeal(d) {
           set('インセンティブ計上済み', true);
           sheet.appendRow(newRow);
 
-          return json({ success: true, grossProfit: monthlyGP, incentive: soldIncentive, splitDealId: newRow[DEAL_HEADERS.indexOf('案件ID')] });
+          return json({ success: true, grossProfit: monthlyGP + bLumpGP, incentive: soldIncentive, splitDealId: newRow[DEAL_HEADERS.indexOf('案件ID')] });
         }
 
-        const totalSales  = unitSales * courses * qty * months;
-        const totalCost   = unitCost  * courses * qty * months;
-        const grossProfit = monthlyGP * months;
+        const totalSales  = unitSales * courses * qty * months + bUnitSales * bQty;
+        const totalCost   = unitCost  * courses * qty * months + bUnitCost  * bQty;
+        const grossProfit = monthlyGP * months + bLumpGP;
         // 計上済みなら金額を再計算せず維持する（ダッシュボードの編集モーダルは保存の度に
         // 月数・単価を含む全項目を送ってくるため、計上済みインセンティブが月割りに
         // 縮んでしまうのを防ぐ）

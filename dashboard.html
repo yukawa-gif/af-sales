@@ -968,15 +968,15 @@ body.modal-open{overflow:hidden}
         <div style="display:grid;grid-template-columns:1fr 1fr 80px;gap:8px">
           <div class="mfg" style="margin:0">
             <label class="mfl" style="font-size:10px">B売上単価（円）</label>
-            <input class="mfi" type="number" id="dm-b-sales" min="0" step="1000" placeholder="0">
+            <input class="mfi" type="number" id="dm-b-sales" min="0" step="1000" placeholder="0" oninput="calcDealModalAmount()">
           </div>
           <div class="mfg" style="margin:0">
             <label class="mfl" style="font-size:10px">B費用単価（円）</label>
-            <input class="mfi" type="number" id="dm-b-cost" min="0" step="1000" placeholder="0">
+            <input class="mfi" type="number" id="dm-b-cost" min="0" step="1000" placeholder="0" oninput="calcDealModalAmount()">
           </div>
           <div class="mfg" style="margin:0">
             <label class="mfl" style="font-size:10px">件数</label>
-            <input class="mfi" type="number" id="dm-b-qty" min="0" step="1" placeholder="0">
+            <input class="mfi" type="number" id="dm-b-qty" min="0" step="1" placeholder="0" oninput="calcDealModalAmount()">
           </div>
         </div>
       </div>
@@ -3073,7 +3073,7 @@ function openGmail(){
   window.open('https://mail.google.com/mail/?view=cm&to='+to+'&su='+su+'&body='+body,'_blank');
 }
 
-// 売上単価−費用単価×コース数×件数×月数 → 粗利（合計）を自動計算して表示
+// A行:(売上単価−費用単価)×コース数×件数×月数 + B行:(B売上単価−B費用単価)×B件数（月数に関わらず一回きり） → 粗利（合計）を自動計算して表示
 function calcDealModalAmount(){
   const unitSales=Number(document.getElementById('dm-sales').value)||0;
   const unitCost =Number(document.getElementById('dm-cost').value) ||0;
@@ -3081,7 +3081,13 @@ function calcDealModalAmount(){
   const qty      =Math.max(1,parseInt(document.getElementById('dm-qty').value,10)||1);
   let   months   =Math.max(1,parseInt(document.getElementById('dm-months').value,10)||1);
   if(months>24){months=24;document.getElementById('dm-months').value=24;}
-  const grossProfit=(unitSales-unitCost)*courses*qty*months;
+  const bRowVisible=document.getElementById('dm-b-row').style.display!=='none';
+  const bUnitSales=bRowVisible?(Number(document.getElementById('dm-b-sales').value)||0):0;
+  const bUnitCost =bRowVisible?(Number(document.getElementById('dm-b-cost').value) ||0):0;
+  const bQty      =bRowVisible?(Number(document.getElementById('dm-b-qty').value)  ||0):0;
+  const monthlyGP=(unitSales-unitCost)*courses*qty;
+  const bLumpGP=(bUnitSales-bUnitCost)*bQty;
+  const grossProfit=monthlyGP*months+bLumpGP;
   document.getElementById('dm-amount').value='¥'+grossProfit.toLocaleString();
   return grossProfit;
 }
