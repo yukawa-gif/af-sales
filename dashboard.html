@@ -694,7 +694,7 @@ body.modal-open{overflow:hidden}
   </div>
 
   <!-- 資金繰り -->
-  <div class="card" id="cashflow-card" style="margin-bottom:16px">
+  <div class="card" id="cashflow-card" style="margin-bottom:16px;display:none">
     <div class="card-header" onclick="toggleCashflowCard()" style="cursor:pointer;user-select:none">
       <span class="card-title" style="display:flex;align-items:center;gap:7px">
         <i data-lucide="wallet" style="width:15px;height:15px;color:var(--blue)"></i> 資金繰り
@@ -2519,34 +2519,6 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
   actualRow.onclick=()=>toggleTimelineRank('tl-group-売上','tl-arr-売上');
   tbody.appendChild(actualRow);
 
-  // 資金繰り残高行（決定・売上ランクの売上−費用、単月純額）
-  const cfBalanceByMonth=computeCashFlowBalanceByMonth(activeDeals);
-  const cfCells=fyMonths.map(m=>{
-    const ym=yyyyMM(m.year,m.month);
-    const mgId=ymToMG[ym];
-    const bal=toMan(cfBalanceByMonth[ym]||0);
-    if(bal===0) return `<td class="${ym===todayYM?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}"></td>`;
-    const col=bal>=0?'#2563eb':'#dc2626';
-    const sign=bal>0?'+':'';
-    return `<td class="${ym===todayYM?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}">
-      <span class="tl-amt" style="color:${col};font-weight:700">${sign}${fmt(bal)}万</span>
-    </td>`;
-  }).join('');
-  const cfRow=document.createElement('tr');
-  cfRow.style.cursor='pointer';
-  cfRow.title='資金繰りカードで詳細（売上・費用の内訳）を表示';
-  cfRow.innerHTML=`
-    <td class="td-co" style="color:var(--text2)" colspan="2">
-      <i data-lucide="wallet" style="width:12px;height:12px;vertical-align:-2px"></i> 資金繰り残高
-    </td>
-    <td class="td-name" style="color:var(--text3)">決定・売上／単月純額</td>
-    ${cfCells}`;
-  cfRow.onclick=()=>{
-    const body=document.getElementById('cashflow-body');
-    if(body&&body.style.display==='none') toggleCashflowCard();
-    document.getElementById('cashflow-card')?.scrollIntoView({behavior:'smooth',block:'start'});
-  };
-  tbody.appendChild(cfRow);
   if(window.lucide) lucide.createIcons();
 
   // ランク別グループ（売上はactualRowをヘッダーとして使うためヘッダー行をスキップ）
