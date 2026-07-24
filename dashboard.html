@@ -2496,11 +2496,20 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
   tbody.appendChild(targetRow);
 
   // 実績行（粗利目標の下）
+  // 表示用の月別内訳は他ランク行と同様に案件の売上予定月ベースで出す（未来月も表示）。
+  // KPIカード・GAP行などの「実績」集計に使う augActual（未来月除外）はここでは変更しない。
+  const actualDisplayByMonth={...actualByMonth};
+  activeDeals.filter(d=>d['確度ランク']==='売上').forEach(d=>{
+    const ca=dealCellAmts.get(d)||{};
+    Object.entries(ca).forEach(([ym,v])=>{
+      if(actualDisplayByMonth[ym]!==undefined) actualDisplayByMonth[ym]+=v/10000; // 円→万円
+    });
+  });
   const actualCells=fyMonths.map(m=>{
     const ym=yyyyMM(m.year,m.month);
     const isCur=ym===todayYM;
     const mgId=ymToMG[ym];
-    const v=Math.round(augActual[ym]||0); // 万円
+    const v=Math.round(actualDisplayByMonth[ym]||0); // 万円
     return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}${v>0?';background:#f0fdf4':''}">
       ${v>0?`<span class="tl-amt" style="color:#16a34a">${fmt(v)}万</span>`:''}
     </td>`;
