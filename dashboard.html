@@ -2385,6 +2385,9 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
   // 月別合計（全案件）
   const monthTotals={};
   fyMonths.forEach(m=>{monthTotals[yyyyMM(m.year,m.month)]=0});
+  // 決定・売上のみの月別合計（フッター「決定+売上計」行用。A/B/Cはまだ確度が低く合算しても意味が薄いため除外）
+  const confirmedMonthTotals={};
+  fyMonths.forEach(m=>{confirmedMonthTotals[yyyyMM(m.year,m.month)]=0});
   const lastFyYM=yyyyMM(fyMonths[fyMonths.length-1].year,fyMonths[fyMonths.length-1].month);
 
   // 各案件の月別粗利を事前計算（粗利合計÷月数で月別分配）
@@ -2406,7 +2409,9 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
     const isOngoing=!!d['継続課金'];
     const endYM=String(d['継続終了月']||'').slice(0,7);
     const cellAmts={};
-    const isLost=d['確度ランク']==='失注';
+    const rank=d['確度ランク'];
+    const isLost=rank==='失注';
+    const isConfirmed=rank==='決定'||rank==='売上';
     const loopCap=isOngoing?600:months; // 継続課金は表示範囲末尾か終了月で打ち切る安全弁
     for(let i=0;i<loopCap;i++){
       const d2=new Date(ey,em-1+i,1);
@@ -2417,6 +2422,7 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
         const amt=monthlyAmt+(i===0?bLumpGP:0);
         cellAmts[cym]=(cellAmts[cym]||0)+amt;
         if(!isLost) monthTotals[cym]+=amt; // 失注は合計に含めない
+        if(isConfirmed) confirmedMonthTotals[cym]+=amt;
       }
     }
     dealCellAmts.set(d,cellAmts);
@@ -2611,21 +2617,20 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
     });
   });
 
-  // ヨミ合計行（失注除く全ランクの月別合計）
+  // 確定合計行（売上・決定ランクのみの月別合計、円単位）
   const yomiCells=fyMonths.map(m=>{
     const ym=yyyyMM(m.year,m.month);
     const isCur=ym===todayYM;
     const mgId=ymToMG[ym];
-    const v=Math.round(monthTotals[ym]||0); // yen
-    const vm=Math.round(v/10000);
-    return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}${vm>0?';background:#eff6ff':''}">
-      ${vm>0?`<span class="tl-amt" style="color:#2563eb;font-weight:800">${fmt(vm)}万</span>`:''}
+    const v=Math.round(confirmedMonthTotals[ym]||0); // yen
+    return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}${v>0?';background:#eff6ff':''}">
+      ${v>0?`<span class="tl-amt" style="color:#2563eb;font-weight:800">${fmtYen(v)}</span>`:''}
     </td>`;
   }).join('');
   document.getElementById('tl-tfoot').innerHTML=`<tr style="border-top:2px solid var(--border)">
-    <td class="td-co" style="color:#2563eb;font-weight:700">ヨミ合計</td>
+    <td class="td-co" style="color:#2563eb;font-weight:700">確定合計</td>
     <td class="td-rank"><span class="tl-rank-badge" style="background:#2563eb;width:18px;height:18px;font-size:9px">∑</span></td>
-    <td class="td-name" style="color:var(--text3);font-size:11px">失注除く</td>
+    <td class="td-name" style="color:var(--text3);font-size:11px">売上＋決定</td>
     ${yomiCells}
   </tr>`;
   renderMGBtns();
