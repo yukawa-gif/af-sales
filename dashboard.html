@@ -3235,7 +3235,8 @@ function calcGoalRow(pi){
     p.indices.forEach(i=>{
       const ym=yyyyMM(fyMonths[i].year,fyMonths[i].month);
       const inp=document.querySelector(`#goal-tbody input[data-pi="${pi}"][data-ym="${ym}"]`);
-      sum+=inp?parseInt(inp.value)||0:0;
+      // 前年度から引き継いだ未確定値（点線表示）はまだ営業が入力していないため合計に含めない
+      sum+=(inp&&!inp.classList.contains('goal-input-inherited'))?(parseInt(inp.value)||0):0;
     });
     const el=document.getElementById(`gsum-${pi}-${p.cls}`);
     if(el) el.textContent=fmt(sum);
@@ -3254,6 +3255,8 @@ function calcGoalTotals(){
       const ym=yyyyMM(fyMonths[i].year,fyMonths[i].month);
       let monthTotal=0;
       document.querySelectorAll(`#goal-tbody input[data-ym="${ym}"]`).forEach(inp=>{
+        // 前年度から引き継いだ未確定値（点線表示）はまだ営業が入力していないため合計に含めない
+        if(inp.classList.contains('goal-input-inherited')) return;
         monthTotal+=parseInt(inp.value)||0;
       });
       const el=document.getElementById(`gtotal-${ym}`);
