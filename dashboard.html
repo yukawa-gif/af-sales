@@ -1846,7 +1846,7 @@ function renderPersonDetail(personDeals, isTeam){
   const allFilters=[{v:'ALL',label:'すべて',color:'#475569'},...RANKS];
   filterDiv.innerHTML=allFilters.map(r=>{
     const cnt=rankCounts[r.v]||0;
-    if(r.v!=='ALL'&&cnt===0)return '';
+    // 件数0のランクもドラッグ&ドロップの移動先として必要なため常に表示する
     const active=detailFilterRank===r.v;
     const bg=active?(r.col||'#475569'):'transparent';
     const col=active?'#fff':(r.col||'#475569');
