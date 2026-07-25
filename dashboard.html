@@ -728,7 +728,7 @@ body.modal-open{overflow:hidden}
       <span class="card-title" style="display:flex;align-items:center;gap:7px">
         <i data-lucide="users" style="width:15px;height:15px;color:var(--blue)"></i> 営業別パイプライン
       </span>
-      <span class="card-hint" style="margin-left:auto">粗利（万円）/ 失注除く</span>
+      <span class="card-hint" style="margin-left:auto">粗利（円）/ 失注除く</span>
       <span id="pipeline-person-icon" style="margin-left:8px;font-size:12px;color:var(--text3)">▼</span>
     </div>
     <div id="pipeline-person-body" class="table-scroll" style="display:none">
@@ -742,7 +742,7 @@ body.modal-open{overflow:hidden}
       <span class="card-title" style="display:flex;align-items:center;gap:7px">
         <i data-lucide="target" style="width:15px;height:15px;color:var(--blue)"></i> 営業別目標 × 実績
       </span>
-      <span class="card-hint" style="margin-left:auto">通期目標・今月目標・ヨミ（万円）</span>
+      <span class="card-hint" style="margin-left:auto">通期目標・今月目標・ヨミ（円）</span>
       <span id="goals-person-icon" style="margin-left:8px;font-size:12px;color:var(--text3)">▼</span>
     </div>
     <div id="goals-person-body" class="table-scroll" style="display:none">
@@ -1940,10 +1940,10 @@ function renderPipelineByPerson(personDeals, isTeam) {
   personDeals.filter(d => d['確度ランク'] !== '失注').forEach(d => {
     const person = d['担当者'];
     const rank   = d['確度ランク'];
-    const gp = toMan(Number(d['粗利']) || 0);
+    const gp = Number(d['粗利']) || 0;
     if (byPerson[person] && byPerson[person][rank] !== undefined) byPerson[person][rank] += gp;
     if (weightedByPerson[person] !== undefined) {
-      weightedByPerson[person] += Math.round(toMan((Number(d['粗利'])||0) * (RANK_PROB[rank]??0)));
+      weightedByPerson[person] += Math.round((Number(d['粗利'])||0) * (RANK_PROB[rank]??0));
     }
   });
 
@@ -1968,8 +1968,8 @@ function renderPipelineByPerson(personDeals, isTeam) {
           <span style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0"></span>${esc(p.name)}
         </span>
       </td>${cells}
-      <td style="text-align:right;padding:7px 8px;font-weight:800;border-bottom:1px solid var(--border)">${total > 0 ? fmt(total) + '万' : '—'}</td>
-      <td style="text-align:right;padding:7px 8px;font-weight:800;border-bottom:1px solid var(--border);border-left:2px solid #ede9fe;color:#7c3aed;background:#faf5ff">${wv > 0 ? fmt(wv) + '万' : '—'}</td>
+      <td style="text-align:right;padding:7px 8px;font-weight:800;border-bottom:1px solid var(--border)">${total > 0 ? fmt(total) + '円' : '—'}</td>
+      <td style="text-align:right;padding:7px 8px;font-weight:800;border-bottom:1px solid var(--border);border-left:2px solid #ede9fe;color:#7c3aed;background:#faf5ff">${wv > 0 ? fmt(wv) + '円' : '—'}</td>
     </tr>`;
   }).join('');
 
@@ -1990,8 +1990,8 @@ function renderPipelineByPerson(personDeals, isTeam) {
     <tfoot><tr style="background:#fafafa">
       <td style="padding:7px 8px;font-size:11px;font-weight:700;color:var(--text2);border-top:2px solid var(--border)">合計</td>
       ${footCells}
-      <td style="text-align:right;padding:7px 8px;font-weight:800;border-top:2px solid var(--border);color:var(--blue)">${grandTotal > 0 ? fmt(grandTotal) + '万' : '—'}</td>
-      <td style="text-align:right;padding:7px 8px;font-weight:800;border-top:2px solid var(--border);border-left:2px solid #ede9fe;color:#7c3aed;background:#faf5ff">${totalWeighted > 0 ? fmt(totalWeighted) + '万' : '—'}</td>
+      <td style="text-align:right;padding:7px 8px;font-weight:800;border-top:2px solid var(--border);color:var(--blue)">${grandTotal > 0 ? fmt(grandTotal) + '円' : '—'}</td>
+      <td style="text-align:right;padding:7px 8px;font-weight:800;border-top:2px solid var(--border);border-left:2px solid #ede9fe;color:#7c3aed;background:#faf5ff">${totalWeighted > 0 ? fmt(totalWeighted) + '円' : '—'}</td>
     </tr></tfoot>`;
 }
 
@@ -2009,23 +2009,23 @@ function renderGoalsByPerson(personDeals, isTeam) {
   const rows = persons.map(p => {
     const col   = personColorMap[p.name] || '#6b7280';
     const pg    = allGoals.find(g => g.name === p.name) || {};
-    const annual = Math.round(pg.salesTarget || 0);
-    const monthTgt = pg.months ? (pg.months[todayYM] || 0) : Math.round(pg.monthlyTarget || 0);
+    const annual = Math.round(pg.salesTarget || 0) * 10000;
+    const monthTgt = (pg.months ? (pg.months[todayYM] || 0) : Math.round(pg.monthlyTarget || 0)) * 10000;
 
     // 今月実績（売上ランク）
-    const monthActual = toMan(personDeals
+    const monthActual = personDeals
       .filter(d => d['担当者'] === p.name && d['確度ランク'] === '売上' && String(d['売上予定月'] || '').slice(0, 7) === todayYM)
-      .reduce((s, d) => s + (Number(d['粗利']) || 0), 0));
+      .reduce((s, d) => s + (Number(d['粗利']) || 0), 0);
 
     // 通期実績（売上）
-    const fyActual = toMan(personDeals
+    const fyActual = personDeals
       .filter(d => d['担当者'] === p.name && d['確度ランク'] === '売上')
-      .reduce((s, d) => s + (Number(d['粗利']) || 0), 0));
+      .reduce((s, d) => s + (Number(d['粗利']) || 0), 0);
 
     // ヨミ（決定+A+B）
-    const yomi = toMan(personDeals
+    const yomi = personDeals
       .filter(d => d['担当者'] === p.name && ['決定', 'A', 'B'].includes(d['確度ランク']))
-      .reduce((s, d) => s + (Number(d['粗利']) || 0), 0));
+      .reduce((s, d) => s + (Number(d['粗利']) || 0), 0);
 
     const fyPct  = annual > 0 ? Math.round(fyActual / annual * 100) : null;
     const moPct  = monthTgt > 0 ? Math.round(monthActual / monthTgt * 100) : null;
@@ -2037,13 +2037,13 @@ function renderGoalsByPerson(personDeals, isTeam) {
           <span style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0"></span>${esc(p.name)}
         </span>
       </td>
-      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border)">${annual > 0 ? fmt(annual) + '万' : '—'}</td>
-      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border);font-weight:700">${fyActual > 0 ? fmt(fyActual) + '万' : '—'}</td>
+      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border)">${annual > 0 ? fmt(annual) + '円' : '—'}</td>
+      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border);font-weight:700">${fyActual > 0 ? fmt(fyActual) + '円' : '—'}</td>
       <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border);${pctStyle(fyPct)}">${fyPct !== null ? fyPct + '%' : '—'}</td>
-      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border)">${monthTgt > 0 ? fmt(monthTgt) + '万' : '—'}</td>
-      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border);font-weight:700">${monthActual > 0 ? fmt(monthActual) + '万' : '—'}</td>
+      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border)">${monthTgt > 0 ? fmt(monthTgt) + '円' : '—'}</td>
+      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border);font-weight:700">${monthActual > 0 ? fmt(monthActual) + '円' : '—'}</td>
       <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border);${pctStyle(moPct)}">${moPct !== null ? moPct + '%' : '—'}</td>
-      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border);color:var(--blue);font-weight:700">${yomi > 0 ? fmt(yomi) + '万' : '—'}</td>
+      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border);color:var(--blue);font-weight:700">${yomi > 0 ? fmt(yomi) + '円' : '—'}</td>
     </tr>`;
   }).join('');
 
