@@ -651,3 +651,37 @@ clasp deploy -i AKfycbyAC_jurLseKlw5gw8s15p6Xu1q66-fmcgBDUuruAeg5IlfmAFjU7mNvRwK
 
 **デプロイ未実施**：`gas_v3.js` の変更は本サーバー環境からはGASへデプロイできない（Googleログイン情報なし）。
 `clasp push` → `clasp deploy -i <デプロイID>` の手動実行が必要（このセッションでは未実施）。
+
+---
+
+## 2026-07-25 GitHub Actionsによるclasp自動デプロイ導入
+
+### 背景
+
+これまで`gas_v3.js`等の変更は`git push`しても本番GASには反映されず、`clasp push`→`clasp deploy -i <デプロイID>`を
+別途手動実行する必要があった（かつクラウド実行セッションではGoogleログイン情報が毎回失われるため、
+実質ローカル環境か対話的なOAuth手順でしか実行できなかった）。Vercel側は元々GitHubのmainへのpushで自動デプロイされる
+ため、GAS側も同様に「pushだけで本番反映まで完了する」ようにする。
+
+### 対応
+
+- `.github/workflows/gas-deploy.yml` を追加。`main`ブランチへの`gas_v3.js`／`customer_master.js`／`appsscript.json`／
+  `.clasp.json`／`.claspignore`変更を含むpush、または手動の`workflow_dispatch`をトリガーに、
+  - `npm install -g @google/clasp`
+  - GitHub Secrets `CLASP_CREDENTIALS`（`~/.clasprc.json`相当のJSON）を書き出してclaspを認証
+  - `clasp push --force`
+  - `clasp deploy -i AKfycbyAC_jurLseKlw5gw8s15p6Xu1q66-fmcgBDUuruAeg5IlfmAFjU7mNvRwK1Yz1k9dt`（本番Web App）
+  を実行する。同時実行による本番デプロイの競合を避けるため`concurrency`グループを設定。
+- `CLASP_CREDENTIALS`の中身は、このセッション内で`clasp login --no-localhost`により`yukawa@afactory.co.jp`で
+  対話的に取得し、GitHubリポジトリのSecrets（Settings → Secrets and variables → Actions）へ登録する運用とした
+  （チャット上でトークンを扱わないよう、以後のローテーションはユーザー自身のPCで`clasp login`し直して
+  Secretsを更新する形を推奨）。
+
+### 今後の運用
+
+`main`にマージして`gas_v3.js`等を変更しpushすれば、GAS本番・Vercel本番の両方が自動的に反映される
+（GASはこのワークフロー経由、Vercelは既存のGitHub連携経由）。手動での`clasp push`／`clasp deploy`は
+基本的に不要になる。ワークフローの実行結果はGitHub Actionsのログで確認できる。
+
+**注意**: `CLASP_CREDENTIALS`のOAuthリフレッシュトークンが漏洩した場合は
+[Googleアカウントのセキュリティ設定](https://myaccount.google.com/permissions)から当該アプリのアクセスを取り消すこと。

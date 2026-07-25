@@ -1,0 +1,48 @@
+name: Deploy GAS backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "gas_v3.js"
+      - "customer_master.js"
+      - "appsscript.json"
+      - ".clasp.json"
+      - ".claspignore"
+  workflow_dispatch:
+
+# 本番Web App（GASデプロイID）を上書きするデプロイなので、同時実行を避ける
+concurrency:
+  group: gas-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install clasp
+        run: npm install -g @google/clasp
+
+      - name: Restore clasp credentials
+        env:
+          CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS }}
+        run: |
+          if [ -z "$CLASP_CREDENTIALS" ]; then
+            echo "::error::CLASP_CREDENTIALS secret が設定されていません。README/CLAUDE.mdの手順に従って設定してください。"
+            exit 1
+          fi
+          echo "$CLASP_CREDENTIALS" > ~/.clasprc.json
+
+      - name: clasp push
+        run: clasp push --force
+
+      - name: clasp deploy (production Web App)
+        run: |
+          clasp deploy -i "AKfycbyAC_jurLseKlw5gw8s15p6Xu1q66-fmcgBDUuruAeg5IlfmAFjU7mNvRwK1Yz1k9dt" \
+            -d "GitHub Actions auto deploy: ${{ github.sha }}"
