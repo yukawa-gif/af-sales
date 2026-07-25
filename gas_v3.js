@@ -307,7 +307,8 @@ function addDeal(d) {
   if (!d.companyName || !String(d.companyName).trim()) return json({ success: false, error: '会社名が空です' });
   if (!d.expectedMonth || !String(d.expectedMonth).trim()) return json({ success: false, error: '売上予定月が空です' });
   if (!/^\d{4}-\d{2}$/.test(String(d.expectedMonth).trim())) return json({ success: false, error: '売上予定月の形式が不正です（例: 2026-04）' });
-  if (d.rankLabel && !VALID_DEAL_RANKS.includes(String(d.rankLabel).trim())) return json({ success: false, error: '確度ランクが無効です: ' + d.rankLabel });
+  if (!d.rankLabel || !String(d.rankLabel).trim())      return json({ success: false, error: '確度ランクが空です' });
+  if (!VALID_DEAL_RANKS.includes(String(d.rankLabel).trim())) return json({ success: false, error: '確度ランクが無効です: ' + d.rankLabel });
 
   const sheet = getOrCreateDealSheet();
   const today = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd');
@@ -372,7 +373,7 @@ function addDeal(d) {
     d.companyName || '',         // F: 会社名
     d.productName || '',         // G: 商材名
     d.phase || 'ヒアリング中',   // H: フェーズ
-    d.rankLabel || 'C',          // I: 確度ランク
+    String(d.rankLabel).trim(),  // I: 確度ランク
     unitSales,                   // J: 売上（単価）
     unitCost,                    // K: 費用（単価）
     courses,                     // L: コース数

@@ -81,6 +81,8 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;background:var(--bg);
 .rank-btn.sel[data-v="A"]   {border-color:#d97706;background:#d97706;color:#fff;transform:scale(1.1)}
 .rank-btn.sel[data-v="B"]   {border-color:#2563eb;background:#2563eb;color:#fff;transform:scale(1.1)}
 .rank-btn.sel[data-v="C"]   {border-color:#6b7280;background:#6b7280;color:#fff;transform:scale(1.1)}
+.rank-hint{font-size:12px;color:#dc2626;margin-top:6px}
+.rank-hint.ok{display:none}
 
 /* 数式行 */
 .calc-row{display:flex;align-items:flex-end;gap:5px;flex-wrap:nowrap}
@@ -286,9 +288,10 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;background:var(--bg);
               <div class="rank-btn" data-v="決定" onclick="selRank(this)" title="決定：契約書締結">決</div>
               <div class="rank-btn" data-v="A"    onclick="selRank(this)" title="A：合意形成済み">A</div>
               <div class="rank-btn" data-v="B"    onclick="selRank(this)" title="B：予算確保済み">B</div>
-              <div class="rank-btn sel" data-v="C" onclick="selRank(this)" title="C：啓蒙活動中">C</div>
+              <div class="rank-btn" data-v="C" onclick="selRank(this)" title="C：啓蒙活動中">C</div>
             </div>
-            <input type="hidden" id="rankLabel" value="C">
+            <input type="hidden" id="rankLabel" value="">
+            <div class="rank-hint" id="rank-hint">未選択（クリックして選択してください）</div>
           </div>
         </div>
       </div><!-- /左カラム -->
@@ -440,7 +443,7 @@ const MASTER_CACHE_KEY = 'af_master_v2';
 const MASTER_CACHE_TTL = 5 * 60 * 1000; // 5分
 
 let masterData   = null;
-let selectedRank = 'C';
+let selectedRank = '';
 let customerList = [];
 let costMonthEdited = false;
 
@@ -774,6 +777,7 @@ function selRank(el) {
   el.classList.add('sel');
   selectedRank = el.dataset.v;
   document.getElementById('rankLabel').value = selectedRank;
+  document.getElementById('rank-hint').classList.add('ok');
 }
 
 // ============================================================
@@ -867,11 +871,13 @@ function validate() {
   const productName    = getSelectedProduct();
   const expMonth       = document.getElementById('expectedMonth').value;
   const sales          = document.getElementById('sales').value;
+  const rankLabel      = document.getElementById('rankLabel').value;
 
   if (!person)         return '営業担当を選択してください';
   if (!billingCompany) return '計上会社を選択してください';
   if (!companyName)    return '会社名を入力してください';
   if (!productName)    return '商材を選択してください';
+  if (!rankLabel)      return '確度ランクを選択してください';
   if (!expMonth)       return '売上予定月を入力してください';
 
   if (masterData) {
@@ -1015,12 +1021,11 @@ function reset() {
   document.getElementById('fixed-notice').style.display = 'none';
   document.getElementById('amount-card').style.display  = 'none';
 
-  // 確度ランクをCに戻す
-  document.querySelectorAll('.rank-btn').forEach(c => {
-    c.classList.toggle('sel', c.dataset.v === 'C');
-  });
-  selectedRank = 'C';
-  document.getElementById('rankLabel').value = 'C';
+  // 確度ランク選択を未選択に戻す（毎回明示的に選ばせる）
+  document.querySelectorAll('.rank-btn').forEach(c => c.classList.remove('sel'));
+  selectedRank = '';
+  document.getElementById('rankLabel').value = '';
+  document.getElementById('rank-hint').classList.remove('ok');
 
   restoreLastPerson();
 }
