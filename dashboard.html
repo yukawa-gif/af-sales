@@ -144,6 +144,7 @@ body.sidebar-collapsed #sidebar-toggle-icon{transform:rotate(180deg)}
   box-shadow:0 0 0 2px var(--blue) inset;transform:scale(1.06)}
 #detail-tbody tr[draggable="true"]{cursor:grab}
 #detail-tbody tr.row-dragging{opacity:.4}
+#detail-tbody tr.row-selected td:first-child{box-shadow:inset 3px 0 0 var(--blue)}
 .detail-search-input{padding:5px 12px;border:1.5px solid var(--border);border-radius:20px;
   font-size:11px;font-family:inherit;color:var(--text);background:var(--surface);
   min-width:200px;transition:var(--transition)}
@@ -794,6 +795,9 @@ body.modal-open{overflow:hidden}
       <table class="detail-tbl">
         <thead id="detail-thead-row">
           <tr>
+            <th style="width:24px" onclick="event.stopPropagation()">
+              <input type="checkbox" id="detail-select-all" title="全選択/解除" onchange="toggleSelectAllDeals(this.checked)">
+            </th>
             <th style="width:52px"></th>
             <th style="width:180px" class="sortable" onclick="toggleDetailSort('company')" title="クリックで並び替え">会社名<span id="detail-sort-company" class="detail-sort-arrow"></span></th>
             <th style="width:130px" class="sortable" onclick="toggleDetailSort('product')" title="クリックで並び替え">商材名<span id="detail-sort-product" class="detail-sort-arrow"></span></th>
@@ -1654,6 +1658,7 @@ function selectPerson(name){
   if(card) card.classList.add('active');
   currentPerson=name;
   localStorage.setItem('dashboard_person',name);
+  selectedDealIds.clear();
   // 担当者切替時：進行中のAIアドバイス取得があれば結果を無効化し、パネルを初期状態に戻す
   aiRequestToken++;
   const aiBtn=document.getElementById('ai-fetch-btn');
@@ -1908,7 +1913,7 @@ function renderDetailTable(personDeals){
 
   const tbody=document.getElementById('detail-tbody');
   if(sorted.length===0){
-    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">該当する案件がありません</td></tr>';
+    tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px">該当する案件がありません</td></tr>';
     return;
   }
 
@@ -1924,9 +1929,14 @@ function renderDetailTable(personDeals){
     const nextActionHtml=nextActionDate
       ?`<div style="font-size:10px;margin-top:2px;color:${nextActionOverdue?'#dc2626':'var(--text3)'}">次回:${esc(nextActionDate)}${nextActionOverdue?'（期限超過）':''}</div>`
       :'';
-    return `<tr class="${stale?'row-stale':''}" draggable="true"
-      ondragstart="handleDealDragStart(event,'${esc(d['案件ID'])}')" ondragend="handleDealDragEnd(event)"
+    const dealId=d['案件ID'];
+    return `<tr class="${stale?'row-stale':''}${selectedDealIds.has(dealId)?' row-selected':''}" draggable="true" data-deal-id="${esc(dealId)}"
+      ondragstart="handleDealDragStart(event,'${esc(dealId)}')" ondragend="handleDealDragEnd(event)"
       onclick="openDealModal(${JSON.stringify(d).replace(/"/g,'&quot;')})">
+      <td onclick="event.stopPropagation()" style="text-align:center;padding:4px">
+        <input type="checkbox" class="deal-select-cb" ${selectedDealIds.has(dealId)?'checked':''}
+          onchange="toggleDealSelection('${esc(dealId)}',this.checked)">
+      </td>
       <td onclick="event.stopPropagation()" style="text-align:center;padding:4px">
         <button class="task-btn" onclick="openTaskModal(${JSON.stringify(d).replace(/"/g,'&quot;')})" title="Googleタスクに追加">+T</button>
         ${showMail?`<button class="mail-btn" onclick="openMailModal(${JSON.stringify(d).replace(/"/g,'&quot;')})" title="フォローアップメールを下書き">メール</button>`:''}
@@ -1943,21 +1953,47 @@ function renderDetailTable(personDeals){
 }
 
 // ============================================================
-// 案件行のドラッグ&ドロップによる確度ランク変更
+// 案件行のドラッグ&ドロップによる確度ランク変更（複数選択対応）
 // ============================================================
-let draggingDealId=null;
+let draggingDealIds=null;
+let selectedDealIds=new Set();
+
+function toggleDealSelection(dealId,checked){
+  if(checked) selectedDealIds.add(dealId);
+  else selectedDealIds.delete(dealId);
+  const row=document.querySelector(`#detail-tbody tr[data-deal-id="${CSS.escape(dealId)}"]`);
+  if(row) row.classList.toggle('row-selected',checked);
+  const selectAllCb=document.getElementById('detail-select-all');
+  if(selectAllCb && !checked) selectAllCb.checked=false;
+}
+
+function toggleSelectAllDeals(checked){
+  document.querySelectorAll('#detail-tbody .deal-select-cb').forEach(cb=>{
+    cb.checked=checked;
+    const row=cb.closest('tr');
+    const dealId=row&&row.dataset.dealId;
+    if(!dealId)return;
+    if(checked) selectedDealIds.add(dealId);
+    else selectedDealIds.delete(dealId);
+    if(row) row.classList.toggle('row-selected',checked);
+  });
+}
 
 function handleDealDragStart(ev,dealId){
-  draggingDealId=dealId;
+  // 選択済みの行をドラッグした場合は選択中の全件、そうでなければその1件だけを対象にする
+  const ids=selectedDealIds.has(dealId)?[...selectedDealIds]:[dealId];
+  draggingDealIds=ids;
   ev.dataTransfer.effectAllowed='move';
-  ev.dataTransfer.setData('text/plain',dealId);
-  ev.currentTarget.classList.add('row-dragging');
+  ev.dataTransfer.setData('text/plain',ids.join(','));
+  ids.forEach(id=>{
+    document.querySelectorAll(`#detail-tbody tr[data-deal-id="${CSS.escape(id)}"]`).forEach(tr=>tr.classList.add('row-dragging'));
+  });
 }
 
 function handleDealDragEnd(ev){
-  ev.currentTarget.classList.remove('row-dragging');
+  document.querySelectorAll('#detail-tbody tr.row-dragging').forEach(tr=>tr.classList.remove('row-dragging'));
   document.querySelectorAll('.detail-filter-btn.drag-over').forEach(b=>b.classList.remove('drag-over'));
-  draggingDealId=null;
+  draggingDealIds=null;
 }
 
 function handleRankDragOver(ev){
@@ -1973,74 +2009,108 @@ function handleRankDragLeave(ev){
 async function handleRankDrop(ev,targetRank){
   ev.preventDefault();
   ev.currentTarget.classList.remove('drag-over');
-  const dealId=ev.dataTransfer.getData('text/plain')||draggingDealId;
-  draggingDealId=null;
-  if(!dealId)return;
-  const deal=dealsData.find(d=>d['案件ID']===dealId);
-  if(!deal)return;
-  if((deal['確度ランク']||'')===targetRank)return;
-  if((targetRank==='売上'||targetRank==='決定')&&!((Number(deal['粗利'])||0)>0)){
-    if(!confirm(`確度ランクを「${targetRank}」に変更しますが粗利が0円です。このまま変更しますか？`))return;
+  const raw=ev.dataTransfer.getData('text/plain');
+  const ids=(raw?raw.split(','):draggingDealIds)||[];
+  draggingDealIds=null;
+  if(ids.length===0)return;
+  const deals=ids.map(id=>dealsData.find(d=>d['案件ID']===id)).filter(Boolean)
+    .filter(d=>(d['確度ランク']||'')!==targetRank);
+  if(deals.length===0)return;
+
+  if(targetRank==='売上'||targetRank==='決定'){
+    const zeroProfitCount=deals.filter(d=>!((Number(d['粗利'])||0)>0)).length;
+    if(zeroProfitCount>0){
+      const msg=deals.length===1
+        ?`確度ランクを「${targetRank}」に変更しますが粗利が0円です。このまま変更しますか？`
+        :`確度ランクを「${targetRank}」に変更します（${deals.length}件中${zeroProfitCount}件が粗利0円）。このまま変更しますか？`;
+      if(!confirm(msg))return;
+    }
   }
-  await updateDealRank(deal,targetRank);
+
+  await moveDealsToRank(deals,targetRank);
+  deals.forEach(d=>selectedDealIds.delete(d['案件ID']));
+  const selectAllCb=document.getElementById('detail-select-all');
+  if(selectAllCb) selectAllCb.checked=false;
+  if(currentPerson)render(currentPerson);
 }
 
-async function updateDealRank(deal,targetRank){
-  const prevRank=deal['確度ランク'];
-  const prevPaymentStatus=deal['入金ステータス'];
-  const paymentStatus=targetRank==='売上'?'入金済み':(deal['入金ステータス']||'未入金');
+async function moveDealsToRank(deals,targetRank){
+  const paymentStatus=targetRank==='売上'?'入金済み':null;
+  const prevState=deals.map(d=>({d,prevRank:d['確度ランク'],prevPaymentStatus:d['入金ステータス']}));
 
   // メモリ更新（即時反映）
-  deal['確度ランク']=targetRank;
-  deal['入金ステータス']=paymentStatus;
+  deals.forEach(d=>{
+    d['確度ランク']=targetRank;
+    if(paymentStatus) d['入金ステータス']=paymentStatus;
+  });
   if(currentPerson)render(currentPerson);
 
-  if(isDemoMode||!deal['案件ID'])return;
+  if(isDemoMode) return;
 
-  try{
-    const payload={
-      action:'updateDeal',
-      id:deal['案件ID'],
-      rankLabel:targetRank,
-      expectedMonth:String(deal['売上予定月']||'').slice(0,7),
-      companyName:deal['会社名'],
-      unitSales:Number(deal['売上（単価）'])||0,
-      unitCost:Number(deal['費用（単価）'])||0,
-      courses:Number(deal['コース数'])||1,
-      qty:Number(deal['件数'])||1,
-      months:Number(deal['月数'])||1,
-      memo:deal['メモ'],
-      nextActionDate:deal['次回アクション日']||'',
-      paymentStatus,
-      billingCompany:deal['計上会社']||'',
-      recurring:!!deal['継続課金'],
-      recurringEndMonth:deal['継続終了月']||'',
-    };
-    if(Number(deal['B件数'])>0){
-      payload.bUnitSales=Number(deal['B売上単価'])||0;
-      payload.bUnitCost=Number(deal['B費用単価'])||0;
-      payload.bQty=Number(deal['B件数'])||0;
+  let splitOccurred=false;
+  const failed=[];
+  await Promise.all(deals.map(async deal=>{
+    if(!deal['案件ID'])return;
+    try{
+      const payload={
+        action:'updateDeal',
+        id:deal['案件ID'],
+        rankLabel:targetRank,
+        expectedMonth:String(deal['売上予定月']||'').slice(0,7),
+        companyName:deal['会社名'],
+        unitSales:Number(deal['売上（単価）'])||0,
+        unitCost:Number(deal['費用（単価）'])||0,
+        courses:Number(deal['コース数'])||1,
+        qty:Number(deal['件数'])||1,
+        months:Number(deal['月数'])||1,
+        memo:deal['メモ'],
+        nextActionDate:deal['次回アクション日']||'',
+        paymentStatus:deal['入金ステータス'],
+        billingCompany:deal['計上会社']||'',
+        recurring:!!deal['継続課金'],
+        recurringEndMonth:deal['継続終了月']||'',
+      };
+      if(Number(deal['B件数'])>0){
+        payload.bUnitSales=Number(deal['B売上単価'])||0;
+        payload.bUnitCost=Number(deal['B費用単価'])||0;
+        payload.bQty=Number(deal['B件数'])||0;
+      }
+      const result=await gasPost(payload);
+      if(!result||!result.success){
+        failed.push(deal);
+        return;
+      }
+      if(result.splitDealId) splitOccurred=true;
+    }catch(e){
+      failed.push(deal);
     }
-    const result=await gasPost(payload);
-    if(!result||!result.success){
-      showToast('ランク変更に失敗しました: '+(result&&result.error?result.error:'不明なエラー'),'warn');
-      deal['確度ランク']=prevRank;
-      deal['入金ステータス']=prevPaymentStatus;
-      if(currentPerson)render(currentPerson);
-      return;
-    }
-    if(result.splitDealId){
-      const fresh=await fetchDashboardData(true);
-      if(fresh)applyDashboardData(fresh);
-      else showToast('分割後の最新データ取得に失敗しました。手動で更新してください。','warn');
-    }else{
-      showToast(`確度ランクを「${targetRank}」に変更しました`,'info');
-    }
-  }catch(e){
-    showToast('ランク変更に失敗しました: '+e.message,'warn');
-    deal['確度ランク']=prevRank;
-    deal['入金ステータス']=prevPaymentStatus;
-    if(currentPerson)render(currentPerson);
+  }));
+
+  if(failed.length>0){
+    const failedIds=new Set(failed.map(d=>d['案件ID']));
+    prevState.filter(s=>failedIds.has(s.d['案件ID'])).forEach(s=>{
+      s.d['確度ランク']=s.prevRank;
+      s.d['入金ステータス']=s.prevPaymentStatus;
+    });
+  }
+
+  if(splitOccurred){
+    const fresh=await fetchDashboardData(true);
+    if(fresh)applyDashboardData(fresh);
+    else showToast('分割後の最新データ取得に失敗しました。手動で更新してください。','warn');
+  }else if(currentPerson){
+    render(currentPerson);
+  }
+
+  const okCount=deals.length-failed.length;
+  if(failed.length===0){
+    showToast(deals.length===1
+      ?`確度ランクを「${targetRank}」に変更しました`
+      :`${deals.length}件を「${targetRank}」に変更しました`,'info');
+  }else if(okCount===0){
+    showToast('ランク変更に失敗しました','warn');
+  }else{
+    showToast(`${okCount}件を「${targetRank}」に変更しました（${failed.length}件失敗）`,'warn');
   }
 }
 
