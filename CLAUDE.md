@@ -677,11 +677,50 @@ clasp deploy -i AKfycbyAC_jurLseKlw5gw8s15p6Xu1q66-fmcgBDUuruAeg5IlfmAFjU7mNvRwK
   （チャット上でトークンを扱わないよう、以後のローテーションはユーザー自身のPCで`clasp login`し直して
   Secretsを更新する形を推奨）。
 
-### 今後の運用
-
-`main`にマージして`gas_v3.js`等を変更しpushすれば、GAS本番・Vercel本番の両方が自動的に反映される
-（GASはこのワークフロー経由、Vercelは既存のGitHub連携経由）。手動での`clasp push`／`clasp deploy`は
-基本的に不要になる。ワークフローの実行結果はGitHub Actionsのログで確認できる。
+### 今後の運用（※下記2026-07-25追記により訂正、現在はpush自動発火は無効化済み）
 
 **注意**: `CLASP_CREDENTIALS`のOAuthリフレッシュトークンが漏洩した場合は
 [Googleアカウントのセキュリティ設定](https://myaccount.google.com/permissions)から当該アプリのアクセスを取り消すこと。
+
+---
+
+## 2026-07-25（続き）clasp自動デプロイがGoogle Workspace側の制約で失敗・手動運用に切り戻し
+
+### 発覚した問題
+
+上記ワークフロー導入後、`main`へのpush（本コミット含む`gas_v3.js`変更）で実際に発火させたところ、
+`clasp push --force`の時点で以下のエラーで失敗した。
+
+```
+{"error":"invalid_grant","error_description":"reauth related error (invalid_rapt)", ...}
+```
+
+同じ`CLASP_CREDENTIALS`（`clasp login --no-localhost`で数分前に発行したばかりのトークン）を、
+発行元と同じクラウド実行セッション内で使うと`clasp status`は正常に通るが、GitHub Actionsのホストランナー
+（毎回別IPの共有ランナー）から使うと即座に`invalid_rapt`で拒否される。これはGoogle Workspace側の
+「Google Cloud セッション制御」または「コンテキストアウェアアクセス」等、ユーザーアカウントの
+OAuthトークンに対する再認証要求ポリシー（afactory.co.jpのAdmin console側の設定）が原因である可能性が高いと判断。
+このポリシーはユーザーOAuthアカウントに対してのみ適用され、サービスアカウントには適用されない
+（＝Google公式の一般的な回避策はサービスアカウント化）。
+
+Admin console側の設定を都度確認・変更するよりも、当面は自動化を諦めて手動運用を継続する方針とした
+（ユーザー判断）。
+
+### 対応
+
+- `.github/workflows/gas-deploy.yml`の`on:`から`push`トリガーを削除し、`workflow_dispatch`（手動実行）のみに変更
+  （pushトリガーのままだと`gas_v3.js`等を変更する度に必ず失敗し、CIが常に赤くなるノイズになるため）
+- ワークフロー自体・`CLASP_CREDENTIALS`シークレットは削除せず残置（Admin console側の制約を解消できた場合や
+  サービスアカウント方式に切り替える場合にすぐ再利用できるようにするため）
+
+### 今後の運用（確定）
+
+GASへの反映は従来どおり、クラウド実行セッション内で対話的に`clasp login --no-localhost`→
+`clasp push`→`clasp deploy -i <デプロイID>`を手動実行する（2026-07-08節の手順のまま）。
+Vercelは引き続きGitHubのmainへのpushで自動反映される（この部分は今回の問題の影響を受けない）。
+
+**再挑戦する場合の選択肢**（いずれも未着手）:
+1. Admin console → セキュリティ → アクセスとデータ管理 →「Google Cloud のセッション管理」等の
+   再認証ポリシーを確認し、このOAuthクライアント／APIアクセスを緩和できないか検討する
+2. ユーザーOAuthではなくGCPサービスアカウント（+ Apps ScriptプロジェクトをそのSAと共有）に切り替える
+   （reauthポリシーの対象外になる可能性が高い、CI/CD向けの標準的な解決策だがGoogle Cloud Console側の追加セットアップが必要）
