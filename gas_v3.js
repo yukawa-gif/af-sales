@@ -60,8 +60,9 @@ const DEAL_HEADERS = [
   '計上会社','B売上単価','B費用単価','B件数',
   '商材コード',  // AE: index 30
   '継続課金','継続終了月',  // AF/AG: 顧問契約など、止めるまで毎月自動計上する案件のフラグと終了月
-  'インセンティブ計上済み'  // AH: index 33。ストック案件は契約全期間分を初回の決定→売上確定時に一括計上するため、
+  'インセンティブ計上済み', // AH: index 33。ストック案件は契約全期間分を初回の決定→売上確定時に一括計上するため、
                             // 二重計上・多重計上を防ぐための一度払ったら立てるフラグ（分割・繰越・編集時に参照）
+  '次回アクション日'        // AI: index 34。営業が次にアクションすべき日（AI提案 or 手動入力、yyyy-MM-dd）
 ];
 
 // ============================================================
@@ -126,6 +127,7 @@ function doGet(e) {
   if (mode === 'generateTestData') return withLock(() => generateTestData());
   if (mode === 'clearTestData')    return withLock(() => clearTestData());
   if (mode === 'syncDealHeaders')  return withLock(() => syncDealHeaders());
+  if (mode === 'suggestNextAction') return suggestNextActionDate(e && e.parameter);
   if (mode === 'customers') return getCustomerList();
   if (mode === 'customer')  return getCustomerDetail(e && e.parameter && e.parameter.code);
   if (mode === 'deals')     return getDeals(e && e.parameter && e.parameter.person);
@@ -399,6 +401,7 @@ function addDeal(d) {
     !!d.recurring,                // AF: 継続課金
     '',                            // AG: 継続終了月（登録時は常に空＝継続中）
     String(d.rankLabel || '').trim() === '売上',  // AH: インセンティブ計上済み
+    d.nextActionDate || '',       // AI: 次回アクション日
   ]);
 
   return json({ success: true, id, incentive, grossProfit });
@@ -497,7 +500,7 @@ function getDeals(person) {
         o[h] = normYM(r[i]);
       } else if (h === '継続課金') {
         o[h] = r[i] === true || String(r[i]).trim().toUpperCase() === 'TRUE';
-      } else if (h === '登録日' || h === '入金確認日' || h === '引継日') {
+      } else if (h === '登録日' || h === '入金確認日' || h === '引継日' || h === '次回アクション日') {
         o[h] = normDate(r[i]);
       } else if (typeof r[i] === 'object' && typeof r[i].getFullYear === 'function') {
         o[h] = Utilities.formatDate(r[i], 'Asia/Tokyo', 'yyyy-MM-dd');
@@ -585,6 +588,7 @@ function updateDeal(d) {
       if (d.productCode !== undefined) setCol('商材コード', d.productCode || '');
       if (d.recurring   !== undefined) setCol('継続課金', !!d.recurring);
       if (d.recurringEndMonth !== undefined) setCol('継続終了月', d.recurringEndMonth);
+      if (d.nextActionDate !== undefined) setCol('次回アクション日', d.nextActionDate);
 
       const today = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd');
 
@@ -693,6 +697,7 @@ function updateDeal(d) {
           if (d.productCode !== undefined) set('商材コード', d.productCode);
           set('継続課金', false);
           set('継続終了月', '');
+          if (d.nextActionDate !== undefined) set('次回アクション日', d.nextActionDate);
           // 繰り越しレコードも「計上済み」扱いにする（翌月以降また売上に確定しても再計上しないため）
           set('インセンティブ計上済み', true);
           sheet.appendRow(newRow);
@@ -1476,6 +1481,74 @@ function getAIAdvice(params) {
     return json({ success:true, text, person:person||'チーム全体', month:todayYM });
   } catch(err) {
     return json({ success:false, error:err.message });
+  }
+}
+
+// ============================================================
+// 次回アクション日のAI提案
+// ルールベース（確度ランクごとの標準フォロー間隔）をデフォルトとし、
+// メモ欄に「来週」「月末までに」等の時期の言及があればGeminiで解析して上書きする。
+// 営業はこの提案をそのまま使うか、手動で書き換えてから保存するかを選べる（自動保存はしない）。
+// ============================================================
+const NEXT_ACTION_OFFSET_DAYS = { '決定': 30, 'A': 3, 'B': 7, 'C': 14 };
+
+function suggestNextActionDate(params) {
+  try {
+    const rank = String((params && params.rankLabel) || '').trim();
+    const memo = String((params && params.memo) || '').trim();
+    const today = new Date();
+
+    const offsetDays = NEXT_ACTION_OFFSET_DAYS[rank];
+    if (offsetDays === undefined) {
+      // 売上確定・失注は次回アクション不要
+      return json({ success: true, date: '', reason: '確度ランク「' + (rank || '未設定') + '」は次回アクション日の対象外です。', source: 'rule' });
+    }
+
+    const ruleDate = new Date(today.getTime() + offsetDays * 86400000);
+    let result = {
+      date: Utilities.formatDate(ruleDate, 'Asia/Tokyo', 'yyyy-MM-dd'),
+      reason: '確度ランク「' + rank + '」の標準フォロー間隔（' + offsetDays + '日後）による提案です。',
+      source: 'rule',
+    };
+
+    const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+    if (apiKey && memo) {
+      try {
+        const todayStr = Utilities.formatDate(today, 'Asia/Tokyo', 'yyyy-MM-dd');
+        const prompt = 'あなたは営業支援AIです。以下の商談メモから「次に営業担当がアクションすべき日付」を推測してください。\n' +
+          '今日の日付: ' + todayStr + '\n' +
+          '確度ランク: ' + rank + '\n' +
+          '商談メモ: 「' + memo + '」\n\n' +
+          'メモ内に「来週」「月末までに」「9月上旬」のような時期の言及があれば、具体的な日付（yyyy-MM-dd）に変換してください。\n' +
+          '時期の言及が無ければ date は null にしてください。\n' +
+          '必ず以下のJSON形式のみで回答してください（説明文やコードブロック記法は不要）:\n' +
+          '{"date": "yyyy-MM-dd または null", "reason": "30文字以内の根拠"}';
+
+        const res = UrlFetchApp.fetch(
+          'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey,
+          { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            payload: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { temperature: 0.2, maxOutputTokens: 256 } }),
+            muteHttpExceptions: true }
+        );
+        const data = JSON.parse(res.getContentText());
+        const text = data && data.candidates && data.candidates[0] && data.candidates[0].content &&
+          data.candidates[0].content.parts && data.candidates[0].content.parts[0] &&
+          data.candidates[0].content.parts[0].text || '';
+        const m = text.match(/\{[\s\S]*\}/);
+        if (m) {
+          const parsed = JSON.parse(m[0]);
+          if (parsed.date && /^\d{4}-\d{2}-\d{2}$/.test(parsed.date)) {
+            result = { date: parsed.date, reason: parsed.reason || 'メモの記載内容から推測しました。', source: 'gemini' };
+          }
+        }
+      } catch (e) {
+        // Gemini解析に失敗してもルールベースの提案はそのまま返す
+      }
+    }
+    return json({ success: true, date: result.date, reason: result.reason, source: result.source });
+  } catch (err) {
+    return json({ success: false, error: err.message });
   }
 }
 

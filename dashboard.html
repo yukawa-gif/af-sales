@@ -965,6 +965,18 @@ body.modal-open{overflow:hidden}
         <label class="mfl">メモ</label>
         <textarea class="mfta" id="dm-memo" placeholder="備考など"></textarea>
       </div>
+      <div class="mfg">
+        <label class="mfl">次回アクション日</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input class="mfi" type="date" id="dm-next-action-date" style="flex:1">
+          <button type="button" id="dm-next-action-suggest" onclick="suggestDmNextActionDate()"
+            style="flex:0 0 auto;background:none;border:1px solid var(--blue);border-radius:var(--r);
+            padding:9px 10px;font-size:11px;font-weight:700;color:var(--blue);cursor:pointer;font-family:inherit;white-space:nowrap">
+            ✨ AI提案
+          </button>
+        </div>
+        <div id="dm-next-action-reason" style="font-size:10px;color:var(--text3);margin-top:4px;display:none"></div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="modal-btn modal-btn-delete" id="dm-delete" onclick="deleteDealModal()">削除</button>
@@ -1282,6 +1294,7 @@ function yyyyMM(y,m){return y+'-'+String(m).padStart(2,'0')}
 function toMan(yen){return Math.round(yen/10000)}
 function fmt(v){return v==null||isNaN(v)?'—':Number(v).toLocaleString()}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function fmtYen(v){return v==null||isNaN(v)||v===0?'':Number(v).toLocaleString()}
 function fmtMan(yen){
   const v=toMan(yen);
@@ -1844,12 +1857,17 @@ function renderDetailTable(personDeals){
     const gpStr=gp===0?'—':(gp<0?'<span style="color:#dc2626">▲'+Math.abs(gp).toLocaleString()+'</span>':gp.toLocaleString());
     const stale=isStale(d);
     const showMail=stale||['決定','失注'].includes(d['確度ランク']||'');
+    const nextActionDate=String(d['次回アクション日']||'').slice(0,10);
+    const nextActionOverdue=nextActionDate&&nextActionDate<todayStr();
+    const nextActionHtml=nextActionDate
+      ?`<div style="font-size:10px;margin-top:2px;color:${nextActionOverdue?'#dc2626':'var(--text3)'}">次回:${esc(nextActionDate)}${nextActionOverdue?'（期限超過）':''}</div>`
+      :'';
     return `<tr class="${stale?'row-stale':''}" onclick="openDealModal(${JSON.stringify(d).replace(/"/g,'&quot;')})">
       <td onclick="event.stopPropagation()" style="text-align:center;padding:4px">
         <button class="task-btn" onclick="openTaskModal(${JSON.stringify(d).replace(/"/g,'&quot;')})" title="Googleタスクに追加">+T</button>
         ${showMail?`<button class="mail-btn" onclick="openMailModal(${JSON.stringify(d).replace(/"/g,'&quot;')})" title="フォローアップメールを下書き">メール</button>`:''}
       </td>
-      <td title="${esc(d['会社名']||'')}">${esc(d['会社名']||'—')}</td>
+      <td title="${esc(d['会社名']||'')}">${esc(d['会社名']||'—')}${nextActionHtml}</td>
       <td title="${esc(d['商材名']||'')}">${esc(d['商材名']||'—')}</td>
       <td><span class="detail-tbl-rank" style="display:inline-block;padding:2px 8px;border-radius:10px;
         font-size:10px;font-weight:700;color:#fff;background:${rankCfg.col}">${esc(rank)}</span></td>
@@ -2586,6 +2604,10 @@ function openDealModal(deal){
   document.getElementById('dm-qty').value=Number(deal['件数'])||1;
   document.getElementById('dm-months').value=Number(deal['月数'])||1;
   document.getElementById('dm-memo').value=deal['メモ']||'';
+  document.getElementById('dm-next-action-date').value=String(deal['次回アクション日']||'').slice(0,10);
+  const dmReasonEl=document.getElementById('dm-next-action-reason');
+  dmReasonEl.style.display='none';
+  dmReasonEl.textContent='';
 
   // B行（B件数 > 0 の場合のみ表示）
   const bQty=Number(deal['B件数'])||0;
@@ -2710,6 +2732,29 @@ async function duplicateDealAsNewProduct(){
   }
 }
 
+// 次回アクション日のAI提案（確度ランク＋メモから提案を取得。提案を入力欄に入れるだけで、保存は営業の操作を待つ）
+async function suggestDmNextActionDate(){
+  const rank=document.getElementById('dm-rank').value;
+  const memo=document.getElementById('dm-memo').value;
+  const btn=document.getElementById('dm-next-action-suggest');
+  const reasonEl=document.getElementById('dm-next-action-reason');
+  if(!rank){showToast('先に確度ランクを選択してください。','warn');return;}
+  btn.disabled=true;btn.textContent='提案中...';
+  reasonEl.style.display='none';
+  try{
+    const data=await gasGet({mode:'suggestNextAction',rankLabel:rank,memo});
+    if(!data.success)throw new Error(data.error||'取得失敗');
+    if(data.date){
+      document.getElementById('dm-next-action-date').value=data.date;
+    }
+    reasonEl.textContent=(data.date?'AI提案: ':'')+(data.reason||'');
+    reasonEl.style.display='';
+  }catch(e){
+    showToast('AI提案の取得に失敗しました: '+e.message,'warn');
+  }finally{
+    btn.disabled=false;btn.textContent='✨ AI提案';
+  }
+}
 
 function toggleIncentiveCard() {
   const body = document.getElementById('incentive-card-body');
@@ -2993,6 +3038,7 @@ async function saveDealModal(){
   const btn=document.getElementById('dm-save');
   btn.disabled=true;btn.textContent='保存中...';
   const memo=document.getElementById('dm-memo').value;
+  const nextActionDate=document.getElementById('dm-next-action-date').value;
   const billingCompany=document.getElementById('dm-billing-company').value;
   const costMonth=document.getElementById('dm-cost-month').value;
   // 費用計上月が粗利予定月と異なる場合のみ、費用計上明細を分けて保存する
@@ -3019,6 +3065,7 @@ async function saveDealModal(){
   editingDeal['月数']=months;
   editingDeal['粗利']=amount;
   editingDeal['メモ']=memo;
+  editingDeal['次回アクション日']=nextActionDate;
   editingDeal['入金ステータス']=paymentStatus;
   editingDeal['計上会社']=billingCompany;
   if(bRowVisible){ editingDeal['B売上単価']=bUnitSales; editingDeal['B費用単価']=bUnitCost; editingDeal['B件数']=bQty; }
@@ -3045,6 +3092,7 @@ async function saveDealModal(){
         qty,
         months,
         memo,
+        nextActionDate,
         paymentStatus,
         billingCompany,
         recurring,
