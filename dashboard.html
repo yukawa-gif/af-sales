@@ -140,10 +140,17 @@ body.sidebar-collapsed #sidebar-toggle-icon{transform:rotate(180deg)}
   color:var(--text2);transition:var(--transition)}
 .detail-filter-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-bg)}
 .detail-filter-btn.active{color:#fff;border-color:transparent}
+.detail-search-input{padding:5px 12px;border:1.5px solid var(--border);border-radius:20px;
+  font-size:11px;font-family:inherit;color:var(--text);background:var(--surface);
+  min-width:200px;transition:var(--transition)}
+.detail-search-input:focus{outline:none;border-color:var(--blue)}
 .detail-tbl{width:100%;border-collapse:collapse;font-size:12px}
 .detail-tbl th{background:#fafafa;border-bottom:2px solid var(--border);
   padding:8px 10px;text-align:left;font-weight:700;color:var(--text2);
   white-space:nowrap;font-size:11px;letter-spacing:.02em}
+.detail-tbl th.sortable{cursor:pointer;user-select:none}
+.detail-tbl th.sortable:hover{color:var(--blue)}
+.detail-sort-arrow{margin-left:3px;font-size:9px;color:var(--blue)}
 .detail-tbl td{border-bottom:1px solid var(--border);padding:8px 10px;
   vertical-align:middle;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .detail-tbl tr:hover td{background:#f5f5f5;cursor:pointer}
@@ -774,6 +781,8 @@ body.modal-open{overflow:hidden}
         <i data-lucide="list" style="width:16px;height:16px;color:var(--blue)"></i> 案件一覧
       </span>
       <div class="detail-filter-btns" id="detail-filter-btns" onclick="event.stopPropagation()"></div>
+      <input type="text" id="detail-search" class="detail-search-input" placeholder="🔍 会社名・商材名で検索"
+        oninput="setDetailSearch(this.value)" onclick="event.stopPropagation()">
       <span class="detail-count" id="detail-count"></span>
       <span id="detail-toggle-icon" style="margin-left:8px;font-size:12px;color:var(--text3);flex-shrink:0">▼</span>
     </div>
@@ -782,8 +791,8 @@ body.modal-open{overflow:hidden}
         <thead id="detail-thead-row">
           <tr>
             <th style="width:52px"></th>
-            <th style="width:180px">会社名</th>
-            <th style="width:130px">商材名</th>
+            <th style="width:180px" class="sortable" onclick="toggleDetailSort('company')" title="クリックで並び替え">会社名<span id="detail-sort-company" class="detail-sort-arrow"></span></th>
+            <th style="width:130px" class="sortable" onclick="toggleDetailSort('product')" title="クリックで並び替え">商材名<span id="detail-sort-product" class="detail-sort-arrow"></span></th>
             <th style="width:80px">確度</th>
             <th style="width:90px">売上予定月</th>
             <th style="width:110px;text-align:right">粗利</th>
@@ -1775,11 +1784,50 @@ function render(person){
 // 担当者別詳細パネル
 // ============================================================
 let detailFilterRank='ALL';
+let detailSearchText='';
+let detailSortKey=null;   // null | 'company' | 'product'
+let detailSortDir='asc';  // 'asc' | 'desc'
+
+function getDetailPersonDeals(){
+  return dealsData.filter(d=>{
+    if(d['担当者']!==currentPerson)return false;
+    const ym=String(d['売上予定月']||'').slice(0,7);
+    return fyMonths.some(m=>yyyyMM(m.year,m.month)===ym);
+  });
+}
+
+function updateDetailSortIndicators(){
+  [['company','detail-sort-company'],['product','detail-sort-product']].forEach(([key,id])=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.textContent = detailSortKey===key ? (detailSortDir==='asc'?'▲':'▼') : '';
+  });
+}
+
+function toggleDetailSort(key){
+  if(detailSortKey===key){
+    detailSortDir=detailSortDir==='asc'?'desc':'asc';
+  }else{
+    detailSortKey=key;
+    detailSortDir='asc';
+  }
+  updateDetailSortIndicators();
+  renderDetailTable(getDetailPersonDeals());
+}
+
+function setDetailSearch(text){
+  detailSearchText=text;
+  renderDetailTable(getDetailPersonDeals());
+}
 
 function renderPersonDetail(personDeals, isTeam){
   const panel=document.getElementById('detail-panel');
   if(isTeam){panel.style.display='none';return;}
   panel.style.display='';
+
+  const searchInput=document.getElementById('detail-search');
+  if(searchInput) searchInput.value=detailSearchText;
+  updateDetailSortIndicators();
 
   // ランク別件数
   const rankCounts={ALL:0};
@@ -1810,11 +1858,7 @@ function renderPersonDetail(personDeals, isTeam){
 
 function setDetailFilter(rank){
   detailFilterRank=rank;
-  const personDeals=dealsData.filter(d=>{
-    if(d['担当者']!==currentPerson)return false;
-    const ym=String(d['売上予定月']||'').slice(0,7);
-    return fyMonths.some(m=>yyyyMM(m.year,m.month)===ym);
-  });
+  const personDeals=getDetailPersonDeals();
   // フィルタボタン再描画
   const allFilters=[{v:'ALL',label:'すべて',color:'#475569'},...RANKS];
   document.getElementById('detail-filter-btns').querySelectorAll('button').forEach((btn,i)=>{
@@ -1830,12 +1874,25 @@ function setDetailFilter(rank){
 }
 
 function renderDetailTable(personDeals){
-  const filtered=detailFilterRank==='ALL'
+  let filtered=detailFilterRank==='ALL'
     ? personDeals
     : personDeals.filter(d=>d['確度ランク']===detailFilterRank);
 
-  // 売上予定月→粗利の降順ソート
+  const q=detailSearchText.trim().toLowerCase();
+  if(q){
+    filtered=filtered.filter(d=>
+      String(d['会社名']||'').toLowerCase().includes(q) ||
+      String(d['商材名']||'').toLowerCase().includes(q)
+    );
+  }
+
+  // 会社名/商材名の列ヘッダークリックでソート中はそちらを優先、それ以外は従来どおり売上予定月→粗利の降順
+  const sortField=detailSortKey==='company'?'会社名':detailSortKey==='product'?'商材名':null;
   const sorted=[...filtered].sort((a,b)=>{
+    if(sortField){
+      const cmp=String(a[sortField]||'').localeCompare(String(b[sortField]||''),'ja');
+      return detailSortDir==='asc'?cmp:-cmp;
+    }
     const ma=String(a['売上予定月']||'');
     const mb=String(b['売上予定月']||'');
     if(ma!==mb)return ma<mb?-1:1;
