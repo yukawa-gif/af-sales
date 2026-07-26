@@ -2660,14 +2660,18 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
       ${v>0?`<span class="tl-amt" style="color:#16a34a;font-weight:700">${fmtYen(v)}</span>`:''}
     </td>`;
   }).join('');
+  // 年度合計＝この行に表示中の各月セル（8月〜7月）の合計
+  const actualYearTotal=fyMonths.reduce((s,m)=>s+(actualDisplayByMonthYen[yyyyMM(m.year,m.month)]||0),0);
   const actualRow=document.createElement('tr');
   actualRow.className='tl-rank-row';
   actualRow.style.cursor='pointer';
   actualRow.innerHTML=`
-    <td class="td-co" style="background:#f0fdf4;cursor:pointer" colspan="2">
+    <td class="td-co" style="background:#f0fdf4;cursor:pointer">
       <span class="tl-rank-badge" style="background:#16a34a">✓</span>
       <span class="tl-rank-row-label" style="color:#16a34a">売上（確定）</span>
-      <span class="tl-rank-row-cnt" id="uriage-cnt"></span>
+    </td>
+    <td class="td-name" style="background:#f0fdf4;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:6px">
+      <span class="tl-rank-row-cnt" id="uriage-cnt">${(byRank['売上']||[]).length}件 / ${fmtYen(Math.round(actualYearTotal))}</span>
       <span class="tl-rank-row-arr" id="tl-arr-売上">▶</span>
     </td>${actualCells}`;
   actualRow.onclick=()=>toggleTimelineRank('tl-group-売上','tl-arr-売上');
@@ -2696,11 +2700,8 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
     });
 
     // ランクヘッダー行（売上はactualRowがヘッダー代わりなのでスキップ）
-    const rankTotalAmt=toMan(list.reduce((s,d)=>s+(Number(d['粗利'])||0),0));
-    if(rank.v==='売上'){
-      const cntEl=document.getElementById('uriage-cnt');
-      if(cntEl) cntEl.textContent=list.length+'件 / '+fmt(rankTotalAmt)+'万円';
-    }
+    // 年度合計＝この行に表示中の各月セル（8月〜7月）の合計
+    const rankYearTotal=fyMonths.reduce((s,m)=>s+(rankMonthTotals[yyyyMM(m.year,m.month)]||0),0);
     const rankCells=fyMonths.map(m=>{
       const ym=yyyyMM(m.year,m.month);
       const isCur=ym===todayYM;
@@ -2716,10 +2717,12 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
       headerRow.className='tl-rank-row';
       headerRow.onclick=()=>toggleTimelineRank(groupId,arrId);
       headerRow.innerHTML=`
-        <td class="td-co" style="background:${color}10;cursor:pointer" colspan="2">
+        <td class="td-co" style="background:${color}10;cursor:pointer">
           <span class="tl-rank-badge" style="background:${color}">${rank.av}</span>
           <span class="tl-rank-row-label" style="color:${color}">${rank.label}</span>
-          <span class="tl-rank-row-cnt">${list.length}件 / ${fmt(rankTotalAmt)}万円</span>
+        </td>
+        <td class="td-name" style="background:${color}10;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:6px">
+          <span class="tl-rank-row-cnt">${list.length}件 / ${fmtYen(Math.round(rankYearTotal))}</span>
           <span class="tl-rank-row-arr ${defaultOpen?'open':''}" id="${arrId}">▶</span>
         </td>${rankCells}`;
       tbody.appendChild(headerRow);
