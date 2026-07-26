@@ -2674,7 +2674,7 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
     </td>
     <td class="td-name" style="background:#f0fdf4;cursor:pointer;min-width:0">
       <span style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0">
-        <span class="tl-rank-row-cnt" id="uriage-cnt" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${(byRank['売上']||[]).length}件 ${fmtYen(Math.round(actualFutureTotal))}</span>
+        <span class="tl-rank-row-cnt" id="uriage-cnt" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${(byRank['売上']||[]).length}件 / ${fmtYen(Math.round(actualFutureTotal))}</span>
         <span class="tl-rank-row-arr" id="tl-arr-売上" style="flex-shrink:0">▶</span>
       </span>
     </td>${actualCells}`;
@@ -2729,7 +2729,7 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
         </td>
         <td class="td-name" style="background:${color}10;cursor:pointer;min-width:0">
           <span style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0">
-            <span class="tl-rank-row-cnt" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${list.length}件 ${fmtYen(Math.round(rankFutureTotal))}</span>
+            <span class="tl-rank-row-cnt" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${list.length}件 / ${fmtYen(Math.round(rankFutureTotal))}</span>
             <span class="tl-rank-row-arr ${defaultOpen?'open':''}" id="${arrId}" style="flex-shrink:0">▶</span>
           </span>
         </td>${rankCells}`;
