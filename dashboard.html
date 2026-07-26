@@ -2660,6 +2660,10 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
       ${v>0?`<span class="tl-amt" style="color:#16a34a;font-weight:700">${fmtYen(v)}</span>`:''}
     </td>`;
   }).join('');
+  // 当月以降合計＝表示中の月のうち当月（todayYM）以降のセルだけを合計
+  const actualFutureTotal=fyMonths
+    .filter(m=>yyyyMM(m.year,m.month)>=todayYM)
+    .reduce((s,m)=>s+(actualDisplayByMonthYen[yyyyMM(m.year,m.month)]||0),0);
   const actualRow=document.createElement('tr');
   actualRow.className='tl-rank-row';
   actualRow.style.cursor='pointer';
@@ -2668,10 +2672,10 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
       <span class="tl-rank-badge" style="background:#16a34a">✓</span>
       <span class="tl-rank-row-label" style="color:#16a34a">売上（確定）</span>
     </td>
-    <td class="td-name" style="background:#f0fdf4;cursor:pointer">
-      <span style="display:flex;align-items:center;justify-content:space-between;gap:6px">
-        <span class="tl-rank-row-cnt" id="uriage-cnt">${(byRank['売上']||[]).length}件</span>
-        <span class="tl-rank-row-arr" id="tl-arr-売上">▶</span>
+    <td class="td-name" style="background:#f0fdf4;cursor:pointer;min-width:0">
+      <span style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0">
+        <span class="tl-rank-row-cnt" id="uriage-cnt" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${(byRank['売上']||[]).length}件 ${fmtYen(Math.round(actualFutureTotal))}</span>
+        <span class="tl-rank-row-arr" id="tl-arr-売上" style="flex-shrink:0">▶</span>
       </span>
     </td>${actualCells}`;
   actualRow.onclick=()=>toggleTimelineRank('tl-group-売上','tl-arr-売上');
@@ -2700,6 +2704,10 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
     });
 
     // ランクヘッダー行（売上はactualRowがヘッダー代わりなのでスキップ）
+    // 当月以降合計＝表示中の月のうち当月（todayYM）以降のセルだけを合計
+    const rankFutureTotal=fyMonths
+      .filter(m=>yyyyMM(m.year,m.month)>=todayYM)
+      .reduce((s,m)=>s+(rankMonthTotals[yyyyMM(m.year,m.month)]||0),0);
     const rankCells=fyMonths.map(m=>{
       const ym=yyyyMM(m.year,m.month);
       const isCur=ym===todayYM;
@@ -2719,10 +2727,10 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
           <span class="tl-rank-badge" style="background:${color}">${rank.av}</span>
           <span class="tl-rank-row-label" style="color:${color}">${rank.label}</span>
         </td>
-        <td class="td-name" style="background:${color}10;cursor:pointer">
-          <span style="display:flex;align-items:center;justify-content:space-between;gap:6px">
-            <span class="tl-rank-row-cnt">${list.length}件</span>
-            <span class="tl-rank-row-arr ${defaultOpen?'open':''}" id="${arrId}">▶</span>
+        <td class="td-name" style="background:${color}10;cursor:pointer;min-width:0">
+          <span style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0">
+            <span class="tl-rank-row-cnt" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${list.length}件 ${fmtYen(Math.round(rankFutureTotal))}</span>
+            <span class="tl-rank-row-arr ${defaultOpen?'open':''}" id="${arrId}" style="flex-shrink:0">▶</span>
           </span>
         </td>${rankCells}`;
       tbody.appendChild(headerRow);
