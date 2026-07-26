@@ -1472,12 +1472,13 @@ function getAIAdvice(params) {
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+apiKey,
       { method:'POST', headers:{'Content-Type':'application/json'},
         payload:JSON.stringify({contents:[{parts:[{text:prompt}]}],
-          generationConfig:{temperature:0.7,maxOutputTokens:1024,thinkingConfig:{thinkingBudget:0}}}),
+          generationConfig:{temperature:0.7,maxOutputTokens:4096,thinkingConfig:{thinkingBudget:0}}}),
         muteHttpExceptions:true }
     );
     const data = JSON.parse(res.getContentText());
     if (data.error) return json({ success:false, error:data.error.message });
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '応答がありません';
+    const parts = (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
+    const text = parts.filter(p => p && p.text).map(p => p.text).join('') || '応答がありません';
     return json({ success:true, text, person:person||'チーム全体', month:todayYM });
   } catch(err) {
     return json({ success:false, error:err.message });
@@ -1528,7 +1529,7 @@ function suggestNextActionDate(params) {
           'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey,
           { method: 'POST', headers: { 'Content-Type': 'application/json' },
             payload: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: { temperature: 0.2, maxOutputTokens: 256, thinkingConfig: { thinkingBudget: 0 } } }),
+              generationConfig: { temperature: 0.2, maxOutputTokens: 1024, thinkingConfig: { thinkingBudget: 0 } } }),
             muteHttpExceptions: true }
         );
         const data = JSON.parse(res.getContentText());
@@ -2917,7 +2918,7 @@ ${calSection}
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey,
       { method: 'POST', headers: { 'Content-Type': 'application/json' },
         payload: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.7, maxOutputTokens: 512, thinkingConfig: { thinkingBudget: 0 } } }),
+          generationConfig: { temperature: 0.7, maxOutputTokens: 2048, thinkingConfig: { thinkingBudget: 0 } } }),
         muteHttpExceptions: true }
     );
     const body = JSON.parse(res.getContentText());
