@@ -1455,8 +1455,25 @@ function getAIAdvice(params) {
       } catch(e) {}
     }
 
+    // 今月末までのカレンダー予定（アポ・商談等）。チーム全体の場合は在籍中の全営業を横断集計
+    const monthEndDate = new Date(today.getFullYear(), today.getMonth()+1, 0, 23, 59, 59);
+    const calPersons = getPersonDetails().filter(p => p.email && (isTeam || p.name === person));
+    let calEvents = [];
+    calPersons.forEach(p => {
+      getCalendarEventsInRange_(p.email, today, monthEndDate).forEach(e => {
+        calEvents.push({ person: p.name, title: e.title, start: e.start, startRaw: e.startRaw });
+      });
+    });
+    calEvents.sort((a,b) => a.startRaw - b.startRaw);
+    const CAL_LIST_MAX = 12;
+    const calSection = calEvents.length > 0
+      ? `\n【今月末までの予定（Googleカレンダー・アポ/商談等）】${calEvents.length}件\n` +
+        calEvents.slice(0, CAL_LIST_MAX).map(e => `- ${e.start}${isTeam ? '　'+e.person : ''}　${e.title}`).join('\n') +
+        (calEvents.length > CAL_LIST_MAX ? `\n…他${calEvents.length - CAL_LIST_MAX}件` : '')
+      : `\n【今月末までの予定（Googleカレンダー）】アポ・商談等の予定が見当たりません（未入力またはカレンダー未連携の可能性）`;
+
     const elapsed = Math.max(1, today.getMonth()>=7 ? today.getMonth()-7 : today.getMonth()+5);
-    const prompt = `あなたはプロの営業マネジャーです。以下の営業データを分析し、今月の改善アドバイスを日本語で3〜4点、箇条書きで具体的に提示してください。数字を必ず使ってください。
+    const prompt = `あなたはプロの営業マネジャーです。以下の営業データ（実績・案件・今後のカレンダー予定）を総合的に分析し、今月の改善アドバイスを日本語で3〜4点、箇条書きで具体的に提示してください。数字を必ず使ってください。カレンダーの予定件数や内容にも触れ、予定が少ない・偏っている場合はその点も指摘してください。
 
 【対象】${isTeam?'チーム全体':'担当者: '+person}
 【期間】FY${currentFY}（8月〜翌7月）経過${elapsed}ヶ月
@@ -1465,6 +1482,7 @@ function getAIAdvice(params) {
 【今月KPI】有効面談${meeting}件、自アポ${selfApo}件、テレアポ${telApo}件、紹介${refCount}件
 【アクティブ案件】${activeDeals.length}件 ／ ヨミ合計 ${yomiTotal}万円
 【確度内訳】決定:${activeDeals.filter(d=>d['確度ランク']==='決定').length}件 A:${activeDeals.filter(d=>d['確度ランク']==='A').length}件 B:${activeDeals.filter(d=>d['確度ランク']==='B').length}件 C:${activeDeals.filter(d=>d['確度ランク']==='C').length}件
+${calSection}
 
 アドバイスは実践的かつ前向きなトーンで。`;
 
@@ -2851,35 +2869,39 @@ function toDateStr(v) {
 // ============================================================
 // カレンダーイベント取得（アポ・架電・面談系）
 // ============================================================
-function getCalendarEventsForWeek(personName, weekStart) {
+const CALENDAR_EVENT_KEYWORDS = /アポ|架電|商談|面談|訪問|MTG|ミーティング|打ち合わせ/i;
+
+// メールアドレス1件分のカレンダーから、期間内の営業活動系イベントを抽出する共通ヘルパー
+function getCalendarEventsInRange_(email, startDate, endDate) {
   try {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PERSONS);
-    if (!sheet) return [];
-
-    const rows = sheet.getDataRange().getValues().slice(1);
-    const personRow = rows.find(r => String(r[1]).trim() === personName);
-    if (!personRow || !personRow[4]) return []; // E列 = メールアドレス
-
-    const email = String(personRow[4]).trim();
-    const cal   = CalendarApp.getCalendarById(email);
+    const cal = CalendarApp.getCalendarById(email);
     if (!cal) return [];
-
-    const startDate = new Date(weekStart);
-    const endDate   = new Date(weekStart);
-    endDate.setDate(endDate.getDate() + 5); // 月〜金
-
-    const keywords = /アポ|架電|商談|面談|訪問|MTG|ミーティング|打ち合わせ/i;
-
     return cal.getEvents(startDate, endDate)
-      .filter(e => keywords.test(e.getTitle()))
+      .filter(e => CALENDAR_EVENT_KEYWORDS.test(e.getTitle()))
       .map(e => ({
-        title: e.getTitle(),
-        start: Utilities.formatDate(e.getStartTime(), 'Asia/Tokyo', 'M/d(E) HH:mm'),
-        end:   Utilities.formatDate(e.getEndTime(),   'Asia/Tokyo', 'HH:mm'),
+        title:    e.getTitle(),
+        startRaw: e.getStartTime(),
+        start:    Utilities.formatDate(e.getStartTime(), 'Asia/Tokyo', 'M/d(E) HH:mm'),
+        end:      Utilities.formatDate(e.getEndTime(),   'Asia/Tokyo', 'HH:mm'),
       }));
-  } catch(e) {
+  } catch (e) {
     return [];
   }
+}
+
+function getCalendarEventsForWeek(personName, weekStart) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PERSONS);
+  if (!sheet) return [];
+
+  const rows = sheet.getDataRange().getValues().slice(1);
+  const personRow = rows.find(r => String(r[1]).trim() === personName);
+  if (!personRow || !personRow[4]) return []; // E列 = メールアドレス
+
+  const startDate = new Date(weekStart);
+  const endDate   = new Date(weekStart);
+  endDate.setDate(endDate.getDate() + 5); // 月〜金
+
+  return getCalendarEventsInRange_(String(personRow[4]).trim(), startDate, endDate);
 }
 
 // ============================================================
