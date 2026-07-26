@@ -1472,7 +1472,7 @@ function getAIAdvice(params) {
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+apiKey,
       { method:'POST', headers:{'Content-Type':'application/json'},
         payload:JSON.stringify({contents:[{parts:[{text:prompt}]}],
-          generationConfig:{temperature:0.7,maxOutputTokens:1024}}),
+          generationConfig:{temperature:0.7,maxOutputTokens:1024,thinkingConfig:{thinkingBudget:0}}}),
         muteHttpExceptions:true }
     );
     const data = JSON.parse(res.getContentText());
@@ -1528,7 +1528,7 @@ function suggestNextActionDate(params) {
           'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey,
           { method: 'POST', headers: { 'Content-Type': 'application/json' },
             payload: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: { temperature: 0.2, maxOutputTokens: 256 } }),
+              generationConfig: { temperature: 0.2, maxOutputTokens: 256, thinkingConfig: { thinkingBudget: 0 } } }),
             muteHttpExceptions: true }
         );
         const data = JSON.parse(res.getContentText());
@@ -2917,7 +2917,7 @@ ${calSection}
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey,
       { method: 'POST', headers: { 'Content-Type': 'application/json' },
         payload: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.7, maxOutputTokens: 512 } }),
+          generationConfig: { temperature: 0.7, maxOutputTokens: 512, thinkingConfig: { thinkingBudget: 0 } } }),
         muteHttpExceptions: true }
     );
     const body = JSON.parse(res.getContentText());
