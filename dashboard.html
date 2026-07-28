@@ -4072,22 +4072,11 @@ function renderIncentiveCard(person, isTeam){
     // 商材マスタ登録済みなら金額0でも表示（未登録商材は除外）
     if(totalIncentive<=0 && !pDetail) return;
 
-    if(months<=1 || pDetail?.incentiveFixedAmount){
-      // スポット、または固定額商材（月数に関わらず一括計上・分割しない）：売上予定月のみ
-      if(startYM>=fyStartYM){
-        if(!byMonth[startYM]) byMonth[startYM]=[];
-        byMonth[startYM].push({d, amt:totalIncentive});
-      }
-    }else{
-      // ストック（率商材）：契約期間中の各月に分割
-      for(let i=0;i<months;i++){
-        const base=new Date(startYM+'-01');
-        base.setMonth(base.getMonth()+i);
-        const ym=yyyyMM(base.getFullYear(),base.getMonth()+1);
-        if(ym<fyStartYM) continue;
-        if(!byMonth[ym]) byMonth[ym]=[];
-        byMonth[ym].push({d, amt:Math.floor(totalIncentive/months)});
-      }
+    // GAS側は月数・商材タイプに関わらず「決定→売上」確定時に契約全期間分のインセンティブを
+    // 一括計上する設計（月割り分割はしない）。表示側もそれに合わせ、売上予定月に全額を計上する。
+    if(startYM>=fyStartYM){
+      if(!byMonth[startYM]) byMonth[startYM]=[];
+      byMonth[startYM].push({d, amt:totalIncentive});
     }
   });
 
