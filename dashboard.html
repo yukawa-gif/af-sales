@@ -4072,14 +4072,14 @@ function renderIncentiveCard(person, isTeam){
     // 商材マスタ登録済みなら金額0でも表示（未登録商材は除外）
     if(totalIncentive<=0 && !pDetail) return;
 
-    if(months<=1){
-      // スポット：売上予定月のみ
+    if(months<=1 || pDetail?.incentiveFixedAmount){
+      // スポット、または固定額商材（月数に関わらず一括計上・分割しない）：売上予定月のみ
       if(startYM>=fyStartYM){
         if(!byMonth[startYM]) byMonth[startYM]=[];
         byMonth[startYM].push({d, amt:totalIncentive});
       }
     }else{
-      // ストック：契約期間中の各月
+      // ストック（率商材）：契約期間中の各月に分割
       for(let i=0;i<months;i++){
         const base=new Date(startYM+'-01');
         base.setMonth(base.getMonth()+i);
