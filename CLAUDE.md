@@ -624,3 +624,140 @@ clasp deploy -i AKfycbyAC_jurLseKlw5gw8s15p6Xu1q66-fmcgBDUuruAeg5IlfmAFjU7mNvRwK
 **既知の制約**：
 - 分割後に「決定」で繰り越されたレコードを、翌月以降に再度手動で「売上」へ更新する運用を前提としている（自動では進まない）
 - 案件を「売上」→「決定」に戻す操作や、分割後の2レコードを再統合する機能は未実装
+
+---
+
+## 2026-07-25 案件登録時の確度ランク未選択防止
+
+### 課題
+
+営業担当が `deal_form.html` で案件登録する際、確度ランク（売上/決定/A/B/C/失注）を明示的にクリックしなくても
+登録が完了してしまい、実際にはC（啓蒙活動中）以外のはずの案件までC見込として登録されるケースがあった。
+原因は、Cボタンに初期状態で `sel` クラスが付き、隠しinput `#rankLabel` の初期値も `'C'` になっていたため、
+未操作のまま送信してもバリデーションを通過してしまっていたこと。
+
+### 対応
+
+- `deal_form.html`：Cボタンの初期選択（`sel`クラス）と隠しinputの初期値`'C'`を廃止し、未選択状態をデフォルトに変更
+  - 確度ランク未選択時は赤字で「未選択（クリックして選択してください）」ヒントを表示（`selRank()`実行で非表示化）
+  - `validate()` に `確度ランクを選択してください` チェックを追加（未選択のまま送信不可）
+  - 登録成功後の `reset()` でもCへ戻すのではなく未選択状態にリセット（連続登録時も毎回明示選択が必須）
+- `gas_v3.js` `addDeal()`：クライアント側の抜け穴（直接API呼び出し等）に備え、サーバー側でも
+  `rankLabel` が空の場合はエラーを返すよう変更（従来は`d.rankLabel || 'C'`で無指定時にサーバー側がCへ自動フォールバックしていた）
+
+**未対応（意図的にスコープ外）**：`dashboard.html` の `duplicateDealAsNewProduct()`（既存案件を別商材で複製登録するショートカット機能）は
+引き続き `rankLabel:'C'` を明示的に指定する設計のまま。こちらはUI上ランク選択欄がなく複製専用の別フローのため、
+今回の「営業担当が案件登録時にランクを指定し忘れる」問題とは性質が異なると判断し変更していない。
+
+**デプロイ未実施**：`gas_v3.js` の変更は本サーバー環境からはGASへデプロイできない（Googleログイン情報なし）。
+`clasp push` → `clasp deploy -i <デプロイID>` の手動実行が必要（このセッションでは未実施）。
+
+---
+
+## 2026-07-25 GitHub Actionsによるclasp自動デプロイ導入
+
+### 背景
+
+これまで`gas_v3.js`等の変更は`git push`しても本番GASには反映されず、`clasp push`→`clasp deploy -i <デプロイID>`を
+別途手動実行する必要があった（かつクラウド実行セッションではGoogleログイン情報が毎回失われるため、
+実質ローカル環境か対話的なOAuth手順でしか実行できなかった）。Vercel側は元々GitHubのmainへのpushで自動デプロイされる
+ため、GAS側も同様に「pushだけで本番反映まで完了する」ようにする。
+
+### 対応
+
+- `.github/workflows/gas-deploy.yml` を追加。`main`ブランチへの`gas_v3.js`／`customer_master.js`／`appsscript.json`／
+  `.clasp.json`／`.claspignore`変更を含むpush、または手動の`workflow_dispatch`をトリガーに、
+  - `npm install -g @google/clasp`
+  - GitHub Secrets `CLASP_CREDENTIALS`（`~/.clasprc.json`相当のJSON）を書き出してclaspを認証
+  - `clasp push --force`
+  - `clasp deploy -i AKfycbyAC_jurLseKlw5gw8s15p6Xu1q66-fmcgBDUuruAeg5IlfmAFjU7mNvRwK1Yz1k9dt`（本番Web App）
+  を実行する。同時実行による本番デプロイの競合を避けるため`concurrency`グループを設定。
+- `CLASP_CREDENTIALS`の中身は、このセッション内で`clasp login --no-localhost`により`yukawa@afactory.co.jp`で
+  対話的に取得し、GitHubリポジトリのSecrets（Settings → Secrets and variables → Actions）へ登録する運用とした
+  （チャット上でトークンを扱わないよう、以後のローテーションはユーザー自身のPCで`clasp login`し直して
+  Secretsを更新する形を推奨）。
+
+### 今後の運用（※下記2026-07-25追記により訂正、現在はpush自動発火は無効化済み）
+
+**注意**: `CLASP_CREDENTIALS`のOAuthリフレッシュトークンが漏洩した場合は
+[Googleアカウントのセキュリティ設定](https://myaccount.google.com/permissions)から当該アプリのアクセスを取り消すこと。
+
+---
+
+## 2026-07-25（続き）clasp自動デプロイがGoogle Workspace側の制約で失敗・手動運用に切り戻し
+
+### 発覚した問題
+
+上記ワークフロー導入後、`main`へのpush（本コミット含む`gas_v3.js`変更）で実際に発火させたところ、
+`clasp push --force`の時点で以下のエラーで失敗した。
+
+```
+{"error":"invalid_grant","error_description":"reauth related error (invalid_rapt)", ...}
+```
+
+同じ`CLASP_CREDENTIALS`（`clasp login --no-localhost`で数分前に発行したばかりのトークン）を、
+発行元と同じクラウド実行セッション内で使うと`clasp status`は正常に通るが、GitHub Actionsのホストランナー
+（毎回別IPの共有ランナー）から使うと即座に`invalid_rapt`で拒否される。これはGoogle Workspace側の
+「Google Cloud セッション制御」または「コンテキストアウェアアクセス」等、ユーザーアカウントの
+OAuthトークンに対する再認証要求ポリシー（afactory.co.jpのAdmin console側の設定）が原因である可能性が高いと判断。
+このポリシーはユーザーOAuthアカウントに対してのみ適用され、サービスアカウントには適用されない
+（＝Google公式の一般的な回避策はサービスアカウント化）。
+
+Admin console側の設定を都度確認・変更するよりも、当面は自動化を諦めて手動運用を継続する方針とした
+（ユーザー判断）。
+
+### 対応
+
+- `.github/workflows/gas-deploy.yml`の`on:`から`push`トリガーを削除し、`workflow_dispatch`（手動実行）のみに変更
+  （pushトリガーのままだと`gas_v3.js`等を変更する度に必ず失敗し、CIが常に赤くなるノイズになるため）
+- ワークフロー自体・`CLASP_CREDENTIALS`シークレットは削除せず残置（Admin console側の制約を解消できた場合や
+  サービスアカウント方式に切り替える場合にすぐ再利用できるようにするため）
+
+### 今後の運用（確定）
+
+GASへの反映は従来どおり、クラウド実行セッション内で対話的に`clasp login --no-localhost`→
+`clasp push`→`clasp deploy -i <デプロイID>`を手動実行する（2026-07-08節の手順のまま）。
+Vercelは引き続きGitHubのmainへのpushで自動反映される（この部分は今回の問題の影響を受けない）。
+
+**再挑戦する場合の選択肢**（いずれも未着手）:
+1. Admin console → セキュリティ → アクセスとデータ管理 →「Google Cloud のセッション管理」等の
+   再認証ポリシーを確認し、このOAuthクライアント／APIアクセスを緩和できないか検討する
+2. ユーザーOAuthではなくGCPサービスアカウント（+ Apps ScriptプロジェクトをそのSAと共有）に切り替える
+   （reauthポリシーの対象外になる可能性が高い、CI/CD向けの標準的な解決策だがGoogle Cloud Console側の追加セットアップが必要）
+
+---
+
+## 2026-07-25（続き）次回アクション日の追加（AI提案＋営業が確認・編集）
+
+### 方針
+
+営業が案件ごとに「次に自分がアクションすべき日」を管理できるようにする機能。完全AI自動でも
+完全手動でもなく、**AIが初期値を提案し、営業が確認・上書きしてから保存する**ハイブリッド方式を採用。
+理由: メモ欄の記述だけから正確な日付を常に推測するのは精度が低く外れた提案が放置されるリスクがある一方、
+完全手動だと入力の手間で結局誰も埋めない項目になりがちなため。
+
+### 対応（`gas_v3.js`）
+
+- `DEAL_HEADERS` に `次回アクション日`（AI列・index 34、案件マスタの35列目）を追加
+- `addDeal()` / `updateDeal()`（複数月案件の決定→売上分割時の繰越レコードも含む）で保存に対応
+- `getDeals()` の日付正規化対象に追加（Date型のduck typing判定を含む既存の`normDate`処理を再利用）
+- `suggestNextActionDate(params)` を新設し `doGet` に `mode=suggestNextAction` として追加
+  - ルールベースの標準フォロー間隔をデフォルトとする: 決定=30日後、A=3日後、B=7日後、C=14日後、売上/失注は対象外（空欄）
+  - Gemini APIキー設定済み・メモに記載がある場合は、メモ内の時期表現（「来週」「月末までに」等）をGeminiで解析し、
+    具体的な日付が抽出できればルールベースの結果を上書きする（`getAIAdvice()`と同じ`gemini-2.5-flash`エンドポイントを使用）
+  - Gemini呼び出し失敗時もルールベースの提案にフォールバックする（例外を握りつぶして提案自体は必ず返す）
+
+### 対応（`dashboard.html`）
+
+- 案件編集モーダルに「次回アクション日」の日付入力欄と「✨ AI提案」ボタンを追加（メモ欄の下）
+  - ボタン押下時、モーダル内の**未保存の**確度ランク・メモの内容で`suggestNextAction`を呼び出し、
+    提案日と根拠（reason）を表示する。あくまで入力欄に値を入れるだけで、保存するかどうかは営業の「保存」操作に委ねる
+- 案件一覧（詳細テーブル）の会社名セルに次回アクション日を小さく表示し、期限超過（today基準）の場合は赤字表示
+
+### デプロイ状況
+
+`dashboard.html`はVercel側の自動デプロイでmain push後すぐ反映される。`gas_v3.js`側
+（`DEAL_HEADERS`追加・`suggestNextActionDate()`・`doGet`のmode追加）は、2026-07-25節の運用方針どおり
+本セッションからは反映できないため、**`clasp push` → `clasp deploy -i <デプロイID>`の手動実行が別途必要**。
+未実行の間は、ダッシュボードの「AI提案」ボタンおよび保存時の次回アクション日書き込みはGAS側が
+未対応の状態のため動作しない（フロント側は静かに失敗する設計にはしていないので、エラートーストが出る）。

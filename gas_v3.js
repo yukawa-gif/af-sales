@@ -60,8 +60,9 @@ const DEAL_HEADERS = [
   '計上会社','B売上単価','B費用単価','B件数',
   '商材コード',  // AE: index 30
   '継続課金','継続終了月',  // AF/AG: 顧問契約など、止めるまで毎月自動計上する案件のフラグと終了月
-  'インセンティブ計上済み'  // AH: index 33。ストック案件は契約全期間分を初回の決定→売上確定時に一括計上するため、
+  'インセンティブ計上済み', // AH: index 33。ストック案件は契約全期間分を初回の決定→売上確定時に一括計上するため、
                             // 二重計上・多重計上を防ぐための一度払ったら立てるフラグ（分割・繰越・編集時に参照）
+  '次回アクション日'        // AI: index 34。営業が次にアクションすべき日（AI提案 or 手動入力、yyyy-MM-dd）
 ];
 
 // ============================================================
@@ -126,6 +127,7 @@ function doGet(e) {
   if (mode === 'generateTestData') return withLock(() => generateTestData());
   if (mode === 'clearTestData')    return withLock(() => clearTestData());
   if (mode === 'syncDealHeaders')  return withLock(() => syncDealHeaders());
+  if (mode === 'suggestNextAction') return suggestNextActionDate(e && e.parameter);
   if (mode === 'customers') return getCustomerList();
   if (mode === 'customer')  return getCustomerDetail(e && e.parameter && e.parameter.code);
   if (mode === 'deals')     return getDeals(e && e.parameter && e.parameter.person);
@@ -307,7 +309,8 @@ function addDeal(d) {
   if (!d.companyName || !String(d.companyName).trim()) return json({ success: false, error: '会社名が空です' });
   if (!d.expectedMonth || !String(d.expectedMonth).trim()) return json({ success: false, error: '売上予定月が空です' });
   if (!/^\d{4}-\d{2}$/.test(String(d.expectedMonth).trim())) return json({ success: false, error: '売上予定月の形式が不正です（例: 2026-04）' });
-  if (d.rankLabel && !VALID_DEAL_RANKS.includes(String(d.rankLabel).trim())) return json({ success: false, error: '確度ランクが無効です: ' + d.rankLabel });
+  if (!d.rankLabel || !String(d.rankLabel).trim())      return json({ success: false, error: '確度ランクが空です' });
+  if (!VALID_DEAL_RANKS.includes(String(d.rankLabel).trim())) return json({ success: false, error: '確度ランクが無効です: ' + d.rankLabel });
 
   const sheet = getOrCreateDealSheet();
   const today = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd');
@@ -372,7 +375,7 @@ function addDeal(d) {
     d.companyName || '',         // F: 会社名
     d.productName || '',         // G: 商材名
     d.phase || 'ヒアリング中',   // H: フェーズ
-    d.rankLabel || 'C',          // I: 確度ランク
+    String(d.rankLabel).trim(),  // I: 確度ランク
     unitSales,                   // J: 売上（単価）
     unitCost,                    // K: 費用（単価）
     courses,                     // L: コース数
@@ -398,6 +401,7 @@ function addDeal(d) {
     !!d.recurring,                // AF: 継続課金
     '',                            // AG: 継続終了月（登録時は常に空＝継続中）
     String(d.rankLabel || '').trim() === '売上',  // AH: インセンティブ計上済み
+    d.nextActionDate || '',       // AI: 次回アクション日
   ]);
 
   return json({ success: true, id, incentive, grossProfit });
@@ -496,7 +500,7 @@ function getDeals(person) {
         o[h] = normYM(r[i]);
       } else if (h === '継続課金') {
         o[h] = r[i] === true || String(r[i]).trim().toUpperCase() === 'TRUE';
-      } else if (h === '登録日' || h === '入金確認日' || h === '引継日') {
+      } else if (h === '登録日' || h === '入金確認日' || h === '引継日' || h === '次回アクション日') {
         o[h] = normDate(r[i]);
       } else if (typeof r[i] === 'object' && typeof r[i].getFullYear === 'function') {
         o[h] = Utilities.formatDate(r[i], 'Asia/Tokyo', 'yyyy-MM-dd');
@@ -584,6 +588,7 @@ function updateDeal(d) {
       if (d.productCode !== undefined) setCol('商材コード', d.productCode || '');
       if (d.recurring   !== undefined) setCol('継続課金', !!d.recurring);
       if (d.recurringEndMonth !== undefined) setCol('継続終了月', d.recurringEndMonth);
+      if (d.nextActionDate !== undefined) setCol('次回アクション日', d.nextActionDate);
 
       const today = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd');
 
@@ -692,6 +697,7 @@ function updateDeal(d) {
           if (d.productCode !== undefined) set('商材コード', d.productCode);
           set('継続課金', false);
           set('継続終了月', '');
+          if (d.nextActionDate !== undefined) set('次回アクション日', d.nextActionDate);
           // 繰り越しレコードも「計上済み」扱いにする（翌月以降また売上に確定しても再計上しないため）
           set('インセンティブ計上済み', true);
           sheet.appendRow(newRow);
@@ -1449,8 +1455,25 @@ function getAIAdvice(params) {
       } catch(e) {}
     }
 
+    // 今月末までのカレンダー予定（アポ・商談等）。チーム全体の場合は在籍中の全営業を横断集計
+    const monthEndDate = new Date(today.getFullYear(), today.getMonth()+1, 0, 23, 59, 59);
+    const calPersons = getPersonDetails().filter(p => p.email && (isTeam || p.name === person));
+    let calEvents = [];
+    calPersons.forEach(p => {
+      getCalendarEventsInRange_(p.email, today, monthEndDate).forEach(e => {
+        calEvents.push({ person: p.name, title: e.title, start: e.start, startRaw: e.startRaw });
+      });
+    });
+    calEvents.sort((a,b) => a.startRaw - b.startRaw);
+    const CAL_LIST_MAX = 12;
+    const calSection = calEvents.length > 0
+      ? `\n【今月末までの予定（Googleカレンダー・アポ/商談等）】${calEvents.length}件\n` +
+        calEvents.slice(0, CAL_LIST_MAX).map(e => `- ${e.start}${isTeam ? '　'+e.person : ''}　${e.title}`).join('\n') +
+        (calEvents.length > CAL_LIST_MAX ? `\n…他${calEvents.length - CAL_LIST_MAX}件` : '')
+      : `\n【今月末までの予定（Googleカレンダー）】アポ・商談等の予定が見当たりません（未入力またはカレンダー未連携の可能性）`;
+
     const elapsed = Math.max(1, today.getMonth()>=7 ? today.getMonth()-7 : today.getMonth()+5);
-    const prompt = `あなたはプロの営業マネジャーです。以下の営業データを分析し、今月の改善アドバイスを日本語で3〜4点、箇条書きで具体的に提示してください。数字を必ず使ってください。
+    const prompt = `あなたはプロの営業マネジャーです。以下の営業データ（実績・案件・今後のカレンダー予定）を総合的に分析し、今月の改善アドバイスを日本語で3〜4点、箇条書きで具体的に提示してください。数字を必ず使ってください。カレンダーの予定件数や内容にも触れ、予定が少ない・偏っている場合はその点も指摘してください。
 
 【対象】${isTeam?'チーム全体':'担当者: '+person}
 【期間】FY${currentFY}（8月〜翌7月）経過${elapsed}ヶ月
@@ -1459,6 +1482,7 @@ function getAIAdvice(params) {
 【今月KPI】有効面談${meeting}件、自アポ${selfApo}件、テレアポ${telApo}件、紹介${refCount}件
 【アクティブ案件】${activeDeals.length}件 ／ ヨミ合計 ${yomiTotal}万円
 【確度内訳】決定:${activeDeals.filter(d=>d['確度ランク']==='決定').length}件 A:${activeDeals.filter(d=>d['確度ランク']==='A').length}件 B:${activeDeals.filter(d=>d['確度ランク']==='B').length}件 C:${activeDeals.filter(d=>d['確度ランク']==='C').length}件
+${calSection}
 
 アドバイスは実践的かつ前向きなトーンで。`;
 
@@ -1466,15 +1490,84 @@ function getAIAdvice(params) {
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+apiKey,
       { method:'POST', headers:{'Content-Type':'application/json'},
         payload:JSON.stringify({contents:[{parts:[{text:prompt}]}],
-          generationConfig:{temperature:0.7,maxOutputTokens:1024}}),
+          generationConfig:{temperature:0.7,maxOutputTokens:4096,thinkingConfig:{thinkingBudget:0}}}),
         muteHttpExceptions:true }
     );
     const data = JSON.parse(res.getContentText());
     if (data.error) return json({ success:false, error:data.error.message });
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '応答がありません';
+    const parts = (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
+    const text = parts.filter(p => p && p.text).map(p => p.text).join('') || '応答がありません';
     return json({ success:true, text, person:person||'チーム全体', month:todayYM });
   } catch(err) {
     return json({ success:false, error:err.message });
+  }
+}
+
+// ============================================================
+// 次回アクション日のAI提案
+// ルールベース（確度ランクごとの標準フォロー間隔）をデフォルトとし、
+// メモ欄に「来週」「月末までに」等の時期の言及があればGeminiで解析して上書きする。
+// 営業はこの提案をそのまま使うか、手動で書き換えてから保存するかを選べる（自動保存はしない）。
+// ============================================================
+const NEXT_ACTION_OFFSET_DAYS = { '決定': 30, 'A': 3, 'B': 7, 'C': 14 };
+
+function suggestNextActionDate(params) {
+  try {
+    const rank = String((params && params.rankLabel) || '').trim();
+    const memo = String((params && params.memo) || '').trim();
+    const today = new Date();
+
+    const offsetDays = NEXT_ACTION_OFFSET_DAYS[rank];
+    if (offsetDays === undefined) {
+      // 売上確定・失注は次回アクション不要
+      return json({ success: true, date: '', reason: '確度ランク「' + (rank || '未設定') + '」は次回アクション日の対象外です。', source: 'rule' });
+    }
+
+    const ruleDate = new Date(today.getTime() + offsetDays * 86400000);
+    let result = {
+      date: Utilities.formatDate(ruleDate, 'Asia/Tokyo', 'yyyy-MM-dd'),
+      reason: '確度ランク「' + rank + '」の標準フォロー間隔（' + offsetDays + '日後）による提案です。',
+      source: 'rule',
+    };
+
+    const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+    if (apiKey && memo) {
+      try {
+        const todayStr = Utilities.formatDate(today, 'Asia/Tokyo', 'yyyy-MM-dd');
+        const prompt = 'あなたは営業支援AIです。以下の商談メモから「次に営業担当がアクションすべき日付」を推測してください。\n' +
+          '今日の日付: ' + todayStr + '\n' +
+          '確度ランク: ' + rank + '\n' +
+          '商談メモ: 「' + memo + '」\n\n' +
+          'メモ内に「来週」「月末までに」「9月上旬」のような時期の言及があれば、具体的な日付（yyyy-MM-dd）に変換してください。\n' +
+          '時期の言及が無ければ date は null にしてください。\n' +
+          '必ず以下のJSON形式のみで回答してください（説明文やコードブロック記法は不要）:\n' +
+          '{"date": "yyyy-MM-dd または null", "reason": "30文字以内の根拠"}';
+
+        const res = UrlFetchApp.fetch(
+          'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey,
+          { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            payload: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { temperature: 0.2, maxOutputTokens: 1024, thinkingConfig: { thinkingBudget: 0 } } }),
+            muteHttpExceptions: true }
+        );
+        const data = JSON.parse(res.getContentText());
+        const text = data && data.candidates && data.candidates[0] && data.candidates[0].content &&
+          data.candidates[0].content.parts && data.candidates[0].content.parts[0] &&
+          data.candidates[0].content.parts[0].text || '';
+        const m = text.match(/\{[\s\S]*\}/);
+        if (m) {
+          const parsed = JSON.parse(m[0]);
+          if (parsed.date && /^\d{4}-\d{2}-\d{2}$/.test(parsed.date)) {
+            result = { date: parsed.date, reason: parsed.reason || 'メモの記載内容から推測しました。', source: 'gemini' };
+          }
+        }
+      } catch (e) {
+        // Gemini解析に失敗してもルールベースの提案はそのまま返す
+      }
+    }
+    return json({ success: true, date: result.date, reason: result.reason, source: result.source });
+  } catch (err) {
+    return json({ success: false, error: err.message });
   }
 }
 
@@ -2776,35 +2869,39 @@ function toDateStr(v) {
 // ============================================================
 // カレンダーイベント取得（アポ・架電・面談系）
 // ============================================================
-function getCalendarEventsForWeek(personName, weekStart) {
+const CALENDAR_EVENT_KEYWORDS = /アポ|架電|商談|面談|訪問|MTG|ミーティング|打ち合わせ/i;
+
+// メールアドレス1件分のカレンダーから、期間内の営業活動系イベントを抽出する共通ヘルパー
+function getCalendarEventsInRange_(email, startDate, endDate) {
   try {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PERSONS);
-    if (!sheet) return [];
-
-    const rows = sheet.getDataRange().getValues().slice(1);
-    const personRow = rows.find(r => String(r[1]).trim() === personName);
-    if (!personRow || !personRow[4]) return []; // E列 = メールアドレス
-
-    const email = String(personRow[4]).trim();
-    const cal   = CalendarApp.getCalendarById(email);
+    const cal = CalendarApp.getCalendarById(email);
     if (!cal) return [];
-
-    const startDate = new Date(weekStart);
-    const endDate   = new Date(weekStart);
-    endDate.setDate(endDate.getDate() + 5); // 月〜金
-
-    const keywords = /アポ|架電|商談|面談|訪問|MTG|ミーティング|打ち合わせ/i;
-
     return cal.getEvents(startDate, endDate)
-      .filter(e => keywords.test(e.getTitle()))
+      .filter(e => CALENDAR_EVENT_KEYWORDS.test(e.getTitle()))
       .map(e => ({
-        title: e.getTitle(),
-        start: Utilities.formatDate(e.getStartTime(), 'Asia/Tokyo', 'M/d(E) HH:mm'),
-        end:   Utilities.formatDate(e.getEndTime(),   'Asia/Tokyo', 'HH:mm'),
+        title:    e.getTitle(),
+        startRaw: e.getStartTime(),
+        start:    Utilities.formatDate(e.getStartTime(), 'Asia/Tokyo', 'M/d(E) HH:mm'),
+        end:      Utilities.formatDate(e.getEndTime(),   'Asia/Tokyo', 'HH:mm'),
       }));
-  } catch(e) {
+  } catch (e) {
     return [];
   }
+}
+
+function getCalendarEventsForWeek(personName, weekStart) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PERSONS);
+  if (!sheet) return [];
+
+  const rows = sheet.getDataRange().getValues().slice(1);
+  const personRow = rows.find(r => String(r[1]).trim() === personName);
+  if (!personRow || !personRow[4]) return []; // E列 = メールアドレス
+
+  const startDate = new Date(weekStart);
+  const endDate   = new Date(weekStart);
+  endDate.setDate(endDate.getDate() + 5); // 月〜金
+
+  return getCalendarEventsInRange_(String(personRow[4]).trim(), startDate, endDate);
 }
 
 // ============================================================
@@ -2843,7 +2940,7 @@ ${calSection}
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey,
       { method: 'POST', headers: { 'Content-Type': 'application/json' },
         payload: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.7, maxOutputTokens: 512 } }),
+          generationConfig: { temperature: 0.7, maxOutputTokens: 2048, thinkingConfig: { thinkingBudget: 0 } } }),
         muteHttpExceptions: true }
     );
     const body = JSON.parse(res.getContentText());

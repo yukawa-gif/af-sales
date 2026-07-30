@@ -140,10 +140,22 @@ body.sidebar-collapsed #sidebar-toggle-icon{transform:rotate(180deg)}
   color:var(--text2);transition:var(--transition)}
 .detail-filter-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-bg)}
 .detail-filter-btn.active{color:#fff;border-color:transparent}
+.detail-filter-btn.drag-over{border-color:var(--blue);background:var(--blue-bg);
+  box-shadow:0 0 0 2px var(--blue) inset;transform:scale(1.06)}
+#detail-tbody tr[draggable="true"]{cursor:grab}
+#detail-tbody tr.row-dragging{opacity:.4}
+#detail-tbody tr.row-selected td:first-child{box-shadow:inset 3px 0 0 var(--blue)}
+.detail-search-input{padding:5px 12px;border:1.5px solid var(--border);border-radius:20px;
+  font-size:11px;font-family:inherit;color:var(--text);background:var(--surface);
+  min-width:200px;transition:var(--transition)}
+.detail-search-input:focus{outline:none;border-color:var(--blue)}
 .detail-tbl{width:100%;border-collapse:collapse;font-size:12px}
 .detail-tbl th{background:#fafafa;border-bottom:2px solid var(--border);
   padding:8px 10px;text-align:left;font-weight:700;color:var(--text2);
   white-space:nowrap;font-size:11px;letter-spacing:.02em}
+.detail-tbl th.sortable{cursor:pointer;user-select:none}
+.detail-tbl th.sortable:hover{color:var(--blue)}
+.detail-sort-arrow{margin-left:3px;font-size:9px;color:var(--blue)}
 .detail-tbl td{border-bottom:1px solid var(--border);padding:8px 10px;
   vertical-align:middle;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .detail-tbl tr:hover td{background:#f5f5f5;cursor:pointer}
@@ -164,7 +176,7 @@ body.sidebar-collapsed #sidebar-toggle-icon{transform:rotate(180deg)}
 .timeline-scroll{overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch}
 .tl-tbl{border-collapse:collapse;font-size:12px;width:100%;table-layout:fixed}
 .tl-tbl colgroup .col-co{width:104px}
-.tl-tbl colgroup .col-name{width:100px}
+.tl-tbl colgroup .col-name{width:150px}
 .tl-tbl colgroup .col-month{width:60px}
 .tl-tbl thead th{background:#fafafa;color:var(--text3);font-weight:700;font-size:10px;
   padding:8px 5px;text-align:right;border-bottom:2px solid var(--border);
@@ -181,7 +193,7 @@ body.sidebar-collapsed #sidebar-toggle-icon{transform:rotate(180deg)}
 .tl-tbl tbody td.td-name{text-align:left;position:sticky;left:104px;z-index:1;
   background:var(--surface);border-right:2px solid var(--border);
   padding:7px 6px;font-size:11px;color:var(--text2);
-  max-width:100px;overflow:hidden;text-overflow:ellipsis}
+  max-width:150px;overflow:hidden;text-overflow:ellipsis}
 .tl-tbl tbody tr:hover td{background:#f5f5f5!important}
 .tl-tbl tbody td.td-cur{background:#eff6ff!important}
 .tl-tbl tfoot td{background:#fafafa;font-weight:700;font-size:11px;
@@ -318,6 +330,8 @@ body.sidebar-collapsed #sidebar-toggle-icon{transform:rotate(180deg)}
 .goal-hint{font-size:10px;color:var(--text3)}
 .goal-modal-note{font-size:12px;color:var(--text2);padding:0 20px 10px;
   border-bottom:1px solid var(--border);margin-bottom:4px}
+.goal-name-warn{font-size:12px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;
+  border-radius:6px;padding:8px 12px;margin:0 20px 10px;line-height:1.5}
 .goal-btn{padding:5px 13px;border-radius:20px;
   border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);
   color:rgba(255,255,255,.82);font-size:11px;font-weight:600;cursor:pointer;
@@ -725,7 +739,7 @@ body.modal-open{overflow:hidden}
       <span class="card-title" style="display:flex;align-items:center;gap:7px">
         <i data-lucide="users" style="width:15px;height:15px;color:var(--blue)"></i> 営業別パイプライン
       </span>
-      <span class="card-hint" style="margin-left:auto">粗利（万円）/ 失注除く</span>
+      <span class="card-hint" style="margin-left:auto">粗利（円）/ 失注除く</span>
       <span id="pipeline-person-icon" style="margin-left:8px;font-size:12px;color:var(--text3)">▼</span>
     </div>
     <div id="pipeline-person-body" class="table-scroll" style="display:none">
@@ -739,7 +753,7 @@ body.modal-open{overflow:hidden}
       <span class="card-title" style="display:flex;align-items:center;gap:7px">
         <i data-lucide="target" style="width:15px;height:15px;color:var(--blue)"></i> 営業別目標 × 実績
       </span>
-      <span class="card-hint" style="margin-left:auto">通期目標・今月目標・ヨミ（万円）</span>
+      <span class="card-hint" style="margin-left:auto">通期目標・今月目標・ヨミ（円）</span>
       <span id="goals-person-icon" style="margin-left:8px;font-size:12px;color:var(--text3)">▼</span>
     </div>
     <div id="goals-person-body" class="table-scroll" style="display:none">
@@ -771,6 +785,8 @@ body.modal-open{overflow:hidden}
         <i data-lucide="list" style="width:16px;height:16px;color:var(--blue)"></i> 案件一覧
       </span>
       <div class="detail-filter-btns" id="detail-filter-btns" onclick="event.stopPropagation()"></div>
+      <input type="text" id="detail-search" class="detail-search-input" placeholder="🔍 会社名・商材名で検索"
+        oninput="setDetailSearch(this.value)" onclick="event.stopPropagation()">
       <span class="detail-count" id="detail-count"></span>
       <span id="detail-toggle-icon" style="margin-left:8px;font-size:12px;color:var(--text3);flex-shrink:0">▼</span>
     </div>
@@ -778,9 +794,12 @@ body.modal-open{overflow:hidden}
       <table class="detail-tbl">
         <thead id="detail-thead-row">
           <tr>
+            <th style="width:24px" onclick="event.stopPropagation()">
+              <input type="checkbox" id="detail-select-all" title="全選択/解除" onchange="toggleSelectAllDeals(this.checked)">
+            </th>
             <th style="width:52px"></th>
-            <th style="width:180px">会社名</th>
-            <th style="width:130px">商材名</th>
+            <th style="width:180px" class="sortable" onclick="toggleDetailSort('company')" title="クリックで並び替え">会社名<span id="detail-sort-company" class="detail-sort-arrow"></span></th>
+            <th style="width:130px" class="sortable" onclick="toggleDetailSort('product')" title="クリックで並び替え">商材名<span id="detail-sort-product" class="detail-sort-arrow"></span></th>
             <th style="width:80px">確度</th>
             <th style="width:90px">売上予定月</th>
             <th style="width:110px;text-align:right">粗利</th>
@@ -962,6 +981,18 @@ body.modal-open{overflow:hidden}
         <label class="mfl">メモ</label>
         <textarea class="mfta" id="dm-memo" placeholder="備考など"></textarea>
       </div>
+      <div class="mfg">
+        <label class="mfl">次回アクション日</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input class="mfi" type="date" id="dm-next-action-date" style="flex:1">
+          <button type="button" id="dm-next-action-suggest" onclick="suggestDmNextActionDate()"
+            style="flex:0 0 auto;background:none;border:1px solid var(--blue);border-radius:var(--r);
+            padding:9px 10px;font-size:11px;font-weight:700;color:var(--blue);cursor:pointer;font-family:inherit;white-space:nowrap">
+            ✨ AI提案
+          </button>
+        </div>
+        <div id="dm-next-action-reason" style="font-size:10px;color:var(--text3);margin-top:4px;display:none"></div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="modal-btn modal-btn-delete" id="dm-delete" onclick="deleteDealModal()">削除</button>
@@ -979,6 +1010,7 @@ body.modal-open{overflow:hidden}
     </div>
     <div class="modal-body" style="padding:12px 16px">
       <p class="goal-modal-note">各月の粗利目標（万円）を入力してください。前期・中期・後期・年間合計が自動計算されます。</p>
+      <div id="goal-name-mismatch-warn" class="goal-name-warn" style="display:none"></div>
       <div class="table-scroll">
       <table class="goal-table">
         <thead>
@@ -1277,6 +1309,7 @@ function yyyyMM(y,m){return y+'-'+String(m).padStart(2,'0')}
 function toMan(yen){return Math.round(yen/10000)}
 function fmt(v){return v==null||isNaN(v)?'—':Number(v).toLocaleString()}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function fmtYen(v){return v==null||isNaN(v)||v===0?'':Number(v).toLocaleString()}
 function fmtMan(yen){
   const v=toMan(yen);
@@ -1623,6 +1656,7 @@ function selectPerson(name){
   if(card) card.classList.add('active');
   currentPerson=name;
   localStorage.setItem('dashboard_person',name);
+  selectedDealIds.clear();
   // 担当者切替時：進行中のAIアドバイス取得があれば結果を無効化し、パネルを初期状態に戻す
   aiRequestToken++;
   const aiBtn=document.getElementById('ai-fetch-btn');
@@ -1757,11 +1791,50 @@ function render(person){
 // 担当者別詳細パネル
 // ============================================================
 let detailFilterRank='ALL';
+let detailSearchText='';
+let detailSortKey=null;   // null | 'company' | 'product'
+let detailSortDir='asc';  // 'asc' | 'desc'
+
+function getDetailPersonDeals(){
+  return dealsData.filter(d=>{
+    if(d['担当者']!==currentPerson)return false;
+    const ym=String(d['売上予定月']||'').slice(0,7);
+    return fyMonths.some(m=>yyyyMM(m.year,m.month)===ym);
+  });
+}
+
+function updateDetailSortIndicators(){
+  [['company','detail-sort-company'],['product','detail-sort-product']].forEach(([key,id])=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.textContent = detailSortKey===key ? (detailSortDir==='asc'?'▲':'▼') : '';
+  });
+}
+
+function toggleDetailSort(key){
+  if(detailSortKey===key){
+    detailSortDir=detailSortDir==='asc'?'desc':'asc';
+  }else{
+    detailSortKey=key;
+    detailSortDir='asc';
+  }
+  updateDetailSortIndicators();
+  renderDetailTable(getDetailPersonDeals());
+}
+
+function setDetailSearch(text){
+  detailSearchText=text;
+  renderDetailTable(getDetailPersonDeals());
+}
 
 function renderPersonDetail(personDeals, isTeam){
   const panel=document.getElementById('detail-panel');
   if(isTeam){panel.style.display='none';return;}
   panel.style.display='';
+
+  const searchInput=document.getElementById('detail-search');
+  if(searchInput) searchInput.value=detailSearchText;
+  updateDetailSortIndicators();
 
   // ランク別件数
   const rankCounts={ALL:0};
@@ -1776,12 +1849,13 @@ function renderPersonDetail(personDeals, isTeam){
   const allFilters=[{v:'ALL',label:'すべて',color:'#475569'},...RANKS];
   filterDiv.innerHTML=allFilters.map(r=>{
     const cnt=rankCounts[r.v]||0;
-    if(r.v!=='ALL'&&cnt===0)return '';
+    // 件数0のランクもドラッグ&ドロップの移動先として必要なため常に表示する
     const active=detailFilterRank===r.v;
     const bg=active?(r.col||'#475569'):'transparent';
     const col=active?'#fff':(r.col||'#475569');
     const border=r.col||'#475569';
-    return `<button class="detail-filter-btn${active?' active':''}"
+    const dropAttrs=r.v==='ALL'?'':`ondragover="handleRankDragOver(event)" ondragleave="handleRankDragLeave(event)" ondrop="handleRankDrop(event,'${r.v}')"`;
+    return `<button class="detail-filter-btn${active?' active':''}" ${dropAttrs}
       style="color:${col};background:${bg};border-color:${border}"
       onclick="setDetailFilter('${r.v}')">${r.label} ${cnt}</button>`;
   }).join('');
@@ -1792,11 +1866,7 @@ function renderPersonDetail(personDeals, isTeam){
 
 function setDetailFilter(rank){
   detailFilterRank=rank;
-  const personDeals=dealsData.filter(d=>{
-    if(d['担当者']!==currentPerson)return false;
-    const ym=String(d['売上予定月']||'').slice(0,7);
-    return fyMonths.some(m=>yyyyMM(m.year,m.month)===ym);
-  });
+  const personDeals=getDetailPersonDeals();
   // フィルタボタン再描画
   const allFilters=[{v:'ALL',label:'すべて',color:'#475569'},...RANKS];
   document.getElementById('detail-filter-btns').querySelectorAll('button').forEach((btn,i)=>{
@@ -1812,12 +1882,25 @@ function setDetailFilter(rank){
 }
 
 function renderDetailTable(personDeals){
-  const filtered=detailFilterRank==='ALL'
+  let filtered=detailFilterRank==='ALL'
     ? personDeals
     : personDeals.filter(d=>d['確度ランク']===detailFilterRank);
 
-  // 売上予定月→粗利の降順ソート
+  const q=detailSearchText.trim().toLowerCase();
+  if(q){
+    filtered=filtered.filter(d=>
+      String(d['会社名']||'').toLowerCase().includes(q) ||
+      String(d['商材名']||'').toLowerCase().includes(q)
+    );
+  }
+
+  // 会社名/商材名の列ヘッダークリックでソート中はそちらを優先、それ以外は従来どおり売上予定月→粗利の降順
+  const sortField=detailSortKey==='company'?'会社名':detailSortKey==='product'?'商材名':null;
   const sorted=[...filtered].sort((a,b)=>{
+    if(sortField){
+      const cmp=String(a[sortField]||'').localeCompare(String(b[sortField]||''),'ja');
+      return detailSortDir==='asc'?cmp:-cmp;
+    }
     const ma=String(a['売上予定月']||'');
     const mb=String(b['売上予定月']||'');
     if(ma!==mb)return ma<mb?-1:1;
@@ -1828,7 +1911,7 @@ function renderDetailTable(personDeals){
 
   const tbody=document.getElementById('detail-tbody');
   if(sorted.length===0){
-    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">該当する案件がありません</td></tr>';
+    tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px">該当する案件がありません</td></tr>';
     return;
   }
 
@@ -1839,12 +1922,24 @@ function renderDetailTable(personDeals){
     const gpStr=gp===0?'—':(gp<0?'<span style="color:#dc2626">▲'+Math.abs(gp).toLocaleString()+'</span>':gp.toLocaleString());
     const stale=isStale(d);
     const showMail=stale||['決定','失注'].includes(d['確度ランク']||'');
-    return `<tr class="${stale?'row-stale':''}" onclick="openDealModal(${JSON.stringify(d).replace(/"/g,'&quot;')})">
+    const nextActionDate=String(d['次回アクション日']||'').slice(0,10);
+    const nextActionOverdue=nextActionDate&&nextActionDate<todayStr();
+    const nextActionHtml=nextActionDate
+      ?`<div style="font-size:10px;margin-top:2px;color:${nextActionOverdue?'#dc2626':'var(--text3)'}">次回:${esc(nextActionDate)}${nextActionOverdue?'（期限超過）':''}</div>`
+      :'';
+    const dealId=d['案件ID'];
+    return `<tr class="${stale?'row-stale':''}${selectedDealIds.has(dealId)?' row-selected':''}" draggable="true" data-deal-id="${esc(dealId)}"
+      ondragstart="handleDealDragStart(event,'${esc(dealId)}')" ondragend="handleDealDragEnd(event)"
+      onclick="openDealModal(${JSON.stringify(d).replace(/"/g,'&quot;')})">
+      <td onclick="event.stopPropagation()" style="text-align:center;padding:4px">
+        <input type="checkbox" class="deal-select-cb" ${selectedDealIds.has(dealId)?'checked':''}
+          onchange="toggleDealSelection('${esc(dealId)}',this.checked)">
+      </td>
       <td onclick="event.stopPropagation()" style="text-align:center;padding:4px">
         <button class="task-btn" onclick="openTaskModal(${JSON.stringify(d).replace(/"/g,'&quot;')})" title="Googleタスクに追加">+T</button>
         ${showMail?`<button class="mail-btn" onclick="openMailModal(${JSON.stringify(d).replace(/"/g,'&quot;')})" title="フォローアップメールを下書き">メール</button>`:''}
       </td>
-      <td title="${esc(d['会社名']||'')}">${esc(d['会社名']||'—')}</td>
+      <td title="${esc(d['会社名']||'')}">${esc(d['会社名']||'—')}${nextActionHtml}</td>
       <td title="${esc(d['商材名']||'')}">${esc(d['商材名']||'—')}</td>
       <td><span class="detail-tbl-rank" style="display:inline-block;padding:2px 8px;border-radius:10px;
         font-size:10px;font-weight:700;color:#fff;background:${rankCfg.col}">${esc(rank)}</span></td>
@@ -1853,6 +1948,168 @@ function renderDetailTable(personDeals){
       <td style="color:var(--text3);font-size:11px" title="${esc(d['メモ']||'')}">${esc(d['メモ']||'')}</td>
     </tr>`;
   }).join('');
+}
+
+// ============================================================
+// 案件行のドラッグ&ドロップによる確度ランク変更（複数選択対応）
+// ============================================================
+let draggingDealIds=null;
+let selectedDealIds=new Set();
+
+function toggleDealSelection(dealId,checked){
+  if(checked) selectedDealIds.add(dealId);
+  else selectedDealIds.delete(dealId);
+  const row=document.querySelector(`#detail-tbody tr[data-deal-id="${CSS.escape(dealId)}"]`);
+  if(row) row.classList.toggle('row-selected',checked);
+  const selectAllCb=document.getElementById('detail-select-all');
+  if(selectAllCb && !checked) selectAllCb.checked=false;
+}
+
+function toggleSelectAllDeals(checked){
+  document.querySelectorAll('#detail-tbody .deal-select-cb').forEach(cb=>{
+    cb.checked=checked;
+    const row=cb.closest('tr');
+    const dealId=row&&row.dataset.dealId;
+    if(!dealId)return;
+    if(checked) selectedDealIds.add(dealId);
+    else selectedDealIds.delete(dealId);
+    if(row) row.classList.toggle('row-selected',checked);
+  });
+}
+
+function handleDealDragStart(ev,dealId){
+  // 選択済みの行をドラッグした場合は選択中の全件、そうでなければその1件だけを対象にする
+  const ids=selectedDealIds.has(dealId)?[...selectedDealIds]:[dealId];
+  draggingDealIds=ids;
+  ev.dataTransfer.effectAllowed='move';
+  ev.dataTransfer.setData('text/plain',ids.join(','));
+  ids.forEach(id=>{
+    document.querySelectorAll(`#detail-tbody tr[data-deal-id="${CSS.escape(id)}"]`).forEach(tr=>tr.classList.add('row-dragging'));
+  });
+}
+
+function handleDealDragEnd(ev){
+  document.querySelectorAll('#detail-tbody tr.row-dragging').forEach(tr=>tr.classList.remove('row-dragging'));
+  document.querySelectorAll('.detail-filter-btn.drag-over').forEach(b=>b.classList.remove('drag-over'));
+  draggingDealIds=null;
+}
+
+function handleRankDragOver(ev){
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect='move';
+  ev.currentTarget.classList.add('drag-over');
+}
+
+function handleRankDragLeave(ev){
+  ev.currentTarget.classList.remove('drag-over');
+}
+
+async function handleRankDrop(ev,targetRank){
+  ev.preventDefault();
+  ev.currentTarget.classList.remove('drag-over');
+  const raw=ev.dataTransfer.getData('text/plain');
+  const ids=(raw?raw.split(','):draggingDealIds)||[];
+  draggingDealIds=null;
+  if(ids.length===0)return;
+  const deals=ids.map(id=>dealsData.find(d=>d['案件ID']===id)).filter(Boolean)
+    .filter(d=>(d['確度ランク']||'')!==targetRank);
+  if(deals.length===0)return;
+
+  if(targetRank==='売上'||targetRank==='決定'){
+    const zeroProfitCount=deals.filter(d=>!((Number(d['粗利'])||0)>0)).length;
+    if(zeroProfitCount>0){
+      const msg=deals.length===1
+        ?`確度ランクを「${targetRank}」に変更しますが粗利が0円です。このまま変更しますか？`
+        :`確度ランクを「${targetRank}」に変更します（${deals.length}件中${zeroProfitCount}件が粗利0円）。このまま変更しますか？`;
+      if(!confirm(msg))return;
+    }
+  }
+
+  await moveDealsToRank(deals,targetRank);
+  deals.forEach(d=>selectedDealIds.delete(d['案件ID']));
+  const selectAllCb=document.getElementById('detail-select-all');
+  if(selectAllCb) selectAllCb.checked=false;
+  if(currentPerson)render(currentPerson);
+}
+
+async function moveDealsToRank(deals,targetRank){
+  const paymentStatus=targetRank==='売上'?'入金済み':null;
+  const prevState=deals.map(d=>({d,prevRank:d['確度ランク'],prevPaymentStatus:d['入金ステータス']}));
+
+  // メモリ更新（即時反映）
+  deals.forEach(d=>{
+    d['確度ランク']=targetRank;
+    if(paymentStatus) d['入金ステータス']=paymentStatus;
+  });
+  if(currentPerson)render(currentPerson);
+
+  if(isDemoMode) return;
+
+  let splitOccurred=false;
+  const failed=[];
+  await Promise.all(deals.map(async deal=>{
+    if(!deal['案件ID'])return;
+    try{
+      const payload={
+        action:'updateDeal',
+        id:deal['案件ID'],
+        rankLabel:targetRank,
+        expectedMonth:String(deal['売上予定月']||'').slice(0,7),
+        companyName:deal['会社名'],
+        unitSales:Number(deal['売上（単価）'])||0,
+        unitCost:Number(deal['費用（単価）'])||0,
+        courses:Number(deal['コース数'])||1,
+        qty:Number(deal['件数'])||1,
+        months:Number(deal['月数'])||1,
+        memo:deal['メモ'],
+        nextActionDate:deal['次回アクション日']||'',
+        paymentStatus:deal['入金ステータス'],
+        billingCompany:deal['計上会社']||'',
+        recurring:!!deal['継続課金'],
+        recurringEndMonth:deal['継続終了月']||'',
+      };
+      if(Number(deal['B件数'])>0){
+        payload.bUnitSales=Number(deal['B売上単価'])||0;
+        payload.bUnitCost=Number(deal['B費用単価'])||0;
+        payload.bQty=Number(deal['B件数'])||0;
+      }
+      const result=await gasPost(payload);
+      if(!result||!result.success){
+        failed.push(deal);
+        return;
+      }
+      if(result.splitDealId) splitOccurred=true;
+    }catch(e){
+      failed.push(deal);
+    }
+  }));
+
+  if(failed.length>0){
+    const failedIds=new Set(failed.map(d=>d['案件ID']));
+    prevState.filter(s=>failedIds.has(s.d['案件ID'])).forEach(s=>{
+      s.d['確度ランク']=s.prevRank;
+      s.d['入金ステータス']=s.prevPaymentStatus;
+    });
+  }
+
+  if(splitOccurred){
+    const fresh=await fetchDashboardData(true);
+    if(fresh)applyDashboardData(fresh);
+    else showToast('分割後の最新データ取得に失敗しました。手動で更新してください。','warn');
+  }else if(currentPerson){
+    render(currentPerson);
+  }
+
+  const okCount=deals.length-failed.length;
+  if(failed.length===0){
+    showToast(deals.length===1
+      ?`確度ランクを「${targetRank}」に変更しました`
+      :`${deals.length}件を「${targetRank}」に変更しました`,'info');
+  }else if(okCount===0){
+    showToast('ランク変更に失敗しました','warn');
+  }else{
+    showToast(`${okCount}件を「${targetRank}」に変更しました（${failed.length}件失敗）`,'warn');
+  }
 }
 
 // ============================================================
@@ -1935,10 +2192,10 @@ function renderPipelineByPerson(personDeals, isTeam) {
   personDeals.filter(d => d['確度ランク'] !== '失注').forEach(d => {
     const person = d['担当者'];
     const rank   = d['確度ランク'];
-    const gp = toMan(Number(d['粗利']) || 0);
+    const gp = Number(d['粗利']) || 0;
     if (byPerson[person] && byPerson[person][rank] !== undefined) byPerson[person][rank] += gp;
     if (weightedByPerson[person] !== undefined) {
-      weightedByPerson[person] += Math.round(toMan((Number(d['粗利'])||0) * (RANK_PROB[rank]??0)));
+      weightedByPerson[person] += Math.round((Number(d['粗利'])||0) * (RANK_PROB[rank]??0));
     }
   });
 
@@ -1963,8 +2220,8 @@ function renderPipelineByPerson(personDeals, isTeam) {
           <span style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0"></span>${esc(p.name)}
         </span>
       </td>${cells}
-      <td style="text-align:right;padding:7px 8px;font-weight:800;border-bottom:1px solid var(--border)">${total > 0 ? fmt(total) + '万' : '—'}</td>
-      <td style="text-align:right;padding:7px 8px;font-weight:800;border-bottom:1px solid var(--border);border-left:2px solid #ede9fe;color:#7c3aed;background:#faf5ff">${wv > 0 ? fmt(wv) + '万' : '—'}</td>
+      <td style="text-align:right;padding:7px 8px;font-weight:800;border-bottom:1px solid var(--border)">${total > 0 ? fmt(total) + '円' : '—'}</td>
+      <td style="text-align:right;padding:7px 8px;font-weight:800;border-bottom:1px solid var(--border);border-left:2px solid #ede9fe;color:#7c3aed;background:#faf5ff">${wv > 0 ? fmt(wv) + '円' : '—'}</td>
     </tr>`;
   }).join('');
 
@@ -1985,8 +2242,8 @@ function renderPipelineByPerson(personDeals, isTeam) {
     <tfoot><tr style="background:#fafafa">
       <td style="padding:7px 8px;font-size:11px;font-weight:700;color:var(--text2);border-top:2px solid var(--border)">合計</td>
       ${footCells}
-      <td style="text-align:right;padding:7px 8px;font-weight:800;border-top:2px solid var(--border);color:var(--blue)">${grandTotal > 0 ? fmt(grandTotal) + '万' : '—'}</td>
-      <td style="text-align:right;padding:7px 8px;font-weight:800;border-top:2px solid var(--border);border-left:2px solid #ede9fe;color:#7c3aed;background:#faf5ff">${totalWeighted > 0 ? fmt(totalWeighted) + '万' : '—'}</td>
+      <td style="text-align:right;padding:7px 8px;font-weight:800;border-top:2px solid var(--border);color:var(--blue)">${grandTotal > 0 ? fmt(grandTotal) + '円' : '—'}</td>
+      <td style="text-align:right;padding:7px 8px;font-weight:800;border-top:2px solid var(--border);border-left:2px solid #ede9fe;color:#7c3aed;background:#faf5ff">${totalWeighted > 0 ? fmt(totalWeighted) + '円' : '—'}</td>
     </tr></tfoot>`;
 }
 
@@ -2004,23 +2261,23 @@ function renderGoalsByPerson(personDeals, isTeam) {
   const rows = persons.map(p => {
     const col   = personColorMap[p.name] || '#6b7280';
     const pg    = allGoals.find(g => g.name === p.name) || {};
-    const annual = Math.round(pg.salesTarget || 0);
-    const monthTgt = pg.months ? (pg.months[todayYM] || 0) : Math.round(pg.monthlyTarget || 0);
+    const annual = Math.round(pg.salesTarget || 0) * 10000;
+    const monthTgt = (pg.months ? (pg.months[todayYM] || 0) : Math.round(pg.monthlyTarget || 0)) * 10000;
 
     // 今月実績（売上ランク）
-    const monthActual = toMan(personDeals
+    const monthActual = personDeals
       .filter(d => d['担当者'] === p.name && d['確度ランク'] === '売上' && String(d['売上予定月'] || '').slice(0, 7) === todayYM)
-      .reduce((s, d) => s + (Number(d['粗利']) || 0), 0));
+      .reduce((s, d) => s + (Number(d['粗利']) || 0), 0);
 
     // 通期実績（売上）
-    const fyActual = toMan(personDeals
+    const fyActual = personDeals
       .filter(d => d['担当者'] === p.name && d['確度ランク'] === '売上')
-      .reduce((s, d) => s + (Number(d['粗利']) || 0), 0));
+      .reduce((s, d) => s + (Number(d['粗利']) || 0), 0);
 
     // ヨミ（決定+A+B）
-    const yomi = toMan(personDeals
+    const yomi = personDeals
       .filter(d => d['担当者'] === p.name && ['決定', 'A', 'B'].includes(d['確度ランク']))
-      .reduce((s, d) => s + (Number(d['粗利']) || 0), 0));
+      .reduce((s, d) => s + (Number(d['粗利']) || 0), 0);
 
     const fyPct  = annual > 0 ? Math.round(fyActual / annual * 100) : null;
     const moPct  = monthTgt > 0 ? Math.round(monthActual / monthTgt * 100) : null;
@@ -2032,13 +2289,13 @@ function renderGoalsByPerson(personDeals, isTeam) {
           <span style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0"></span>${esc(p.name)}
         </span>
       </td>
-      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border)">${annual > 0 ? fmt(annual) + '万' : '—'}</td>
-      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border);font-weight:700">${fyActual > 0 ? fmt(fyActual) + '万' : '—'}</td>
+      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border)">${annual > 0 ? fmt(annual) + '円' : '—'}</td>
+      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border);font-weight:700">${fyActual > 0 ? fmt(fyActual) + '円' : '—'}</td>
       <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border);${pctStyle(fyPct)}">${fyPct !== null ? fyPct + '%' : '—'}</td>
-      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border)">${monthTgt > 0 ? fmt(monthTgt) + '万' : '—'}</td>
-      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border);font-weight:700">${monthActual > 0 ? fmt(monthActual) + '万' : '—'}</td>
+      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border)">${monthTgt > 0 ? fmt(monthTgt) + '円' : '—'}</td>
+      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border);font-weight:700">${monthActual > 0 ? fmt(monthActual) + '円' : '—'}</td>
       <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border);${pctStyle(moPct)}">${moPct !== null ? moPct + '%' : '—'}</td>
-      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border);color:var(--blue);font-weight:700">${yomi > 0 ? fmt(yomi) + '万' : '—'}</td>
+      <td style="text-align:right;padding:7px 8px;border-bottom:1px solid var(--border);color:var(--blue);font-weight:700">${yomi > 0 ? fmt(yomi) + '円' : '—'}</td>
     </tr>`;
   }).join('');
 
@@ -2401,15 +2658,23 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
       ${v>0?`<span class="tl-amt" style="color:#16a34a;font-weight:700">${fmtYen(v)}</span>`:''}
     </td>`;
   }).join('');
+  // 当月以降合計＝表示中の月のうち当月（todayYM）以降のセルだけを合計
+  const actualFutureTotal=fyMonths
+    .filter(m=>yyyyMM(m.year,m.month)>=todayYM)
+    .reduce((s,m)=>s+(actualDisplayByMonthYen[yyyyMM(m.year,m.month)]||0),0);
   const actualRow=document.createElement('tr');
   actualRow.className='tl-rank-row';
   actualRow.style.cursor='pointer';
   actualRow.innerHTML=`
-    <td class="td-co" style="background:#f0fdf4;cursor:pointer" colspan="2">
+    <td class="td-co" style="background:#f0fdf4;cursor:pointer">
       <span class="tl-rank-badge" style="background:#16a34a">✓</span>
       <span class="tl-rank-row-label" style="color:#16a34a">売上（確定）</span>
-      <span class="tl-rank-row-cnt" id="uriage-cnt"></span>
-      <span class="tl-rank-row-arr" id="tl-arr-売上">▶</span>
+    </td>
+    <td class="td-name" style="background:#f0fdf4;cursor:pointer;min-width:0">
+      <span style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0">
+        <span class="tl-rank-row-cnt" id="uriage-cnt" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${(byRank['売上']||[]).length}件 / ${fmtYen(Math.round(actualFutureTotal))}</span>
+        <span class="tl-rank-row-arr" id="tl-arr-売上" style="flex-shrink:0">▶</span>
+      </span>
     </td>${actualCells}`;
   actualRow.onclick=()=>toggleTimelineRank('tl-group-売上','tl-arr-売上');
   tbody.appendChild(actualRow);
@@ -2437,11 +2702,10 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
     });
 
     // ランクヘッダー行（売上はactualRowがヘッダー代わりなのでスキップ）
-    const rankTotalAmt=toMan(list.reduce((s,d)=>s+(Number(d['粗利'])||0),0));
-    if(rank.v==='売上'){
-      const cntEl=document.getElementById('uriage-cnt');
-      if(cntEl) cntEl.textContent=list.length+'件 / '+fmt(rankTotalAmt)+'万円';
-    }
+    // 当月以降合計＝表示中の月のうち当月（todayYM）以降のセルだけを合計
+    const rankFutureTotal=fyMonths
+      .filter(m=>yyyyMM(m.year,m.month)>=todayYM)
+      .reduce((s,m)=>s+(rankMonthTotals[yyyyMM(m.year,m.month)]||0),0);
     const rankCells=fyMonths.map(m=>{
       const ym=yyyyMM(m.year,m.month);
       const isCur=ym===todayYM;
@@ -2457,11 +2721,15 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
       headerRow.className='tl-rank-row';
       headerRow.onclick=()=>toggleTimelineRank(groupId,arrId);
       headerRow.innerHTML=`
-        <td class="td-co" style="background:${color}10;cursor:pointer" colspan="2">
+        <td class="td-co" style="background:${color}10;cursor:pointer">
           <span class="tl-rank-badge" style="background:${color}">${rank.av}</span>
           <span class="tl-rank-row-label" style="color:${color}">${rank.label}</span>
-          <span class="tl-rank-row-cnt">${list.length}件 / ${fmt(rankTotalAmt)}万円</span>
-          <span class="tl-rank-row-arr ${defaultOpen?'open':''}" id="${arrId}">▶</span>
+        </td>
+        <td class="td-name" style="background:${color}10;cursor:pointer;min-width:0">
+          <span style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0">
+            <span class="tl-rank-row-cnt" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${list.length}件 / ${fmtYen(Math.round(rankFutureTotal))}</span>
+            <span class="tl-rank-row-arr ${defaultOpen?'open':''}" id="${arrId}" style="flex-shrink:0">▶</span>
+          </span>
         </td>${rankCells}`;
       tbody.appendChild(headerRow);
     }
@@ -2488,7 +2756,7 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
       tr.onclick=()=>openDealModal(d);
       tr.innerHTML=`
         <td class="td-co">${esc(d['会社名']||'—')}${isTeam?`<div style="font-size:10px;color:var(--text3);font-weight:400">${esc(d['担当者']||'')}</div>`:''}</td>
-        <td class="td-name">${esc(d['商材名']||'—')}</td>
+        <td class="td-name" title="${esc(d['商材名']||'—').replace(/"/g,'&quot;')}">${esc(d['商材名']||'—')}</td>
         ${cells}`;
       tbody.appendChild(tr);
     });
@@ -2581,6 +2849,10 @@ function openDealModal(deal){
   document.getElementById('dm-qty').value=Number(deal['件数'])||1;
   document.getElementById('dm-months').value=Number(deal['月数'])||1;
   document.getElementById('dm-memo').value=deal['メモ']||'';
+  document.getElementById('dm-next-action-date').value=String(deal['次回アクション日']||'').slice(0,10);
+  const dmReasonEl=document.getElementById('dm-next-action-reason');
+  dmReasonEl.style.display='none';
+  dmReasonEl.textContent='';
 
   // B行（B件数 > 0 の場合のみ表示）
   const bQty=Number(deal['B件数'])||0;
@@ -2705,6 +2977,29 @@ async function duplicateDealAsNewProduct(){
   }
 }
 
+// 次回アクション日のAI提案（確度ランク＋メモから提案を取得。提案を入力欄に入れるだけで、保存は営業の操作を待つ）
+async function suggestDmNextActionDate(){
+  const rank=document.getElementById('dm-rank').value;
+  const memo=document.getElementById('dm-memo').value;
+  const btn=document.getElementById('dm-next-action-suggest');
+  const reasonEl=document.getElementById('dm-next-action-reason');
+  if(!rank){showToast('先に確度ランクを選択してください。','warn');return;}
+  btn.disabled=true;btn.textContent='提案中...';
+  reasonEl.style.display='none';
+  try{
+    const data=await gasGet({mode:'suggestNextAction',rankLabel:rank,memo});
+    if(!data.success)throw new Error(data.error||'取得失敗');
+    if(data.date){
+      document.getElementById('dm-next-action-date').value=data.date;
+    }
+    reasonEl.textContent=(data.date?'AI提案: ':'')+(data.reason||'');
+    reasonEl.style.display='';
+  }catch(e){
+    showToast('AI提案の取得に失敗しました: '+e.message,'warn');
+  }finally{
+    btn.disabled=false;btn.textContent='✨ AI提案';
+  }
+}
 
 function toggleIncentiveCard() {
   const body = document.getElementById('incentive-card-body');
@@ -2988,6 +3283,7 @@ async function saveDealModal(){
   const btn=document.getElementById('dm-save');
   btn.disabled=true;btn.textContent='保存中...';
   const memo=document.getElementById('dm-memo').value;
+  const nextActionDate=document.getElementById('dm-next-action-date').value;
   const billingCompany=document.getElementById('dm-billing-company').value;
   const costMonth=document.getElementById('dm-cost-month').value;
   // 費用計上月が粗利予定月と異なる場合のみ、費用計上明細を分けて保存する
@@ -3014,6 +3310,7 @@ async function saveDealModal(){
   editingDeal['月数']=months;
   editingDeal['粗利']=amount;
   editingDeal['メモ']=memo;
+  editingDeal['次回アクション日']=nextActionDate;
   editingDeal['入金ステータス']=paymentStatus;
   editingDeal['計上会社']=billingCompany;
   if(bRowVisible){ editingDeal['B売上単価']=bUnitSales; editingDeal['B費用単価']=bUnitCost; editingDeal['B件数']=bQty; }
@@ -3040,6 +3337,7 @@ async function saveDealModal(){
         qty,
         months,
         memo,
+        nextActionDate,
         paymentStatus,
         billingCompany,
         recurring,
@@ -3139,6 +3437,7 @@ async function openGoalModal(){
 
 function renderGoalModalTable(){
   const persons=goalPersons();
+  checkGoalNameMismatches();
 
   // 月ヘッダー行
   document.getElementById('goal-month-header').innerHTML=GOAL_PERIODS.map(p=>
@@ -3187,6 +3486,30 @@ function goalPersons(){
   return (masterData?.personDetails||[]).filter(p=>
     p.status==='在籍中'&&p.role!=='P'
   );
+}
+
+// 保存済み目標データの名前が、設定_担当者シートの登録名と文字列一致しているかを
+// 軽く検証する（表記ゆれ検知）。退任済みメンバーの過去データは正常なので誤検知しないよう、
+// 在籍中に絞った goalPersons() ではなく personDetails（在籍中＋退任済み全員）と突き合わせる。
+// 厳密な名寄せはせず、ズレがあれば警告表示して人の目での確認を促すだけの簡易対策。
+function checkGoalNameMismatches(){
+  const warnEl=document.getElementById('goal-name-mismatch-warn');
+  if(!warnEl) return;
+  const knownNames=new Set((masterData?.personDetails||[]).map(p=>p.name));
+  const strayNames=[...new Set(
+    (goalsData?.persons||[])
+      .map(g=>g.name)
+      .filter(name=>name&&!knownNames.has(name))
+  )];
+  if(strayNames.length===0){
+    warnEl.style.display='none';
+    warnEl.textContent='';
+    return;
+  }
+  warnEl.style.display='block';
+  warnEl.textContent='⚠ 保存済みの目標データに、設定_担当者シートの登録名と一致しない名前があります（表記ゆれの可能性）：'+
+    strayNames.join('、')+
+    '　→ この名前の目標は本人の画面には反映されません。案件マスタ・設定_担当者の表記と見比べてご確認ください。';
 }
 
 function calcGoalRow(pi){
@@ -3707,22 +4030,11 @@ function renderIncentiveCard(person, isTeam){
     // 商材マスタ登録済みなら金額0でも表示（未登録商材は除外）
     if(totalIncentive<=0 && !pDetail) return;
 
-    if(months<=1){
-      // スポット：売上予定月のみ
-      if(startYM>=fyStartYM){
-        if(!byMonth[startYM]) byMonth[startYM]=[];
-        byMonth[startYM].push({d, amt:totalIncentive});
-      }
-    }else{
-      // ストック：契約期間中の各月
-      for(let i=0;i<months;i++){
-        const base=new Date(startYM+'-01');
-        base.setMonth(base.getMonth()+i);
-        const ym=yyyyMM(base.getFullYear(),base.getMonth()+1);
-        if(ym<fyStartYM) continue;
-        if(!byMonth[ym]) byMonth[ym]=[];
-        byMonth[ym].push({d, amt:Math.floor(totalIncentive/months)});
-      }
+    // GAS側は月数・商材タイプに関わらず「決定→売上」確定時に契約全期間分のインセンティブを
+    // 一括計上する設計（月割り分割はしない）。表示側もそれに合わせ、売上予定月に全額を計上する。
+    if(startYM>=fyStartYM){
+      if(!byMonth[startYM]) byMonth[startYM]=[];
+      byMonth[startYM].push({d, amt:totalIncentive});
     }
   });
 
