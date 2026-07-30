@@ -314,7 +314,6 @@ body.sidebar-collapsed #sidebar-toggle-icon{transform:rotate(180deg)}
   -webkit-appearance:none;transition:var(--transition)}
 .goal-input-sm:focus{outline:none;border-color:var(--blue);
   box-shadow:0 0 0 3px rgba(37,99,235,.12)}
-.goal-input-inherited{color:var(--text3);border-style:dashed;background:rgba(37,99,235,.05)}
 .goal-th-today{outline:2px solid var(--blue);outline-offset:-2px}
 .goal-hint{font-size:10px;color:var(--text3)}
 .goal-modal-note{font-size:12px;color:var(--text2);padding:0 20px 10px;
@@ -979,8 +978,7 @@ body.modal-open{overflow:hidden}
       <div class="modal-title">⚙ 目標設定 <span id="gm-fy" style="color:var(--text3);font-size:14px"></span></div>
     </div>
     <div class="modal-body" style="padding:12px 16px">
-      <p class="goal-modal-note">各月の粗利目標（万円）を入力してください。前期・中期・後期・年間合計が自動計算されます。<br>
-      <span style="color:var(--text3)">点線＝前年度の値を引き継いだ未確定値（そのまま保存すると今年度の目標として確定します。変更する場合は上書きしてください）</span></p>
+      <p class="goal-modal-note">各月の粗利目標（万円）を入力してください。前期・中期・後期・年間合計が自動計算されます。</p>
       <div class="table-scroll">
       <table class="goal-table">
         <thead>
@@ -3163,7 +3161,7 @@ function renderGoalModalTable(){
         const ym=yyyyMM(fyMonths[i].year,fyMonths[i].month);
         const val=months[ym]!=null?months[ym]:'';
         return `<td class="${period.cls}"><input class="goal-input-sm" type="number" min="0" step="10"
-          data-pi="${pi}" data-ym="${ym}" value="${val}" placeholder="0" oninput="this.classList.remove('goal-input-inherited');calcGoalRow(${pi})"></td>`;
+          data-pi="${pi}" data-ym="${ym}" value="${val}" placeholder="0" oninput="calcGoalRow(${pi})"></td>`;
       }).join('')+`<td class="td-sum" id="gsum-${pi}-${period.cls}">—</td>`
     ).join('');
     return `<tr><td>${esc(p.name)}</td>${monthCells}<td class="td-annual" id="gannual-${pi}">—</td></tr>`;
@@ -3183,43 +3181,6 @@ function renderGoalModalTable(){
   persons.forEach((_,pi)=>calcGoalRow(pi));
 
   setTimeout(()=>document.querySelector('#goal-tbody input')?.focus(),50);
-
-  // 未保存（空欄）の月は前年度の同月の値を引き継いでプリセット表示（保存するまで確定しない）
-  fillInheritedGoalDefaults(persons);
-}
-
-// 前年度目標データのキャッシュ（FY文字列 → goals or null）
-let prevGoalsCache={};
-async function fillInheritedGoalDefaults(persons){
-  const prevFY='FY'+(currentFY-1);
-  let prevGoals=prevGoalsCache[prevFY];
-  if(prevGoals===undefined){
-    try{
-      const d=await gasGet({ mode:'goals', fy:prevFY });
-      prevGoals = d.success ? d.goals : null;
-    }catch(e){ prevGoals=null; }
-    prevGoalsCache[prevFY]=prevGoals;
-  }
-  if(!prevGoals?.persons?.length) return;
-  // フェッチ中にモーダルが閉じられていたら何もしない
-  if(!document.getElementById('goal-modal').classList.contains('open')) return;
-
-  persons.forEach((p,pi)=>{
-    const prevPg=prevGoals.persons.find(g=>g.name===p.name);
-    if(!prevPg?.months) return;
-    let changed=false;
-    document.querySelectorAll(`#goal-tbody input[data-pi="${pi}"]`).forEach(inp=>{
-      if(inp.value!=='') return; // 今年度に既に値がある／入力済みのセルは上書きしない
-      const [y,m]=inp.dataset.ym.split('-');
-      const prevVal=prevPg.months[(Number(y)-1)+'-'+m];
-      if(prevVal!=null){
-        inp.value=prevVal;
-        inp.classList.add('goal-input-inherited');
-        changed=true;
-      }
-    });
-    if(changed) calcGoalRow(pi);
-  });
 }
 
 function goalPersons(){
