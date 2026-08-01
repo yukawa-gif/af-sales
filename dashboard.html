@@ -3796,16 +3796,20 @@ function computeDealCashFlowAmts(d,validYms,fyYmList){
   const expYM=String(d['売上予定月']||'').slice(0,7);
   const isOngoing=!!d['継続課金'];
   const endYM=String(d['継続終了月']||'').slice(0,7);
-  const months=Math.max(1,Number(d['月数'])||1);
   // B行（複合商材）は月数に関わらず一回きりの金額のため、継続課金の月別按分からは除外し
   // 最初の月（売上予定月）にまとめて計上する
   const bQty=Number(d['B件数'])||0;
   const bSalesLump=(Number(d['B売上単価'])||0)*bQty;
   const bCostLump =(Number(d['B費用単価'])||0)*bQty;
+  // 継続課金の月額は「合計÷月数」で逆算せず、単価×コース数×件数から直接算出する。
+  // 合計値が月数ぴったりで割り切れない行（レガシー移行データや途中月からの契約など）でも
+  // 毎月同じクリーンな金額になるようにするため。
+  const courses=Math.max(1,Number(d['コース数'])||1);
+  const qty=Math.max(1,Number(d['件数'])||1);
 
   const revAmts={};
   if(isOngoing){
-    const monthlyRev=((Number(d['売上予定額'])||0)-bSalesLump)/months;
+    const monthlyRev=(Number(d['売上（単価）'])||0)*courses*qty;
     fyYmList.forEach(ym=>{
       if(ym<expYM||(endYM&&ym>endYM))return;
       revAmts[ym]=(revAmts[ym]||0)+monthlyRev+(ym===expYM?bSalesLump:0);
@@ -3822,7 +3826,7 @@ function computeDealCashFlowAmts(d,validYms,fyYmList){
       if(validYms.has(ym)) costAmts[ym]=(costAmts[ym]||0)+(Number(s.amount)||0);
     });
   } else if(isOngoing){
-    const monthlyCost=((Number(d['費用（合計）'])||0)-bCostLump)/months;
+    const monthlyCost=(Number(d['費用（単価）'])||0)*courses*qty;
     fyYmList.forEach(ym=>{
       if(ym<expYM||(endYM&&ym>endYM))return;
       costAmts[ym]=(costAmts[ym]||0)+monthlyCost+(ym===expYM?bCostLump:0);
