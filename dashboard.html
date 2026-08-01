@@ -1310,7 +1310,7 @@ function toMan(yen){return Math.round(yen/10000)}
 function fmt(v){return v==null||isNaN(v)?'—':Number(v).toLocaleString()}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
-function fmtYen(v){return v==null||isNaN(v)||v===0?'':Number(v).toLocaleString()}
+function fmtYen(v){return v==null||isNaN(v)?'':Number(v).toLocaleString()}
 function fmtMan(yen){
   const v=toMan(yen);
   if(Math.abs(yen)>=100000000){
@@ -2145,8 +2145,8 @@ function renderYomiHero(deals){
         ${breakdown.map(b=>`
           <div style="text-align:center;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:8px 14px;min-width:72px">
             <div style="font-size:9px;color:rgba(255,255,255,.55);font-weight:700;letter-spacing:.04em;margin-bottom:3px">${b.rank}&nbsp;×${Math.round(b.prob*100)}%</div>
-            <div style="font-size:15px;font-weight:800;color:#fff">${b.wMan>0?fmt(b.wMan)+'万':'—'}</div>
-            <div style="font-size:9px;color:rgba(255,255,255,.38);margin-top:1px">粗利${b.gpMan>0?fmt(b.gpMan)+'万':'—'}</div>
+            <div style="font-size:15px;font-weight:800;color:#fff">${b.wMan!==0?fmt(b.wMan)+'万':'—'}</div>
+            <div style="font-size:9px;color:rgba(255,255,255,.38);margin-top:1px">粗利${b.gpMan!==0?fmt(b.gpMan)+'万':'—'}</div>
           </div>`).join('')}
       </div>
     </div>`;
@@ -2661,8 +2661,9 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
     const isCur=ym===todayYM;
     const mgId=ymToMG[ym];
     const v=Math.round(actualDisplayByMonthYen[ym]||0); // 円
-    return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}${v>0?';background:#f0fdf4':''}">
-      ${v>0?`<span class="tl-amt" style="color:#16a34a;font-weight:700">${fmtYen(v)}</span>`:''}
+    const bg=v>0?';background:#f0fdf4':v<0?';background:#fef2f2':'';
+    return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}${bg}">
+      ${v!==0?`<span class="tl-amt" style="color:${v<0?'#dc2626':'#16a34a'};font-weight:700">${fmtYen(v)}</span>`:''}
     </td>`;
   }).join('');
   // 当月以降合計＝表示中の月のうち当月（todayYM）以降のセルだけを合計
@@ -2719,7 +2720,7 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
       const mgId=ymToMG[ym];
       const v=Math.round(rankMonthTotals[ym]||0); // yen
       return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)};background:${color}18">
-        ${v>0?`<span style="color:${color};font-weight:700">${fmtYen(v)}</span>`:''}
+        ${v!==0?`<span style="color:${v<0?'#dc2626':color};font-weight:700">${fmtYen(v)}</span>`:''}
       </td>`;
     }).join('');
 
@@ -2749,8 +2750,9 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
         const isCur=ym===todayYM;
         const mgId=ymToMG[ym];
         const v=Math.round(cellAmts[ym]||0); // yen
-        return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}${v>0?';background:'+color+'0d':''}">
-          ${v>0?`<span class="tl-amt" style="color:${color}">${fmtYen(v)}</span>`:''}
+        const cellBg=v>0?';background:'+color+'0d':v<0?';background:#dc262618':'';
+        return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}${cellBg}">
+          ${v!==0?`<span class="tl-amt" style="color:${v<0?'#dc2626':color}">${fmtYen(v)}</span>`:''}
         </td>`;
       }).join('');
 
@@ -2775,8 +2777,9 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
     const isCur=ym===todayYM;
     const mgId=ymToMG[ym];
     const v=Math.round(confirmedMonthTotals[ym]||0); // yen
-    return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}${v>0?';background:#eff6ff':''}">
-      ${v>0?`<span class="tl-amt" style="color:#2563eb;font-weight:800">${fmtYen(v)}</span>`:''}
+    const footBg=v>0?';background:#eff6ff':v<0?';background:#fef2f2':'';
+    return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}${footBg}">
+      ${v!==0?`<span class="tl-amt" style="color:${v<0?'#dc2626':'#2563eb'};font-weight:800">${fmtYen(v)}</span>`:''}
     </td>`;
   }).join('');
   document.getElementById('tl-tfoot').innerHTML=`<tr style="border-top:2px solid var(--border)">
