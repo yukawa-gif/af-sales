@@ -1054,18 +1054,24 @@ function syncDealsForProductPriceChange_(productCode, field, oldValue, newValue)
     row[target.priceCol] = newValue;
 
     if (!target.isB) {
-      // A行の単価変更は売上予定額・費用合計・粗利・インセンティブを再計算
-      // （現行仕様どおりB行の金額はこの合計には含めない）
-      const unitSales = Number(row[idx('売上（単価）')]) || 0;
-      const unitCost  = Number(row[idx('費用（単価）')]) || 0;
-      const courses   = Math.max(1, Number(row[idx('コース数')]) || 1);
-      const qty       = Math.max(1, Number(row[idx('件数')])     || 1);
-      const months    = Math.max(1, Number(row[idx('月数')])     || 1);
-      const monthlyGP = (unitSales - unitCost) * courses * qty;
+      // A行の単価変更は売上予定額・費用合計・粗利・インセンティブを再計算。
+      // addDeal()/updateDeal()と同じ式（B行の一時金 bLumpGP を含める）に揃える。
+      // 旧実装はB行を含めずに粗利を再計算しており、B行を持つ案件（社労士顧問の初期費用など）で
+      // 単価改定のたびに粗利からB行分が消えてしまうバグがあった（2026-08-01発覚）。
+      const unitSales  = Number(row[idx('売上（単価）')]) || 0;
+      const unitCost   = Number(row[idx('費用（単価）')]) || 0;
+      const courses    = Math.max(1, Number(row[idx('コース数')]) || 1);
+      const qty        = Math.max(1, Number(row[idx('件数')])     || 1);
+      const months     = Math.max(1, Number(row[idx('月数')])     || 1);
+      const bUnitSales = Number(row[idx('B売上単価')]) || 0;
+      const bUnitCost  = Number(row[idx('B費用単価')]) || 0;
+      const bQty       = Number(row[idx('B件数')])     || 0;
+      const monthlyGP  = (unitSales - unitCost) * courses * qty;
+      const bLumpGP    = (bUnitSales - bUnitCost) * bQty;
 
-      row[idx('売上予定額')]   = unitSales * courses * qty * months;
-      row[idx('費用（合計）')] = unitCost  * courses * qty * months;
-      row[idx('粗利')]         = monthlyGP * months;
+      row[idx('売上予定額')]   = unitSales * courses * qty * months + bUnitSales * bQty;
+      row[idx('費用（合計）')] = unitCost  * courses * qty * months + bUnitCost  * bQty;
+      row[idx('粗利')]         = monthlyGP * months + bLumpGP;
       // 計上済み（インセンティブ計上済み=true）の案件は、単価変更があっても
       // 月割りの再計算はしない（既に確定支給された金額を縮小させないため）
       const alreadyPaid = !!row[idx('インセンティブ計上済み')];
