@@ -1212,6 +1212,12 @@ function fixGrossProfitMismatches(dryRun) {
   return fixed;
 }
 
+// GASエディタの「実行」ボタンは引数を渡せないため、fixGrossProfitMismatches(false)を
+// ワンクリックで実行するための引数なしラッパー。実際に案件マスタの粗利列を書き換える。
+function fixGrossProfitMismatchesNow() {
+  return fixGrossProfitMismatches(false);
+}
+
 // ============================================================
 // 日報データ登録
 // ============================================================
