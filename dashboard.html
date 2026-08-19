@@ -499,6 +499,27 @@ body.modal-open{overflow:hidden}
      ロゴ・FYバッジ・更新ボタンの表示スペースを確保する */
   #last-updated{display:none}
 }
+
+/* ─── スマホ向け軽量ビュー（?view=timeline）───
+   月別推移タイムラインだけを表示し、他カード・サイドバーは非表示にする。
+   render() 側でも該当カードの描画自体をスキップして読み込みを軽くする（後述）。 */
+body.view-timeline-only .sidebar,
+body.view-timeline-only .sidebar-toggle-btn,
+body.view-timeline-only #settings-menu-btn,
+body.view-timeline-only #unpaid-alert-area,
+body.view-timeline-only #yomi-hero,
+body.view-timeline-only .wkpi-card,
+body.view-timeline-only #cashflow-card,
+body.view-timeline-only #pipeline-person-card,
+body.view-timeline-only #goals-person-card,
+body.view-timeline-only .ai-card,
+body.view-timeline-only #chart-card,
+body.view-timeline-only #detail-panel,
+body.view-timeline-only .bottom-grid{display:none!important}
+body.view-timeline-only .main,
+body.view-timeline-only #admin-section{margin-left:0}
+body.view-timeline-only #tl-person-select{display:inline-block!important}
+body.view-timeline-only #tl-back-link{display:inline-flex!important}
 </style>
 </head>
 <body>
@@ -610,7 +631,9 @@ body.modal-open{overflow:hidden}
           <i data-lucide="calendar-range" style="width:16px;height:16px;color:var(--blue)"></i> 月別推移
         </span>
         <div id="mg-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+        <select id="tl-person-select" onchange="selectPerson(this.value)" style="display:none;font-size:12px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit"></select>
         <span style="font-size:11px;color:var(--text3);margin-left:auto" id="timeline-hint"></span>
+        <a id="tl-back-link" href="dashboard.html" style="display:none;font-size:11px;color:var(--blue);text-decoration:none;white-space:nowrap">通常表示へ ▸</a>
       </div>
     </div>
     <div class="timeline-scroll">
@@ -1199,6 +1222,10 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbyAC_jurLseKlw5gw8s15p6
 const CACHE_KEY = 'af_dashboard_v1';
 const CACHE_TTL = 30 * 60 * 1000; // 30分（バックグラウンド更新するので長めでOK）
 
+// スマホ向け軽量ビュー（dashboard.html?view=timeline）: 月別推移タイムラインのみ表示。
+// サイドバー・他カードをCSSで隠すだけでなく、render()側でも該当カードの描画自体をスキップする。
+const TIMELINE_ONLY = new URLSearchParams(window.location.search).get('view') === 'timeline';
+
 // ============================================================
 // 通信ヘルパー
 // ============================================================
@@ -1443,6 +1470,7 @@ async function init(){
 async function initImpl(){
   toggleSidebar(localStorage.getItem('sidebar_collapsed')==='1');
   updateFYBadge();
+  if(TIMELINE_ONLY) document.body.classList.add('view-timeline-only');
 
   const isAdmin = window.location.hash === '#admin';
 
@@ -1599,6 +1627,7 @@ function applyDashboardData(cache){
     pd.forEach((p,i)=>{personColorMap[p.name]=PERSON_COLORS[i%PERSON_COLORS.length]});
     buildSidebar(pd);
     buildCompanyFilterBtns();
+    if(TIMELINE_ONLY) buildTimelineOnlyPersonSelect(pd);
   }
   buildProductFilterBtns();
   // 30秒以内に保存した場合はバックグラウンドフェッチによる上書きを防ぐ
@@ -1650,12 +1679,23 @@ function buildSidebar(details){
   });
 }
 
+// 軽量ビュー（?view=timeline）用：サイドバー代わりの担当者セレクトボックス
+function buildTimelineOnlyPersonSelect(details){
+  const sel=document.getElementById('tl-person-select');
+  if(!sel) return;
+  sel.innerHTML='<option value="__all__">チーム全体</option>' +
+    details.filter(p=>p.status==='在籍中')
+      .map(p=>`<option value="${esc(p.name)}">${esc(p.name)}</option>`).join('');
+}
+
 function selectPerson(name){
   document.querySelectorAll('.person-card').forEach(c=>c.classList.remove('active'));
   const card=document.getElementById('pc-'+name);
   if(card) card.classList.add('active');
   currentPerson=name;
   localStorage.setItem('dashboard_person',name);
+  const tlSel=document.getElementById('tl-person-select');
+  if(tlSel) tlSel.value=name;
   selectedDealIds.clear();
   // 担当者切替時：進行中のAIアドバイス取得があれば結果を無効化し、パネルを初期状態に戻す
   aiRequestToken++;
@@ -1772,18 +1812,20 @@ function render(person){
     referrals: weeklyKpi.referrals > 0 ? Math.round(weeklyKpi.referrals / 5) : 0,
   };
 
-  renderUnpaidAlert(personDeals);
-  renderWeeklyKPI(person,isTeam);
   renderTimeline(personDeals,actualByMonth,person,isTeam);
-  renderCashFlow(personDeals);
-  renderPipelineByPerson(personDeals,isTeam);
-  renderGoalsByPerson(personDeals,isTeam);
-  renderPersonDetail(personDeals,isTeam);
-  renderIncentiveCard(person,isTeam);
-  pendingChartArgs = [personDeals, person, isTeam];
-  if (chartPanelOpen) {
-    renderAchievementChart(...pendingChartArgs);
-    pendingChartArgs = null;
+  if(!TIMELINE_ONLY){
+    renderUnpaidAlert(personDeals);
+    renderWeeklyKPI(person,isTeam);
+    renderCashFlow(personDeals);
+    renderPipelineByPerson(personDeals,isTeam);
+    renderGoalsByPerson(personDeals,isTeam);
+    renderPersonDetail(personDeals,isTeam);
+    renderIncentiveCard(person,isTeam);
+    pendingChartArgs = [personDeals, person, isTeam];
+    if (chartPanelOpen) {
+      renderAchievementChart(...pendingChartArgs);
+      pendingChartArgs = null;
+    }
   }
 }
 
