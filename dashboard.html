@@ -520,6 +520,17 @@ body.view-timeline-only .main,
 body.view-timeline-only #admin-section{margin-left:0}
 body.view-timeline-only #tl-person-select{display:inline-block!important}
 body.view-timeline-only #tl-back-link{display:inline-flex!important}
+/* 案件名列を畳んで、その分を月別の数字列に回す（会社名列だけをスティッキー表示に残す）。
+   td/thをdisplay:noneにするとtable-layout:fixedの列とセルの対応がずれて後続の月列が
+   1列分ずつシフトしてしまうため、セル自体は残したまま幅・余白だけ0にして視覚的に畳む。 */
+body.view-timeline-only .tl-tbl colgroup .col-name{width:0}
+body.view-timeline-only .tl-tbl th.th-name,
+body.view-timeline-only .tl-tbl td.td-name{
+  width:0;max-width:0;min-width:0;padding:0;border:none;overflow:hidden;
+  font-size:0;line-height:0;white-space:nowrap;
+}
+body.view-timeline-only .tl-tbl colgroup .col-month{width:74px}
+body.view-timeline-only .tl-tbl tfoot td{white-space:nowrap}
 </style>
 </head>
 <body>
