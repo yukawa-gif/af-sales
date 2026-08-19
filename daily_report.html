@@ -209,7 +209,7 @@
     <span id="header-person-name" style="font-size:13px;font-weight:700;color:#fff"></span>
     <span id="today-date" style="font-size:12px;color:rgba(255,255,255,.5)"></span>
     <button onclick="togglePersonPicker()" class="btn btn-sm">変更</button>
-    <button onclick="location.href='dashboard.html'" class="btn btn-sm">← ダッシュボード</button>
+    <button onclick="location.href='dashboard.html'" class="btn btn-sm">ダッシュボード</button>
   </div>
 </div>
 
@@ -395,7 +395,6 @@
   <!-- 完了ページ -->
   <div id="page-done" style="display:none">
     <div class="card">
-      <span class="success-icon">✅</span>
       <div class="success-title">送信しました</div>
       <div class="success-sub" id="done-sub"></div>
 
@@ -731,7 +730,7 @@ function updateDistTotals() {
 
   const errEl = document.getElementById('dist-error');
   if (errs.length > 0) {
-    errEl.textContent = '⚠ 合計が一致していません: ' + errs.join(' / ');
+    errEl.textContent = '合計が一致していません: ' + errs.join(' / ');
     errEl.style.display = '';
     document.getElementById('target-save-btn').disabled = true;
     document.getElementById('target-save-btn').style.opacity = '0.5';
@@ -885,7 +884,6 @@ async function loadAdvice() {
     document.getElementById('advice-result').innerHTML = `
       <div class="advice-card">
         <div class="advice-header">
-          <div class="advice-icon">✨</div>
           <div class="advice-title">Gemini からのアドバイス</div>
         </div>
         <div class="advice-body">${marked.parse(text)}</div>

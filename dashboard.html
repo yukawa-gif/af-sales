@@ -66,10 +66,6 @@ body{font-family:'Inter','Hiragino Sans','Noto Sans JP',BlinkMacSystemFont,'Sego
   transition:var(--transition);margin-bottom:2px;border:1.5px solid transparent}
 .person-card:hover{background:#fafafa}
 .person-card.active{background:var(--blue-bg);border-color:var(--blue-mid)}
-.person-avatar{width:34px;height:34px;border-radius:50%;
-  display:flex;align-items:center;justify-content:center;
-  font-weight:800;font-size:12px;color:#fff;flex-shrink:0;
-  box-shadow:0 2px 6px rgba(0,0,0,.18)}
 .person-info{min-width:0}
 .person-name{font-size:13px;font-weight:600;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis;color:var(--text)}
@@ -203,9 +199,6 @@ body.sidebar-collapsed #sidebar-toggle-icon{transform:rotate(180deg)}
   background:#fafafa;padding:8px 8px}
 .tl-tbl tfoot td.td-name{position:sticky;left:104px;
   background:#fafafa;border-right:2px solid var(--border);padding:8px 6px}
-.tl-rank-badge{display:inline-flex;align-items:center;justify-content:center;
-  width:22px;height:22px;border-radius:50%;font-size:10px;font-weight:800;
-  color:#fff;flex-shrink:0;vertical-align:middle;margin-right:6px}
 .tl-company{vertical-align:middle;font-weight:600;font-size:12px}
 .tl-amt{font-weight:700;font-size:11px}
 .tl-empty{color:var(--border);font-size:10px;text-align:center}
@@ -435,9 +428,6 @@ body.modal-open{overflow:hidden}
 .wkpi-table td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
 .wkpi-table td:first-child{font-weight:600;font-size:12px;white-space:nowrap}
 .wkpi-table tr:last-child td{border-bottom:none}
-.wkpi-bar-wrap{display:flex;align-items:center;gap:6px}
-.wkpi-bar-bg{flex:1;height:8px;background:#e5e7eb;border-radius:99px;overflow:hidden;min-width:60px}
-.wkpi-bar-fill{height:100%;border-radius:99px;transition:width .4s}
 .wkpi-pct{font-size:11px;font-weight:700;white-space:nowrap;min-width:36px;text-align:right}
 .wkpi-row-warn td{background:#fffbeb!important}
 .wkpi-row-danger td{background:#fef2f2!important}
@@ -525,7 +515,7 @@ body.view-timeline-only #tl-back-link{display:inline-flex!important}
 <body>
 
 <!-- オフライン通知バー -->
-<div class="offline-banner" id="offline-banner">⚠️ ネットワーク接続がありません。回復すると自動的に再取得します。</div>
+<div class="offline-banner" id="offline-banner">ネットワーク接続がありません。回復すると自動的に再取得します。</div>
 
 <!-- トースト通知 -->
 <div class="toast-stack" id="toast-stack"></div>
@@ -550,7 +540,7 @@ body.view-timeline-only #tl-back-link{display:inline-flex!important}
 <!-- トップバー -->
 <header class="topbar">
   <button class="sidebar-toggle-btn" onclick="toggleSidebar()" title="サイドバーの折りたたみ">
-    <i data-lucide="panel-left" id="sidebar-toggle-icon" style="width:17px;height:17px"></i>
+    <span id="sidebar-toggle-icon" style="display:inline-block;font-size:13px">◀</span>
   </button>
   <div style="display:flex;align-items:center;gap:10px;margin-right:4px;min-width:0;overflow:hidden">
     <div style="min-width:0;overflow:hidden">
@@ -564,23 +554,23 @@ body.view-timeline-only #tl-back-link{display:inline-flex!important}
     <span class="topbar-fy" id="fy-badge" onclick="resetFY()" title="クリックで今年度に戻る">FY2025</span>
     <button class="fy-nav-btn" onclick="changeFY(1)" title="翌年度">▶</button>
   </div>
-  <button id="refresh-btn" onclick="manualRefresh()" style="background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:15px;padding:4px 6px;border-radius:6px;transition:var(--transition)" title="データを更新" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,.5)'">↻</button>
+  <button id="refresh-btn" onclick="manualRefresh()" style="background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:15px;padding:4px 6px;border-radius:6px;transition:var(--transition)" title="データを更新" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,.5)'">更新</button>
   <div style="position:relative">
     <button class="sidebar-toggle-btn" onclick="toggleSettingsMenu()" title="設定" id="settings-menu-btn">
-      <i data-lucide="settings" style="width:16px;height:16px"></i>
+      設定
     </button>
     <div id="settings-menu" style="display:none;position:absolute;top:38px;right:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-lg);min-width:170px;padding:6px;z-index:150">
       <button onclick="openPersonModal()" class="sidebar-nav-item" title="担当営業管理" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-family:inherit;border-radius:8px">
-        <i data-lucide="users" style="width:15px;height:15px;flex-shrink:0"></i> <span class="nav-label">担当営業管理</span>
+        <span class="nav-label">担当営業管理</span>
       </button>
       <a href="customer_master.html" class="sidebar-nav-item" title="顧客管理" style="text-decoration:none;border-radius:8px">
-        <i data-lucide="building-2" style="width:15px;height:15px;flex-shrink:0"></i> <span class="nav-label">顧客管理</span>
+        <span class="nav-label">顧客管理</span>
       </a>
       <a id="admin-nav-link" href="dashboard.html#admin" class="sidebar-nav-item" title="システムテスト" style="text-decoration:none;border-radius:8px;color:var(--amber)">
-        <i data-lucide="flask-conical" style="width:15px;height:15px;flex-shrink:0"></i> <span class="nav-label">システムテスト</span>
+        <span class="nav-label">システムテスト</span>
       </a>
       <button onclick="openGoalModal()" class="sidebar-nav-item" title="目標設定" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-family:inherit;border-radius:8px">
-        <i data-lucide="target" style="width:15px;height:15px;flex-shrink:0"></i> <span class="nav-label">目標設定</span>
+        <span class="nav-label">目標設定</span>
       </button>
     </div>
   </div>
@@ -591,13 +581,13 @@ body.view-timeline-only #tl-back-link{display:inline-flex!important}
   <!-- ナビゲーション -->
   <div class="sidebar-nav-group" style="padding:8px 12px 4px">
     <a href="dashboard.html" class="sidebar-nav-item" title="ダッシュボード" style="background:var(--blue-bg);color:var(--blue);border-radius:8px;font-weight:700;text-decoration:none">
-      <i data-lucide="layout-dashboard" style="width:15px;height:15px;flex-shrink:0"></i> <span class="nav-label">ダッシュボード</span>
+      <span class="nav-label">ダッシュボード</span>
     </a>
     <a href="deal_form.html" class="sidebar-nav-item" title="案件登録" style="text-decoration:none;border-radius:8px">
-      <i data-lucide="briefcase" style="width:15px;height:15px;flex-shrink:0"></i> <span class="nav-label">案件登録</span>
+      <span class="nav-label">案件登録</span>
     </a>
     <a href="daily_report.html" class="sidebar-nav-item" title="実績報告" style="text-decoration:none;border-radius:8px">
-      <i data-lucide="file-text" style="width:15px;height:15px;flex-shrink:0"></i> <span class="nav-label">実績報告</span>
+      <span class="nav-label">実績報告</span>
     </a>
   </div>
   <div class="sidebar-divider"></div>
@@ -613,9 +603,6 @@ body.view-timeline-only #tl-back-link{display:inline-flex!important}
   <!-- ページヘッダー -->
   <div class="page-header">
     <div style="display:flex;align-items:flex-start;gap:12px">
-      <div style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:10px;background:var(--blue-bg);color:var(--blue);flex-shrink:0;margin-top:2px">
-        <i data-lucide="bar-chart-2" style="width:18px;height:18px"></i>
-      </div>
       <div>
         <div class="page-title" id="page-title">ダッシュボード</div>
         <div class="page-meta" id="page-meta"></div>
@@ -628,7 +615,7 @@ body.view-timeline-only #tl-back-link{display:inline-flex!important}
     <div class="timeline-card-header">
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
         <span style="font-size:15px;font-weight:800;flex-shrink:0;display:flex;align-items:center;gap:7px">
-          <i data-lucide="calendar-range" style="width:16px;height:16px;color:var(--blue)"></i> 月別推移
+          月別推移
         </span>
         <div id="mg-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
         <select id="tl-person-select" onchange="selectPerson(this.value)" style="display:none;font-size:12px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit"></select>
@@ -672,7 +659,6 @@ body.view-timeline-only #tl-back-link{display:inline-flex!important}
   <div class="wkpi-card" id="wkpi-card" style="display:none">
     <div class="card-header" onclick="toggleWkpiCard()" style="cursor:pointer;user-select:none;margin-bottom:0">
       <span class="card-title" style="display:flex;align-items:center;gap:7px">
-        <i data-lucide="activity" style="width:15px;height:15px;color:var(--blue)"></i>
         行動KPI進捗（今週）
       </span>
       <span class="card-hint" id="wkpi-week-label" style="margin-left:auto"></span>
@@ -699,7 +685,7 @@ body.view-timeline-only #tl-back-link{display:inline-flex!important}
   <div class="card" id="cashflow-card" style="margin-bottom:16px;display:none">
     <div class="card-header" onclick="toggleCashflowCard()" style="cursor:pointer;user-select:none">
       <span class="card-title" style="display:flex;align-items:center;gap:7px">
-        <i data-lucide="wallet" style="width:15px;height:15px;color:var(--blue)"></i> 資金繰り
+        資金繰り
       </span>
       <span class="card-hint" style="margin-left:auto">決定・売上（確定分）のみ／単月純額</span>
       <span id="cashflow-toggle-icon" style="margin-left:8px;font-size:12px;color:var(--text3)">▼</span>
@@ -714,7 +700,6 @@ body.view-timeline-only #tl-back-link{display:inline-flex!important}
   <div class="wkpi-card" id="wkpi-card" style="display:none;margin-bottom:0;flex:1 1 480px">
     <div class="card-header" onclick="toggleWkpiCard()" style="cursor:pointer;user-select:none;margin-bottom:0">
       <span class="card-title" style="display:flex;align-items:center;gap:7px">
-        <i data-lucide="activity" style="width:15px;height:15px;color:var(--blue)"></i>
         KPIの進捗（今週）
       </span>
       <span class="card-hint" id="wkpi-week-label" style="margin-left:auto"></span>
@@ -739,7 +724,7 @@ body.view-timeline-only #tl-back-link{display:inline-flex!important}
     <div class="ai-card" style="flex:1 1 380px">
       <div class="ai-card-header">
         <div class="ai-card-title">
-          ✨ 今月の営業活動へのAIアドバイス
+          今月の営業活動へのAIアドバイス
           <span class="ai-badge">Gemini</span>
         </div>
         <button class="ai-btn" id="ai-fetch-btn" onclick="fetchAIAdvice()">AIに聞く</button>
@@ -758,7 +743,7 @@ body.view-timeline-only #tl-back-link{display:inline-flex!important}
   <div class="card" id="pipeline-person-card" style="margin-bottom:16px;display:none">
     <div class="card-header" onclick="togglePipelinePersonCard()" style="cursor:pointer;user-select:none">
       <span class="card-title" style="display:flex;align-items:center;gap:7px">
-        <i data-lucide="users" style="width:15px;height:15px;color:var(--blue)"></i> 営業別パイプライン
+        営業別パイプライン
       </span>
       <span class="card-hint" style="margin-left:auto">粗利（円）/ 失注除く</span>
       <span id="pipeline-person-icon" style="margin-left:8px;font-size:12px;color:var(--text3)">▼</span>
@@ -772,7 +757,7 @@ body.view-timeline-only #tl-back-link{display:inline-flex!important}
   <div class="card" id="goals-person-card" style="margin-bottom:16px;display:none">
     <div class="card-header" onclick="toggleGoalsPersonCard()" style="cursor:pointer;user-select:none">
       <span class="card-title" style="display:flex;align-items:center;gap:7px">
-        <i data-lucide="target" style="width:15px;height:15px;color:var(--blue)"></i> 営業別目標 × 実績
+        営業別目標 × 実績
       </span>
       <span class="card-hint" style="margin-left:auto">通期目標・今月目標・ヨミ（円）</span>
       <span id="goals-person-icon" style="margin-left:8px;font-size:12px;color:var(--text3)">▼</span>
@@ -786,7 +771,6 @@ body.view-timeline-only #tl-back-link{display:inline-flex!important}
   <div class="card" style="margin-bottom:16px" id="chart-card">
     <div class="card-header" onclick="toggleChartPanel()" style="cursor:pointer;user-select:none">
       <span class="card-title" style="display:flex;align-items:center;gap:7px">
-        <i data-lucide="trending-up" style="width:15px;height:15px;color:var(--blue)"></i>
         <span id="chart-title">月別 粗利実績 vs 目標</span>
       </span>
       <span class="card-hint" id="chart-hint" style="margin-left:auto"></span>
@@ -803,10 +787,10 @@ body.view-timeline-only #tl-back-link{display:inline-flex!important}
   <div class="detail-card" id="detail-panel" style="display:none">
     <div class="detail-card-header" onclick="toggleDetailPanel()" style="cursor:pointer;user-select:none">
       <span style="font-size:15px;font-weight:800;flex-shrink:0;display:flex;align-items:center;gap:7px">
-        <i data-lucide="list" style="width:16px;height:16px;color:var(--blue)"></i> 案件一覧
+        案件一覧
       </span>
       <div class="detail-filter-btns" id="detail-filter-btns" onclick="event.stopPropagation()"></div>
-      <input type="text" id="detail-search" class="detail-search-input" placeholder="🔍 会社名・商材名で検索"
+      <input type="text" id="detail-search" class="detail-search-input" placeholder="会社名・商材名で検索"
         oninput="setDetailSearch(this.value)" onclick="event.stopPropagation()">
       <span class="detail-count" id="detail-count"></span>
       <span id="detail-toggle-icon" style="margin-left:8px;font-size:12px;color:var(--text3);flex-shrink:0">▼</span>
@@ -841,7 +825,7 @@ body.view-timeline-only #tl-back-link{display:inline-flex!important}
       <div class="card">
         <div class="card-header" onclick="toggleIncentiveCard()" style="cursor:pointer;user-select:none">
           <span class="card-title" style="display:flex;align-items:center;gap:7px">
-            <i data-lucide="coins" style="width:15px;height:15px;color:var(--blue)"></i> インセンティブ支払いスケジュール
+            インセンティブ支払いスケジュール
           </span>
           <div style="display:flex;align-items:center;gap:10px;margin-left:auto">
             <span class="card-hint" id="incentive-period-hint"></span>
@@ -871,7 +855,7 @@ body.view-timeline-only #tl-back-link{display:inline-flex!important}
   <div class="modal-box">
     <div class="modal-header">
       <span class="modal-title">案件編集</span>
-      <button class="modal-close" onclick="closeDealModal()">✕</button>
+      <button class="modal-close" onclick="closeDealModal()">×</button>
     </div>
     <div class="modal-body">
       <div class="modal-info">
@@ -1009,7 +993,7 @@ body.view-timeline-only #tl-back-link{display:inline-flex!important}
           <button type="button" id="dm-next-action-suggest" onclick="suggestDmNextActionDate()"
             style="flex:0 0 auto;background:none;border:1px solid var(--blue);border-radius:var(--r);
             padding:9px 10px;font-size:11px;font-weight:700;color:var(--blue);cursor:pointer;font-family:inherit;white-space:nowrap">
-            ✨ AI提案
+            AI提案
           </button>
         </div>
         <div id="dm-next-action-reason" style="font-size:10px;color:var(--text3);margin-top:4px;display:none"></div>
@@ -1027,7 +1011,7 @@ body.view-timeline-only #tl-back-link{display:inline-flex!important}
 <div class="modal-overlay" id="goal-modal" onclick="if(event.target===this)closeGoalModal()">
   <div class="modal-box goal-modal-box">
     <div class="modal-header">
-      <div class="modal-title">⚙ 目標設定 <span id="gm-fy" style="color:var(--text3);font-size:14px"></span></div>
+      <div class="modal-title">目標設定 <span id="gm-fy" style="color:var(--text3);font-size:14px"></span></div>
     </div>
     <div class="modal-body" style="padding:12px 16px">
       <p class="goal-modal-note">各月の粗利目標（万円）を入力してください。前期・中期・後期・年間合計が自動計算されます。</p>
@@ -1050,7 +1034,7 @@ body.view-timeline-only #tl-back-link{display:inline-flex!important}
       </div>
     </div>
     <div class="modal-footer">
-      <button class="modal-btn" style="margin-right:auto;background:var(--bg);border:1px solid var(--border);color:var(--text2)" onclick="showGoalsHistory()">📋 履歴</button>
+      <button class="modal-btn" style="margin-right:auto;background:var(--bg);border:1px solid var(--border);color:var(--text2)" onclick="showGoalsHistory()">履歴</button>
       <button class="modal-btn modal-btn-cancel" onclick="closeGoalModal()">キャンセル</button>
       <button class="modal-btn modal-btn-save" id="gm-save" onclick="saveGoalModal()">保存</button>
     </div>
@@ -1061,8 +1045,8 @@ body.view-timeline-only #tl-back-link{display:inline-flex!important}
 <div class="modal-overlay" id="goals-history-modal" onclick="if(event.target===this)closeGoalsHistoryModal()">
   <div class="modal-box" style="width:min(820px,96vw);max-height:85vh;display:flex;flex-direction:column">
     <div class="modal-header">
-      <span class="modal-title">📋 目標設定 履歴 <span id="gh-fy" style="color:var(--text3);font-size:14px"></span></span>
-      <button class="modal-close" onclick="closeGoalsHistoryModal()">✕</button>
+      <span class="modal-title">目標設定 履歴 <span id="gh-fy" style="color:var(--text3);font-size:14px"></span></span>
+      <button class="modal-close" onclick="closeGoalsHistoryModal()">×</button>
     </div>
     <div class="modal-body" id="gh-body" style="overflow-y:auto;flex:1;padding:16px">
       <div id="gh-loading" style="text-align:center;padding:32px;color:var(--text3)">読み込み中...</div>
@@ -1076,7 +1060,7 @@ body.view-timeline-only #tl-back-link{display:inline-flex!important}
   <div class="modal-box" style="max-width:420px">
     <div class="modal-header">
       <span class="modal-title">Googleタスクに追加</span>
-      <button class="modal-close" onclick="closeTaskModal()">✕</button>
+      <button class="modal-close" onclick="closeTaskModal()">×</button>
     </div>
     <div class="modal-body">
       <div class="mfg">
@@ -1104,7 +1088,7 @@ body.view-timeline-only #tl-back-link{display:inline-flex!important}
   <div class="modal-box" style="max-width:560px">
     <div class="modal-header">
       <span class="modal-title">フォローアップメール下書き</span>
-      <button class="modal-close" onclick="closeMailModal()">✕</button>
+      <button class="modal-close" onclick="closeMailModal()">×</button>
     </div>
     <div class="modal-body">
       <div id="mail-loading" style="text-align:center;padding:24px;color:var(--text2)">Geminiが下書き中...</div>
@@ -1128,7 +1112,7 @@ body.view-timeline-only #tl-back-link{display:inline-flex!important}
   <div class="modal-box" style="max-width:480px">
     <div class="modal-header">
       <span class="modal-title">担当営業管理</span>
-      <button class="modal-close" onclick="closePersonModal()">✕</button>
+      <button class="modal-close" onclick="closePersonModal()">×</button>
     </div>
     <div class="modal-body">
       <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:8px">既存担当者</div>
@@ -1163,33 +1147,29 @@ body.view-timeline-only #tl-back-link{display:inline-flex!important}
 <div id="admin-section" style="display:none;margin-left:var(--sidebar);margin-top:var(--topbar-h);padding:24px;min-height:calc(100vh - var(--topbar-h))">
   <div class="page-header">
     <div style="display:flex;align-items:flex-start;gap:12px">
-      <div style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:10px;background:var(--amber-bg);color:var(--amber);flex-shrink:0;margin-top:2px">
-        <i data-lucide="flask-conical" style="width:18px;height:18px"></i>
-      </div>
       <div>
         <div class="page-title">システム健全性テスト</div>
         <div class="page-meta">動作確認・テストデータ管理パネル（社内管理者専用）</div>
       </div>
     </div>
-    <a href="dashboard.html" style="font-size:12px;color:var(--blue);text-decoration:none;font-weight:600">← ダッシュボードに戻る</a>
+    <a href="dashboard.html" style="font-size:12px;color:var(--blue);text-decoration:none;font-weight:600">ダッシュボードに戻る</a>
   </div>
 
   <div id="admin-panel">
     <div class="admin-title">
-      <i data-lucide="shield-check" style="width:20px;height:20px;color:var(--blue)"></i>
       E2Eシステム健全性テスト
     </div>
     <div class="admin-subtitle">ボタンを1回押すだけで全項目を自動検証します。テストデータは本番データとは別に管理され、削除ボタンで元に戻ります。</div>
 
     <div class="admin-btn-row">
       <button class="admin-btn admin-btn-run" id="btn-run-tests" onclick="runE2ETests()">
-        <i data-lucide="play" style="width:14px;height:14px"></i> システム健全性テストを実行
+        システム健全性テストを実行
       </button>
       <button class="admin-btn admin-btn-gen" id="btn-gen-data" onclick="generateTestDataFromDashboard()">
-        <i data-lucide="database" style="width:14px;height:14px"></i> テストデータ生成（10件）
+        テストデータ生成（10件）
       </button>
       <button class="admin-btn admin-btn-clr" id="btn-clr-data" onclick="clearTestDataFromDashboard()">
-        <i data-lucide="trash-2" style="width:14px;height:14px"></i> テストデータを一括削除
+        テストデータを一括削除
       </button>
     </div>
 
@@ -1203,7 +1183,7 @@ body.view-timeline-only #tl-back-link{display:inline-flex!important}
   <!-- テストデータ一覧カード -->
   <div id="admin-panel" style="margin-top:16px">
     <div class="card-header" style="margin-bottom:12px">
-      <div class="card-title">📋 挿入済みテストデータ一覧</div>
+      <div class="card-title">挿入済みテストデータ一覧</div>
       <div class="card-hint" id="test-data-count">— 件</div>
     </div>
     <div id="test-data-table" class="table-scroll" style="font-size:12px;color:var(--text3)">
@@ -1275,7 +1255,7 @@ function showToast(msg, type){
   if(!stack) return;
   const el=document.createElement('div');
   el.className='toast'+(type?' toast-'+type:'');
-  el.innerHTML='<span style="flex:1">'+esc(msg)+'</span><button class="toast-close" aria-label="閉じる">✕</button>';
+  el.innerHTML='<span style="flex:1">'+esc(msg)+'</span><button class="toast-close" aria-label="閉じる">×</button>';
   el.querySelector('.toast-close').onclick=()=>el.remove();
   stack.appendChild(el);
   setTimeout(()=>el.remove(),6000);
@@ -1649,8 +1629,7 @@ function buildSidebar(details){
   teamDiv.className='person-card';
   teamDiv.id='pc-__all__';
   teamDiv.title='チーム全体';
-  teamDiv.innerHTML=`<div class="person-avatar" style="background:var(--navy)">全</div>
-    <div class="person-info">
+  teamDiv.innerHTML=`<div class="person-info">
       <div class="person-name">チーム全体</div>
       <div class="person-role">全営業合計</div>
     </div>`;
@@ -1667,8 +1646,7 @@ function buildSidebar(details){
     div.className='person-card';
     div.id='pc-'+p.name;
     div.title=p.name;
-    div.innerHTML=`<div class="person-avatar" style="background:${col}">${p.name.charAt(0)}</div>
-      <div class="person-info">
+    div.innerHTML=`<div class="person-info">
         <div class="person-name">${esc(p.name)}</div>
         <div class="person-role">${esc(p.role)}</div>
       </div>`;
@@ -2395,7 +2373,6 @@ function renderUnpaidAlert(deals) {
     <div class="unpaid-alert">
       <div class="unpaid-alert-header" onclick="toggleUnpaidAlert()">
         <div class="unpaid-alert-title">
-          <i data-lucide="alert-circle" style="width:14px;height:14px"></i>
           未入金アラート
           <span class="unpaid-alert-badge">${unpaid.length}件</span>
         </div>
@@ -2460,15 +2437,11 @@ function renderWeeklyKPI(person, isTeam) {
 
   function barHtml(actual, target, color) {
     if (target <= 0) {
-      return `<div class="wkpi-bar-wrap"><span class="wkpi-no-target">未設定</span></div>`;
+      return `<span class="wkpi-no-target">未設定</span>`;
     }
     const pct = Math.min(Math.round(actual / target * 100), 100);
-    const cls = pct < 50 ? 'wkpi-pct' : 'wkpi-pct';
     const fillColor = pct >= 80 ? '#16a34a' : pct >= 50 ? '#2563eb' : pct >= 1 ? '#d97706' : '#e5e7eb';
-    return `<div class="wkpi-bar-wrap">
-      <div class="wkpi-bar-bg"><div class="wkpi-bar-fill" style="width:${pct}%;background:${fillColor}"></div></div>
-      <span class="wkpi-pct" style="color:${fillColor}">${actual}/${target}</span>
-    </div>`;
+    return `<span class="wkpi-pct" style="color:${fillColor}">${actual}/${target}</span>`;
   }
 
   tbody.innerHTML = rows.map(r => {
@@ -2491,14 +2464,7 @@ function renderWeeklyKPI(person, isTeam) {
       ? '<span class="wkpi-badge-danger">未設定</span>'
       : (showWarn ? '<span class="wkpi-badge-warn">要注意</span>' : '');
 
-    const col = personColorMap[r.person] || '#6b7280';
-    const initial = r.person ? r.person.charAt(0) : '?';
-    const nameCell = isTeam
-      ? `<span style="display:inline-flex;align-items:center;gap:6px">
-           <span style="width:22px;height:22px;border-radius:50%;background:${col};color:#fff;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${esc(initial)}</span>
-           ${esc(r.person)}
-         </span>`
-      : esc(r.person);
+    const nameCell = esc(r.person);
 
     return `<tr class="${rowCls}">
       <td>${nameCell}${badge ? '<br><span style="margin-top:2px;display:inline-block">'+badge+'</span>' : ''}</td>
@@ -2722,7 +2688,6 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
   actualRow.style.cursor='pointer';
   actualRow.innerHTML=`
     <td class="td-co" style="background:#f0fdf4;cursor:pointer">
-      <span class="tl-rank-badge" style="background:#16a34a">✓</span>
       <span class="tl-rank-row-label" style="color:#16a34a">売上（確定）</span>
     </td>
     <td class="td-name" style="background:#f0fdf4;cursor:pointer;min-width:0">
@@ -2777,7 +2742,6 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
       headerRow.onclick=()=>toggleTimelineRank(groupId,arrId);
       headerRow.innerHTML=`
         <td class="td-co" style="background:${color}10;cursor:pointer">
-          <span class="tl-rank-badge" style="background:${color}">${rank.av}</span>
           <span class="tl-rank-row-label" style="color:${color}">${rank.label}</span>
         </td>
         <td class="td-name" style="background:${color}10;cursor:pointer;min-width:0">
@@ -3069,7 +3033,7 @@ async function suggestDmNextActionDate(){
   }catch(e){
     showToast('AI提案の取得に失敗しました: '+e.message,'warn');
   }finally{
-    btn.disabled=false;btn.textContent='✨ AI提案';
+    btn.disabled=false;btn.textContent='AI提案';
   }
 }
 
@@ -3170,7 +3134,7 @@ function renderPersonModalList(){
     const active=p.status==='在籍中';
     const nameEsc=esc(p.name).replace(/'/g,"\\'");
     const actionBtn=active
-      ? `<button title="削除" style="${circleBtn};border:1px solid var(--red);background:var(--red-bg);color:var(--red)" onclick="removePersonUI('${nameEsc}')">✕</button>`
+      ? `<button title="削除" style="${circleBtn};border:1px solid var(--red);background:var(--red-bg);color:var(--red)" onclick="removePersonUI('${nameEsc}')">×</button>`
       : `<button title="元に戻す" style="${pillBtn};border:1px solid var(--blue);background:var(--blue-bg);color:var(--blue)" onclick="restorePersonUI('${nameEsc}')">元に戻す</button>`;
     return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:8px">
       ${actionBtn}
@@ -3219,7 +3183,7 @@ async function addPersonUI(){
     if(!res.success){ msgEl.style.color='var(--red)'; msgEl.textContent=res.error||'追加に失敗しました'; return; }
     nameEl.value='';
     msgEl.style.color='var(--green)';
-    msgEl.textContent='✅ '+name+' を追加しました';
+    msgEl.textContent=name+' を追加しました';
     await refreshMasterAfterPersonChange();
   }catch(e){
     msgEl.style.color='var(--red)';
@@ -3579,7 +3543,7 @@ function checkGoalNameMismatches(){
     return;
   }
   warnEl.style.display='block';
-  warnEl.textContent='⚠ 保存済みの目標データに、設定_担当者シートの登録名と一致しない名前があります（表記ゆれの可能性）：'+
+  warnEl.textContent='保存済みの目標データに、設定_担当者シートの登録名と一致しない名前があります（表記ゆれの可能性）：'+
     strayNames.join('、')+
     '　→ この名前の目標は本人の画面には反映されません。案件マスタ・設定_担当者の表記と見比べてご確認ください。';
 }
@@ -4524,7 +4488,7 @@ window.addEventListener('hashchange', () => { init(); });
 function renderTestItem(id, status, label, detail) {
   const el = document.getElementById('ti-' + id);
   if (!el) return;
-  const badge = { pass: '✅', fail: '❌', running: '⏳', pending: '⏸' }[status] || '⏸';
+  const badge = { pass: 'OK', fail: 'NG', running: '実行中', pending: '未実行' }[status] || '未実行';
   el.className = 'test-item ' + status;
   el.innerHTML = `<span class="test-badge">${badge}</span><div><span class="test-label">${label}</span><div class="test-detail">${detail || ''}</div></div>`;
 }
@@ -4537,7 +4501,7 @@ async function runE2ETests() {
   const grid = document.getElementById('test-result-grid');
   const statusBar = document.getElementById('admin-status-bar');
   btn.disabled = true;
-  btn.innerHTML = '<i data-lucide="loader" style="width:14px;height:14px"></i> テスト実行中...';
+  btn.innerHTML = 'テスト実行中...';
 
   const tests = [
     { id: 'master',    label: 'マスタJSONパース',            detail: 'personDetails・productDetails が正しく読み込まれているか' },
@@ -4701,7 +4665,7 @@ async function runE2ETests() {
   // ── 完了 ─────────────────────────────────────────────────
   const total = passed + failed;
   btn.disabled = false;
-  btn.innerHTML = '<i data-lucide="play" style="width:14px;height:14px"></i> システム健全性テストを実行';
+  btn.innerHTML = 'システム健全性テストを実行';
   statusBar.textContent = `完了: ${total}件中 ${passed}件 合格 / ${failed}件 失敗（${new Date().toLocaleTimeString('ja-JP')}）`;
   statusBar.style.color = failed > 0 ? 'var(--red)' : 'var(--green)';
   lucide.createIcons();
@@ -4718,15 +4682,15 @@ async function generateTestDataFromDashboard() {
     const res = await gasGet({ mode: 'generateTestData' }, { retries: 0, timeoutMs: 30000 });
     if (!res.success) throw new Error(res.error || '不明なエラー');
     document.getElementById('admin-status-bar').textContent =
-      `✅ ${res.count}件のテストデータを生成しました（${new Date().toLocaleTimeString('ja-JP')}）`;
+      `${res.count}件のテストデータを生成しました（${new Date().toLocaleTimeString('ja-JP')}）`;
     document.getElementById('admin-status-bar').style.color = 'var(--green)';
     await refreshTestDataList();
   } catch(e) {
-    document.getElementById('admin-status-bar').textContent = '❌ 生成失敗: ' + e.message;
+    document.getElementById('admin-status-bar').textContent = '生成失敗: ' + e.message;
     document.getElementById('admin-status-bar').style.color = 'var(--red)';
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '<i data-lucide="database" style="width:14px;height:14px"></i> テストデータ生成（10件）';
+    btn.innerHTML = 'テストデータ生成（10件）';
     lucide.createIcons();
   }
 }
@@ -4743,16 +4707,16 @@ async function clearTestDataFromDashboard() {
     const res = await gasGet({ mode: 'clearTestData' }, { retries: 0, timeoutMs: 30000 });
     if (!res.success) throw new Error(res.error || '不明なエラー');
     document.getElementById('admin-status-bar').textContent =
-      `🗑️ ${res.count}件のテストデータを削除しました（${new Date().toLocaleTimeString('ja-JP')}）`;
+      `${res.count}件のテストデータを削除しました（${new Date().toLocaleTimeString('ja-JP')}）`;
     document.getElementById('admin-status-bar').style.color = 'var(--text2)';
     document.getElementById('test-data-table').textContent = 'テストデータなし（削除済み）';
     document.getElementById('test-data-count').textContent = '0 件';
   } catch(e) {
-    document.getElementById('admin-status-bar').textContent = '❌ 削除失敗: ' + e.message;
+    document.getElementById('admin-status-bar').textContent = '削除失敗: ' + e.message;
     document.getElementById('admin-status-bar').style.color = 'var(--red)';
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '<i data-lucide="trash-2" style="width:14px;height:14px"></i> テストデータを一括削除';
+    btn.innerHTML = 'テストデータを一括削除';
     lucide.createIcons();
   }
 }

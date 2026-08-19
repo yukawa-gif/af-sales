@@ -204,9 +204,9 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
   <span class="topbar-logo">エー・ファクトリー株式会社｜顧客管理</span>
   <div class="topbar-spacer"></div>
   <span class="topbar-date" id="topbarDate"></span>
-  <a href="dashboard.html" class="topbar-btn">📊 ダッシュボード</a>
+  <a href="dashboard.html" class="topbar-btn">ダッシュボード</a>
   <a href="deal_form.html" class="topbar-btn">＋ 案件登録</a>
-  <a href="daily_report.html" class="topbar-btn">📝 日報</a>
+  <a href="daily_report.html" class="topbar-btn">日報</a>
 </div>
 
 <!-- ─── サイドバー ─── -->
@@ -228,7 +228,7 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
     <div style="display:flex;gap:8px;align-items:center">
       <button class="btn btn-secondary" onclick="buildFromDeals()" id="buildFromDealsBtn"
         title="案件マスタの会社名から顧客マスタを自動生成し、案件に顧客IDを紐付けます">
-        🔄 案件から一括取り込み
+        案件から一括取り込み
       </button>
       <button class="btn btn-primary" onclick="openCustomerModal()">＋ 新規顧客登録</button>
     </div>
@@ -268,7 +268,7 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
         <span class="count-badge" id="cusCount"></span>
       </div>
       <div class="toolbar">
-        <input class="search-input" id="cusSearch" placeholder="🔍 企業名・営業名で検索"
+        <input class="search-input" id="cusSearch" placeholder="企業名・営業名で検索"
           oninput="onSearchInput()">
         <select class="filter-select" id="cusStatusFilter" onchange="loadCustomers(0)">
           <option value="">すべてのステータス</option>
@@ -340,7 +340,7 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
   <div class="modal-box" onclick="event.stopPropagation()">
     <div class="modal-header">
       <span class="modal-title" id="customerModalTitle">顧客登録</span>
-      <button class="modal-close" onclick="closeModal('customerModal')">✕</button>
+      <button class="modal-close" onclick="closeModal('customerModal')">×</button>
     </div>
     <div class="modal-body">
       <div class="form-grid">
@@ -348,7 +348,7 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
           <label class="form-label">企業名<span class="req">*</span></label>
           <div class="form-row">
             <input class="form-input" id="cusCompany" placeholder="株式会社○○" style="flex:1">
-            <button class="btn btn-secondary btn-sm" id="detectBtn" onclick="detectIndustry()" title="Geminiで業種を自動判定">🤖 業種判定</button>
+            <button class="btn btn-secondary btn-sm" id="detectBtn" onclick="detectIndustry()" title="Geminiで業種を自動判定">業種判定</button>
           </div>
         </div>
         <div class="form-group">
@@ -436,7 +436,7 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
   <div class="modal-box" onclick="event.stopPropagation()">
     <div class="modal-header">
       <span class="modal-title" id="contactModalTitle">担当者登録</span>
-      <button class="modal-close" onclick="closeModal('contactModal')">✕</button>
+      <button class="modal-close" onclick="closeModal('contactModal')">×</button>
     </div>
     <div class="modal-body">
       <div id="contactCompanyLabel" class="alert alert-info" style="margin:0 0 12px;padding:8px 12px;border-radius:var(--r)">
@@ -598,18 +598,18 @@ async function buildFromDeals() {
     showToast('エラー: ' + e.message, 'error');
   } finally {
     btn.disabled = false;
-    btn.textContent = '🔄 案件から一括取り込み';
+    btn.textContent = '案件から一括取り込み';
   }
 }
 
 function showBuildResult(added, linked, emptyIdCount) {
   const linkedMsg = linked > 0
-    ? `🔗 案件マスタの顧客ID（D列）を <b>${linked}件</b> 紐付けました`
+    ? `案件マスタの顧客ID（D列）を <b>${linked}件</b> 紐付けました`
     : (emptyIdCount > 0
-        ? `⚠️ 顧客IDが未設定の案件が <b>${emptyIdCount}件</b> 残っています（要確認）`
+        ? `顧客IDが未設定の案件が <b>${emptyIdCount}件</b> 残っています（要確認）`
         : '案件の顧客ID紐付けはありませんでした（全件紐付け済み）');
   const msg = [
-    added > 0 ? `✅ 顧客マスタに <b>${added}社</b> を新規追加しました` : '顧客マスタの新規追加はありませんでした（全社登録済み）',
+    added > 0 ? `顧客マスタに <b>${added}社</b> を新規追加しました` : '顧客マスタの新規追加はありませんでした（全社登録済み）',
     linkedMsg,
   ].join('<br>');
   // トーストではなくアラート風ダイアログで結果を表示
@@ -693,7 +693,7 @@ function renderCustomers() {
 
   if (!customers.length) {
     document.getElementById('cusTbody').innerHTML =
-      '<tr><td colspan="5" class="empty-state"><div class="empty-icon">🔍</div>該当する顧客がありません</td></tr>';
+      '<tr><td colspan="5" class="empty-state">該当する顧客がありません</td></tr>';
     return;
   }
 
@@ -808,7 +808,7 @@ async function loadContacts(customerId) {
 function renderContacts() {
   if (!contacts.length) {
     document.getElementById('contactTbody').innerHTML =
-      '<tr><td colspan="6" class="empty-state"><div class="empty-icon">👤</div>担当者がまだいません</td></tr>';
+      '<tr><td colspan="6" class="empty-state">担当者がまだいません</td></tr>';
     return;
   }
   document.getElementById('contactTbody').innerHTML = contacts.map(c => `
@@ -821,9 +821,9 @@ function renderContacts() {
       <td onclick="event.stopPropagation()">
         <div class="actions">
           <button class="btn btn-secondary btn-icon" title="編集"
-            onclick="openContactModal('${esc(c.id)}')">✏️</button>
+            onclick="openContactModal('${esc(c.id)}')">編集</button>
           <button class="btn btn-danger btn-icon" title="削除"
-            onclick="deleteContact('${esc(c.id)}','${esc(c.name)}')">🗑</button>
+            onclick="deleteContact('${esc(c.id)}','${esc(c.name)}')">削除</button>
         </div>
       </td>
     </tr>
@@ -991,8 +991,8 @@ async function loadContactsForModal(customerId) {
           ${c.email ? `<span style="color:var(--text2);margin-left:8px;font-size:11px">${esc(c.email)}</span>` : ''}
         </div>
         <div style="display:flex;gap:4px">
-          <button class="btn btn-secondary btn-icon" onclick="editContactFromModal('${esc(c.id)}','${esc(customerId)}')">✏️</button>
-          <button class="btn btn-danger btn-icon" onclick="deleteContactFromModal('${esc(c.id)}','${esc(c.name)}','${esc(customerId)}')">🗑</button>
+          <button class="btn btn-secondary btn-icon" onclick="editContactFromModal('${esc(c.id)}','${esc(customerId)}')">編集</button>
+          <button class="btn btn-danger btn-icon" onclick="deleteContactFromModal('${esc(c.id)}','${esc(c.name)}','${esc(customerId)}')">削除</button>
         </div>
       </div>
     `).join('');
@@ -1116,7 +1116,7 @@ async function detectIndustry() {
     console.error(e);
   } finally {
     btn.disabled = false;
-    btn.textContent = '🤖 業種判定';
+    btn.textContent = '業種判定';
   }
 }
 

@@ -211,7 +211,7 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;background:var(--bg);
   <span class="topbar-logo">エー・ファクトリー株式会社｜案件管理</span>
   <div class="topbar-spacer"></div>
   <span class="topbar-date" id="hdate"></span>
-  <button class="dash-btn" onclick="location.href='dashboard.html'">← ダッシュボード</button>
+  <button class="dash-btn" onclick="location.href='dashboard.html'">ダッシュボード</button>
 </div>
 
 <div class="wrap">
@@ -260,7 +260,7 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;background:var(--bg);
             </div>
             <input type="hidden" id="customerId">
             <div id="customer-badge" style="font-size:11px;color:var(--green);margin-top:4px;display:none">
-              ✓ 顧客ID: <span id="customer-id-display"></span>
+              顧客ID: <span id="customer-id-display"></span>
             </div>
           </div>
 
@@ -420,7 +420,7 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;background:var(--bg);
                   <button type="button" id="next-action-suggest" onclick="suggestNextActionDate()"
                     style="flex:0 0 auto;background:none;border:1.5px solid var(--blue);border-radius:var(--r);
                     padding:8px 10px;font-size:11px;font-weight:700;color:var(--blue);cursor:pointer;font-family:inherit;white-space:nowrap">
-                    ✨ AI提案
+                    AI提案
                   </button>
                 </div>
                 <div id="next-action-reason" style="font-size:11px;color:var(--text3);margin-top:4px;display:none"></div>
@@ -437,7 +437,6 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;background:var(--bg);
 
   <!-- 完了画面 -->
   <div class="success" id="success">
-    <div class="success-icon">🎉</div>
     <div class="success-title">案件登録完了！</div>
     <div class="success-sub" id="s-company"></div>
     <div class="success-sub" id="s-product"></div>
@@ -900,7 +899,7 @@ async function suggestNextActionDate() {
   } catch(e) {
     showErr('AI提案の取得に失敗しました: ' + e.message);
   } finally {
-    btn.disabled = false; btn.textContent = '✨ AI提案';
+    btn.disabled = false; btn.textContent = 'AI提案';
   }
 }
 
