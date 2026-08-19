@@ -2567,6 +2567,9 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
   // 決定・売上のみの月別合計（フッター「決定+売上計」行用。A/B/Cはまだ確度が低く合算しても意味が薄いため除外）
   const confirmedMonthTotals={};
   fyMonths.forEach(m=>{confirmedMonthTotals[yyyyMM(m.year,m.month)]=0});
+  // 決定・売上・Aランクの月別合計（フッター「売上＋決定＋A」行用）
+  const confirmedPlusAMonthTotals={};
+  fyMonths.forEach(m=>{confirmedPlusAMonthTotals[yyyyMM(m.year,m.month)]=0});
   const lastFyYM=yyyyMM(fyMonths[fyMonths.length-1].year,fyMonths[fyMonths.length-1].month);
 
   // 各案件の月別粗利を事前計算（粗利合計÷月数で月別分配）
@@ -2598,6 +2601,7 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
     const rank=d['確度ランク'];
     const isLost=rank==='失注';
     const isConfirmed=rank==='決定'||rank==='売上';
+    const isConfirmedPlusA=isConfirmed||rank==='A';
     const loopCap=isOngoing?600:months; // 継続課金は表示範囲末尾か終了月で打ち切る安全弁
     for(let i=0;i<loopCap;i++){
       const d2=new Date(ey,em-1+i,1);
@@ -2609,6 +2613,7 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
         cellAmts[cym]=(cellAmts[cym]||0)+amt;
         if(!isLost) monthTotals[cym]+=amt; // 失注は合計に含めない
         if(isConfirmed) confirmedMonthTotals[cym]+=amt;
+        if(isConfirmedPlusA) confirmedPlusAMonthTotals[cym]+=amt;
       }
     }
     dealCellAmts.set(d,cellAmts);
@@ -2822,10 +2827,25 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
       ${v!==0?`<span class="tl-amt" style="color:${v<0?'#dc2626':'#2563eb'};font-weight:800">${fmtYen(v)}</span>`:''}
     </td>`;
   }).join('');
+  const yomiPlusACells=fyMonths.map(m=>{
+    const ym=yyyyMM(m.year,m.month);
+    const isCur=ym===todayYM;
+    const mgId=ymToMG[ym];
+    const v=Math.round(confirmedPlusAMonthTotals[ym]||0); // yen
+    const footBg=v>0?';background:#eff6ff':v<0?';background:#fef2f2':'';
+    return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}${footBg}">
+      ${v!==0?`<span class="tl-amt" style="color:${v<0?'#dc2626':'#7c3aed'};font-weight:800">${fmtYen(v)}</span>`:''}
+    </td>`;
+  }).join('');
   document.getElementById('tl-tfoot').innerHTML=`<tr style="border-top:2px solid var(--border)">
     <td class="td-co" style="color:#2563eb;font-weight:700">確定合計</td>
     <td class="td-name" style="color:var(--text3);font-size:11px">売上＋決定</td>
     ${yomiCells}
+  </tr>
+  <tr>
+    <td class="td-co" style="color:#7c3aed;font-weight:700">見込含む</td>
+    <td class="td-name" style="color:var(--text3);font-size:11px">売上＋決定＋A</td>
+    ${yomiPlusACells}
   </tr>`;
   renderMGBtns();
 }
