@@ -611,7 +611,17 @@ body.modal-open{overflow:hidden}
           <i data-lucide="calendar-range" style="width:16px;height:16px;color:var(--blue)"></i> 月別推移
         </span>
         <div id="mg-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
-        <span style="font-size:11px;color:var(--text3);margin-left:auto" id="timeline-hint"></span>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-left:auto">
+          <div id="company-filter-bar" style="display:none;align-items:center;gap:6px;flex-wrap:wrap">
+            <span style="font-size:11px;font-weight:700;color:var(--text3);white-space:nowrap">計上会社</span>
+            <div id="company-filter-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+          </div>
+          <div id="product-filter-bar" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span style="font-size:11px;font-weight:700;color:var(--text3);white-space:nowrap">商材</span>
+            <div id="product-filter-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+          </div>
+          <span style="font-size:11px;color:var(--text3)" id="timeline-hint"></span>
+        </div>
       </div>
     </div>
     <div class="timeline-scroll">
@@ -628,18 +638,6 @@ body.modal-open{overflow:hidden}
         <tfoot id="tl-tfoot"></tfoot>
       </table>
     </div>
-  </div>
-
-  <!-- 会社フィルター -->
-  <div id="company-filter-bar" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:12px">
-    <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:8px;letter-spacing:.05em">計上会社フィルター</div>
-    <div id="company-filter-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
-  </div>
-
-  <!-- 商材フィルター -->
-  <div id="product-filter-bar" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:12px">
-    <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:8px;letter-spacing:.05em">商材フィルター</div>
-    <div id="product-filter-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
   </div>
 
   <!-- アラート -->
@@ -3748,20 +3746,28 @@ function toggleMG(mgId){
 // ============================================================
 // 会社フィルター
 // ============================================================
+const COMPANY_SHORT_LABEL={
+  'エー・ファクトリー株式会社':'af',
+  'サテライトサポート':'サテサポ',
+  'SORA':'SORA',
+  'ワイズフォー':"Y's",
+  'シンカ社労士':'シンカ',
+  'エー・ファクトリー社労士':'AFSR'
+};
 function buildCompanyFilterBtns(){
   const bar=document.getElementById('company-filter-bar');
   const c=document.getElementById('company-filter-btns');
   if(!c)return;
   const companies=masterData?.companies||[];
   const hasCompanies=companies.length>0;
-  bar.style.display=hasCompanies?'':'none';
+  bar.style.display=hasCompanies?'flex':'none';
   if(!hasCompanies)return;
 
   const filters=[
     {key:'all',label:'全社'},
-    {key:'kabushiki',label:'株式会社'},
+    {key:'kabushiki',label:'株'},
     {key:'sharoushi',label:'社労士'},
-    ...companies.filter(co=>co.status==='有効').map(co=>({key:co.name,label:co.name}))
+    ...companies.filter(co=>co.status==='有効').map(co=>({key:co.name,label:COMPANY_SHORT_LABEL[co.name]||co.name}))
   ];
   c.innerHTML=filters.map(f=>{
     const active=currentCompanyFilter===f.key;
