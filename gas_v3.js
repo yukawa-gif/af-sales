@@ -1054,18 +1054,24 @@ function syncDealsForProductPriceChange_(productCode, field, oldValue, newValue)
     row[target.priceCol] = newValue;
 
     if (!target.isB) {
-      // A行の単価変更は売上予定額・費用合計・粗利・インセンティブを再計算
-      // （現行仕様どおりB行の金額はこの合計には含めない）
-      const unitSales = Number(row[idx('売上（単価）')]) || 0;
-      const unitCost  = Number(row[idx('費用（単価）')]) || 0;
-      const courses   = Math.max(1, Number(row[idx('コース数')]) || 1);
-      const qty       = Math.max(1, Number(row[idx('件数')])     || 1);
-      const months    = Math.max(1, Number(row[idx('月数')])     || 1);
-      const monthlyGP = (unitSales - unitCost) * courses * qty;
+      // A行の単価変更は売上予定額・費用合計・粗利・インセンティブを再計算。
+      // addDeal()/updateDeal()と同じ式（B行の一時金 bLumpGP を含める）に揃える。
+      // 旧実装はB行を含めずに粗利を再計算しており、B行を持つ案件（社労士顧問の初期費用など）で
+      // 単価改定のたびに粗利からB行分が消えてしまうバグがあった（2026-08-01発覚）。
+      const unitSales  = Number(row[idx('売上（単価）')]) || 0;
+      const unitCost   = Number(row[idx('費用（単価）')]) || 0;
+      const courses    = Math.max(1, Number(row[idx('コース数')]) || 1);
+      const qty        = Math.max(1, Number(row[idx('件数')])     || 1);
+      const months     = Math.max(1, Number(row[idx('月数')])     || 1);
+      const bUnitSales = Number(row[idx('B売上単価')]) || 0;
+      const bUnitCost  = Number(row[idx('B費用単価')]) || 0;
+      const bQty       = Number(row[idx('B件数')])     || 0;
+      const monthlyGP  = (unitSales - unitCost) * courses * qty;
+      const bLumpGP    = (bUnitSales - bUnitCost) * bQty;
 
-      row[idx('売上予定額')]   = unitSales * courses * qty * months;
-      row[idx('費用（合計）')] = unitCost  * courses * qty * months;
-      row[idx('粗利')]         = monthlyGP * months;
+      row[idx('売上予定額')]   = unitSales * courses * qty * months + bUnitSales * bQty;
+      row[idx('費用（合計）')] = unitCost  * courses * qty * months + bUnitCost  * bQty;
+      row[idx('粗利')]         = monthlyGP * months + bLumpGP;
       // 計上済み（インセンティブ計上済み=true）の案件は、単価変更があっても
       // 月割りの再計算はしない（既に確定支給された金額を縮小させないため）
       const alreadyPaid = !!row[idx('インセンティブ計上済み')];
@@ -1113,6 +1119,103 @@ function setupProductPriceTrigger() {
     .onEdit()
     .create();
   Logger.log('onProductPriceEdit トリガーを登録しました');
+}
+
+// ============================================================
+// 粗利整合性チェック（株式会社オアシス社労士顧問で発覚した事例への対応）
+// ============================================================
+// 単価（売上単価・費用単価・コース数・件数・月数・B行）だけ後から修正され、
+// 粗利列が再計算されないまま古い値が残っている案件を洗い出す診断関数。
+// updateDeal() が単価系フィールドを受け取ったときに再計算する式（monthlyGP*months+bLumpGP）と
+// 同じ式で「本来あるべき粗利」を計算し、シートに保存済みの粗利と比較する。
+// 読み取り専用（案件マスタは変更しない）。GASエディタの関数選択から手動実行すること。
+function auditGrossProfitMismatches() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('案件マスタ');
+  const rows = sheet.getDataRange().getValues();
+  const idx = name => DEAL_HEADERS.indexOf(name);
+
+  const results = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const rank = row[idx('確度ランク')];
+    if (!row[idx('案件ID')] || rank === '失注') continue;
+
+    const unitSales  = Number(row[idx('売上（単価）')]) || 0;
+    const unitCost   = Number(row[idx('費用（単価）')]) || 0;
+    const courses    = Number(row[idx('コース数')]) || 1;
+    const qty        = Number(row[idx('件数')]) || 1;
+    const months     = Number(row[idx('月数')]) || 1;
+    const bUnitSales = Number(row[idx('B売上単価')]) || 0;
+    const bUnitCost  = Number(row[idx('B費用単価')]) || 0;
+    const bQty       = Number(row[idx('B件数')]) || 0;
+    const storedGP   = Number(row[idx('粗利')]) || 0;
+
+    const expectedGP = (unitSales - unitCost) * courses * qty * months + (bUnitSales - bUnitCost) * bQty;
+    const diff = storedGP - expectedGP;
+
+    if (Math.abs(diff) >= 1) {
+      results.push([
+        row[idx('案件ID')], row[idx('会社名')], row[idx('商材名')], rank,
+        storedGP, expectedGP, diff, i + 1
+      ]);
+    }
+  }
+
+  let outSheet = ss.getSheetByName('粗利整合性チェック');
+  if (outSheet) outSheet.clearContents(); else outSheet = ss.insertSheet('粗利整合性チェック');
+  outSheet.appendRow(['案件ID', '会社名', '商材名', '確度ランク', '保存済み粗利', '単価から計算した粗利', '差額', '案件マスタの行番号']);
+  results.forEach(r => outSheet.appendRow(r));
+
+  Logger.log(results.length + '件のズレを検出しました（詳細は「粗利整合性チェック」シート参照）');
+  return results.length;
+}
+
+// auditGrossProfitMismatches() で洗い出した行の粗利列を、単価側を正として一括で書き換える。
+// dryRun=true（デフォルト）はシートを書き換えず件数の確認のみ。内容を確認したうえで
+// fixGrossProfitMismatches(false) を実行すると実際に案件マスタの粗利列を上書きする。
+// updateDeal() の再計算式と完全に同じ式を使うため、ダッシュボードの編集モーダルで
+// 該当案件を1件ずつ「保存」し直すのと同じ結果になる（それを一括で行うだけ）。
+function fixGrossProfitMismatches(dryRun) {
+  if (dryRun === undefined) dryRun = true;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('案件マスタ');
+  const rows = sheet.getDataRange().getValues();
+  const idx = name => DEAL_HEADERS.indexOf(name);
+  const gpCol = idx('粗利') + 1;
+
+  let fixed = 0;
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const rank = row[idx('確度ランク')];
+    if (!row[idx('案件ID')] || rank === '失注') continue;
+
+    const unitSales  = Number(row[idx('売上（単価）')]) || 0;
+    const unitCost   = Number(row[idx('費用（単価）')]) || 0;
+    const courses    = Number(row[idx('コース数')]) || 1;
+    const qty        = Number(row[idx('件数')]) || 1;
+    const months     = Number(row[idx('月数')]) || 1;
+    const bUnitSales = Number(row[idx('B売上単価')]) || 0;
+    const bUnitCost  = Number(row[idx('B費用単価')]) || 0;
+    const bQty       = Number(row[idx('B件数')]) || 0;
+    const storedGP   = Number(row[idx('粗利')]) || 0;
+
+    const expectedGP = (unitSales - unitCost) * courses * qty * months + (bUnitSales - bUnitCost) * bQty;
+    if (Math.abs(storedGP - expectedGP) < 1) continue;
+
+    fixed++;
+    if (!dryRun) sheet.getRange(i + 1, gpCol).setValue(expectedGP);
+  }
+
+  Logger.log((dryRun ? '[dryRun] ' : '') + fixed + '件の粗利を' + (dryRun ? '修正対象として検出' : '修正しました'));
+  if (!dryRun) invalidateAllDataCache_();
+  return fixed;
+}
+
+// GASエディタの「実行」ボタンは引数を渡せないため、fixGrossProfitMismatches(false)を
+// ワンクリックで実行するための引数なしラッパー。実際に案件マスタの粗利列を書き換える。
+function fixGrossProfitMismatchesNow() {
+  return fixGrossProfitMismatches(false);
 }
 
 // ============================================================

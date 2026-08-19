@@ -326,7 +326,6 @@ body.sidebar-collapsed #sidebar-toggle-icon{transform:rotate(180deg)}
   -webkit-appearance:none;transition:var(--transition)}
 .goal-input-sm:focus{outline:none;border-color:var(--blue);
   box-shadow:0 0 0 3px rgba(37,99,235,.12)}
-.goal-input-inherited{color:var(--text3);border-style:dashed;background:rgba(37,99,235,.05)}
 .goal-th-today{outline:2px solid var(--blue);outline-offset:-2px}
 .goal-hint{font-size:10px;color:var(--text3)}
 .goal-modal-note{font-size:12px;color:var(--text2);padding:0 20px 10px;
@@ -500,6 +499,27 @@ body.modal-open{overflow:hidden}
      ロゴ・FYバッジ・更新ボタンの表示スペースを確保する */
   #last-updated{display:none}
 }
+
+/* ─── スマホ向け軽量ビュー（?view=timeline）───
+   月別推移タイムラインだけを表示し、他カード・サイドバーは非表示にする。
+   render() 側でも該当カードの描画自体をスキップして読み込みを軽くする（後述）。 */
+body.view-timeline-only .sidebar,
+body.view-timeline-only .sidebar-toggle-btn,
+body.view-timeline-only #settings-menu-btn,
+body.view-timeline-only #unpaid-alert-area,
+body.view-timeline-only #yomi-hero,
+body.view-timeline-only .wkpi-card,
+body.view-timeline-only #cashflow-card,
+body.view-timeline-only #pipeline-person-card,
+body.view-timeline-only #goals-person-card,
+body.view-timeline-only .ai-card,
+body.view-timeline-only #chart-card,
+body.view-timeline-only #detail-panel,
+body.view-timeline-only .bottom-grid{display:none!important}
+body.view-timeline-only .main,
+body.view-timeline-only #admin-section{margin-left:0}
+body.view-timeline-only #tl-person-select{display:inline-block!important}
+body.view-timeline-only #tl-back-link{display:inline-flex!important}
 </style>
 </head>
 <body>
@@ -611,6 +631,7 @@ body.modal-open{overflow:hidden}
           <i data-lucide="calendar-range" style="width:16px;height:16px;color:var(--blue)"></i> 月別推移
         </span>
         <div id="mg-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+        <select id="tl-person-select" onchange="selectPerson(this.value)" style="display:none;font-size:12px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit"></select>
         <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-left:auto">
           <div id="company-filter-bar" style="display:none;align-items:center;gap:6px;flex-wrap:wrap">
             <span style="font-size:11px;font-weight:700;color:var(--text3);white-space:nowrap">計上会社</span>
@@ -621,6 +642,7 @@ body.modal-open{overflow:hidden}
             <div id="product-filter-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
           </div>
           <span style="font-size:11px;color:var(--text3)" id="timeline-hint"></span>
+          <a id="tl-back-link" href="dashboard.html" style="display:none;font-size:11px;color:var(--blue);text-decoration:none;white-space:nowrap">通常表示へ ▸</a>
         </div>
       </div>
     </div>
@@ -1008,8 +1030,7 @@ body.modal-open{overflow:hidden}
       <div class="modal-title">⚙ 目標設定 <span id="gm-fy" style="color:var(--text3);font-size:14px"></span></div>
     </div>
     <div class="modal-body" style="padding:12px 16px">
-      <p class="goal-modal-note">各月の粗利目標（万円）を入力してください。前期・中期・後期・年間合計が自動計算されます。<br>
-      <span style="color:var(--text3)">点線＝前年度の値を引き継いだ未確定値（そのまま保存すると今年度の目標として確定します。変更する場合は上書きしてください）</span></p>
+      <p class="goal-modal-note">各月の粗利目標（万円）を入力してください。前期・中期・後期・年間合計が自動計算されます。</p>
       <div id="goal-name-mismatch-warn" class="goal-name-warn" style="display:none"></div>
       <div class="table-scroll">
       <table class="goal-table">
@@ -1199,6 +1220,10 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbyAC_jurLseKlw5gw8s15p6
 const CACHE_KEY = 'af_dashboard_v1';
 const CACHE_TTL = 30 * 60 * 1000; // 30分（バックグラウンド更新するので長めでOK）
 
+// スマホ向け軽量ビュー（dashboard.html?view=timeline）: 月別推移タイムラインのみ表示。
+// サイドバー・他カードをCSSで隠すだけでなく、render()側でも該当カードの描画自体をスキップする。
+const TIMELINE_ONLY = new URLSearchParams(window.location.search).get('view') === 'timeline';
+
 // ============================================================
 // 通信ヘルパー
 // ============================================================
@@ -1310,7 +1335,7 @@ function toMan(yen){return Math.round(yen/10000)}
 function fmt(v){return v==null||isNaN(v)?'—':Number(v).toLocaleString()}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
-function fmtYen(v){return v==null||isNaN(v)||v===0?'':Number(v).toLocaleString()}
+function fmtYen(v){return v==null||isNaN(v)?'':Number(v).toLocaleString()}
 function fmtMan(yen){
   const v=toMan(yen);
   if(Math.abs(yen)>=100000000){
@@ -1443,6 +1468,7 @@ async function init(){
 async function initImpl(){
   toggleSidebar(localStorage.getItem('sidebar_collapsed')==='1');
   updateFYBadge();
+  if(TIMELINE_ONLY) document.body.classList.add('view-timeline-only');
 
   const isAdmin = window.location.hash === '#admin';
 
@@ -1599,6 +1625,7 @@ function applyDashboardData(cache){
     pd.forEach((p,i)=>{personColorMap[p.name]=PERSON_COLORS[i%PERSON_COLORS.length]});
     buildSidebar(pd);
     buildCompanyFilterBtns();
+    if(TIMELINE_ONLY) buildTimelineOnlyPersonSelect(pd);
   }
   buildProductFilterBtns();
   // 30秒以内に保存した場合はバックグラウンドフェッチによる上書きを防ぐ
@@ -1650,12 +1677,23 @@ function buildSidebar(details){
   });
 }
 
+// 軽量ビュー（?view=timeline）用：サイドバー代わりの担当者セレクトボックス
+function buildTimelineOnlyPersonSelect(details){
+  const sel=document.getElementById('tl-person-select');
+  if(!sel) return;
+  sel.innerHTML='<option value="__all__">チーム全体</option>' +
+    details.filter(p=>p.status==='在籍中')
+      .map(p=>`<option value="${esc(p.name)}">${esc(p.name)}</option>`).join('');
+}
+
 function selectPerson(name){
   document.querySelectorAll('.person-card').forEach(c=>c.classList.remove('active'));
   const card=document.getElementById('pc-'+name);
   if(card) card.classList.add('active');
   currentPerson=name;
   localStorage.setItem('dashboard_person',name);
+  const tlSel=document.getElementById('tl-person-select');
+  if(tlSel) tlSel.value=name;
   selectedDealIds.clear();
   // 担当者切替時：進行中のAIアドバイス取得があれば結果を無効化し、パネルを初期状態に戻す
   aiRequestToken++;
@@ -1772,18 +1810,20 @@ function render(person){
     referrals: weeklyKpi.referrals > 0 ? Math.round(weeklyKpi.referrals / 5) : 0,
   };
 
-  renderUnpaidAlert(personDeals);
-  renderWeeklyKPI(person,isTeam);
   renderTimeline(personDeals,actualByMonth,person,isTeam);
-  renderCashFlow(personDeals);
-  renderPipelineByPerson(personDeals,isTeam);
-  renderGoalsByPerson(personDeals,isTeam);
-  renderPersonDetail(personDeals,isTeam);
-  renderIncentiveCard(person,isTeam);
-  pendingChartArgs = [personDeals, person, isTeam];
-  if (chartPanelOpen) {
-    renderAchievementChart(...pendingChartArgs);
-    pendingChartArgs = null;
+  if(!TIMELINE_ONLY){
+    renderUnpaidAlert(personDeals);
+    renderWeeklyKPI(person,isTeam);
+    renderCashFlow(personDeals);
+    renderPipelineByPerson(personDeals,isTeam);
+    renderGoalsByPerson(personDeals,isTeam);
+    renderPersonDetail(personDeals,isTeam);
+    renderIncentiveCard(person,isTeam);
+    pendingChartArgs = [personDeals, person, isTeam];
+    if (chartPanelOpen) {
+      renderAchievementChart(...pendingChartArgs);
+      pendingChartArgs = null;
+    }
   }
 }
 
@@ -2145,8 +2185,8 @@ function renderYomiHero(deals){
         ${breakdown.map(b=>`
           <div style="text-align:center;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:8px 14px;min-width:72px">
             <div style="font-size:9px;color:rgba(255,255,255,.55);font-weight:700;letter-spacing:.04em;margin-bottom:3px">${b.rank}&nbsp;×${Math.round(b.prob*100)}%</div>
-            <div style="font-size:15px;font-weight:800;color:#fff">${b.wMan>0?fmt(b.wMan)+'万':'—'}</div>
-            <div style="font-size:9px;color:rgba(255,255,255,.38);margin-top:1px">粗利${b.gpMan>0?fmt(b.gpMan)+'万':'—'}</div>
+            <div style="font-size:15px;font-weight:800;color:#fff">${b.wMan!==0?fmt(b.wMan)+'万':'—'}</div>
+            <div style="font-size:9px;color:rgba(255,255,255,.38);margin-top:1px">粗利${b.gpMan!==0?fmt(b.gpMan)+'万':'—'}</div>
           </div>`).join('')}
       </div>
     </div>`;
@@ -2544,8 +2584,15 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
     const bUnitCost =Number(d['B費用単価'])||0;
     const bQty      =Number(d['B件数'])||0;
     const bLumpGP=(bUnitSales-bUnitCost)*bQty;
-    const monthlyAmt=((Number(d['粗利'])||0)-bLumpGP)/months;
     const isOngoing=!!d['継続課金'];
+    // 継続課金は「粗利（合計）÷月数」で逆算すると、合計が月数で割り切れない行（レガシー移行データ等）で
+    // 端数が出て毎月の表示額がズレるため、単価×コース数×件数から都度クリーンに算出する。
+    // 継続課金でない通常の複数月案件は、月数どおりに一括計上済みの粗利を按分するため従来どおり合計÷月数のまま。
+    const courses=Math.max(1,Number(d['コース数'])||1);
+    const qty    =Math.max(1,Number(d['件数'])||1);
+    const monthlyAmt=isOngoing
+      ? ((Number(d['売上（単価）'])||0)-(Number(d['費用（単価）'])||0))*courses*qty
+      : ((Number(d['粗利'])||0)-bLumpGP)/months;
     const endYM=String(d['継続終了月']||'').slice(0,7);
     const cellAmts={};
     const rank=d['確度ランク'];
@@ -2654,8 +2701,9 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
     const isCur=ym===todayYM;
     const mgId=ymToMG[ym];
     const v=Math.round(actualDisplayByMonthYen[ym]||0); // 円
-    return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}${v>0?';background:#f0fdf4':''}">
-      ${v>0?`<span class="tl-amt" style="color:#16a34a;font-weight:700">${fmtYen(v)}</span>`:''}
+    const bg=v>0?';background:#f0fdf4':v<0?';background:#fef2f2':'';
+    return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}${bg}">
+      ${v!==0?`<span class="tl-amt" style="color:${v<0?'#dc2626':'#16a34a'};font-weight:700">${fmtYen(v)}</span>`:''}
     </td>`;
   }).join('');
   // 当月以降合計＝表示中の月のうち当月（todayYM）以降のセルだけを合計
@@ -2712,7 +2760,7 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
       const mgId=ymToMG[ym];
       const v=Math.round(rankMonthTotals[ym]||0); // yen
       return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)};background:${color}18">
-        ${v>0?`<span style="color:${color};font-weight:700">${fmtYen(v)}</span>`:''}
+        ${v!==0?`<span style="color:${v<0?'#dc2626':color};font-weight:700">${fmtYen(v)}</span>`:''}
       </td>`;
     }).join('');
 
@@ -2742,8 +2790,9 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
         const isCur=ym===todayYM;
         const mgId=ymToMG[ym];
         const v=Math.round(cellAmts[ym]||0); // yen
-        return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}${v>0?';background:'+color+'0d':''}">
-          ${v>0?`<span class="tl-amt" style="color:${color}">${fmtYen(v)}</span>`:''}
+        const cellBg=v>0?';background:'+color+'0d':v<0?';background:#dc262618':'';
+        return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}${cellBg}">
+          ${v!==0?`<span class="tl-amt" style="color:${v<0?'#dc2626':color}">${fmtYen(v)}</span>`:''}
         </td>`;
       }).join('');
 
@@ -2768,8 +2817,9 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
     const isCur=ym===todayYM;
     const mgId=ymToMG[ym];
     const v=Math.round(confirmedMonthTotals[ym]||0); // yen
-    return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}${v>0?';background:#eff6ff':''}">
-      ${v>0?`<span class="tl-amt" style="color:#2563eb;font-weight:800">${fmtYen(v)}</span>`:''}
+    const footBg=v>0?';background:#eff6ff':v<0?';background:#fef2f2':'';
+    return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}${footBg}">
+      ${v!==0?`<span class="tl-amt" style="color:${v<0?'#dc2626':'#2563eb'};font-weight:800">${fmtYen(v)}</span>`:''}
     </td>`;
   }).join('');
   document.getElementById('tl-tfoot').innerHTML=`<tr style="border-top:2px solid var(--border)">
@@ -3460,7 +3510,7 @@ function renderGoalModalTable(){
         const ym=yyyyMM(fyMonths[i].year,fyMonths[i].month);
         const val=months[ym]!=null?months[ym]:'';
         return `<td class="${period.cls}"><input class="goal-input-sm" type="number" min="0" step="10"
-          data-pi="${pi}" data-ym="${ym}" value="${val}" placeholder="0" oninput="this.classList.remove('goal-input-inherited');calcGoalRow(${pi})"></td>`;
+          data-pi="${pi}" data-ym="${ym}" value="${val}" placeholder="0" oninput="calcGoalRow(${pi})"></td>`;
       }).join('')+`<td class="td-sum" id="gsum-${pi}-${period.cls}">—</td>`
     ).join('');
     return `<tr><td>${esc(p.name)}</td>${monthCells}<td class="td-annual" id="gannual-${pi}">—</td></tr>`;
@@ -3480,43 +3530,6 @@ function renderGoalModalTable(){
   persons.forEach((_,pi)=>calcGoalRow(pi));
 
   setTimeout(()=>document.querySelector('#goal-tbody input')?.focus(),50);
-
-  // 未保存（空欄）の月は前年度の同月の値を引き継いでプリセット表示（保存するまで確定しない）
-  fillInheritedGoalDefaults(persons);
-}
-
-// 前年度目標データのキャッシュ（FY文字列 → goals or null）
-let prevGoalsCache={};
-async function fillInheritedGoalDefaults(persons){
-  const prevFY='FY'+(currentFY-1);
-  let prevGoals=prevGoalsCache[prevFY];
-  if(prevGoals===undefined){
-    try{
-      const d=await gasGet({ mode:'goals', fy:prevFY });
-      prevGoals = d.success ? d.goals : null;
-    }catch(e){ prevGoals=null; }
-    prevGoalsCache[prevFY]=prevGoals;
-  }
-  if(!prevGoals?.persons?.length) return;
-  // フェッチ中にモーダルが閉じられていたら何もしない
-  if(!document.getElementById('goal-modal').classList.contains('open')) return;
-
-  persons.forEach((p,pi)=>{
-    const prevPg=prevGoals.persons.find(g=>g.name===p.name);
-    if(!prevPg?.months) return;
-    let changed=false;
-    document.querySelectorAll(`#goal-tbody input[data-pi="${pi}"]`).forEach(inp=>{
-      if(inp.value!=='') return; // 今年度に既に値がある／入力済みのセルは上書きしない
-      const [y,m]=inp.dataset.ym.split('-');
-      const prevVal=prevPg.months[(Number(y)-1)+'-'+m];
-      if(prevVal!=null){
-        inp.value=prevVal;
-        inp.classList.add('goal-input-inherited');
-        changed=true;
-      }
-    });
-    if(changed) calcGoalRow(pi);
-  });
 }
 
 function goalPersons(){
@@ -3556,8 +3569,7 @@ function calcGoalRow(pi){
     p.indices.forEach(i=>{
       const ym=yyyyMM(fyMonths[i].year,fyMonths[i].month);
       const inp=document.querySelector(`#goal-tbody input[data-pi="${pi}"][data-ym="${ym}"]`);
-      // 前年度から引き継いだ未確定値（点線表示）はまだ営業が入力していないため合計に含めない
-      sum+=(inp&&!inp.classList.contains('goal-input-inherited'))?(parseInt(inp.value)||0):0;
+      sum+=inp?parseInt(inp.value)||0:0;
     });
     const el=document.getElementById(`gsum-${pi}-${p.cls}`);
     if(el) el.textContent=fmt(sum);
@@ -3576,8 +3588,6 @@ function calcGoalTotals(){
       const ym=yyyyMM(fyMonths[i].year,fyMonths[i].month);
       let monthTotal=0;
       document.querySelectorAll(`#goal-tbody input[data-ym="${ym}"]`).forEach(inp=>{
-        // 前年度から引き継いだ未確定値（点線表示）はまだ営業が入力していないため合計に含めない
-        if(inp.classList.contains('goal-input-inherited')) return;
         monthTotal+=parseInt(inp.value)||0;
       });
       const el=document.getElementById(`gtotal-${ym}`);
@@ -3844,16 +3854,20 @@ function computeDealCashFlowAmts(d,validYms,fyYmList){
   const expYM=String(d['売上予定月']||'').slice(0,7);
   const isOngoing=!!d['継続課金'];
   const endYM=String(d['継続終了月']||'').slice(0,7);
-  const months=Math.max(1,Number(d['月数'])||1);
   // B行（複合商材）は月数に関わらず一回きりの金額のため、継続課金の月別按分からは除外し
   // 最初の月（売上予定月）にまとめて計上する
   const bQty=Number(d['B件数'])||0;
   const bSalesLump=(Number(d['B売上単価'])||0)*bQty;
   const bCostLump =(Number(d['B費用単価'])||0)*bQty;
+  // 継続課金の月額は「合計÷月数」で逆算せず、単価×コース数×件数から直接算出する。
+  // 合計値が月数ぴったりで割り切れない行（レガシー移行データや途中月からの契約など）でも
+  // 毎月同じクリーンな金額になるようにするため。
+  const courses=Math.max(1,Number(d['コース数'])||1);
+  const qty=Math.max(1,Number(d['件数'])||1);
 
   const revAmts={};
   if(isOngoing){
-    const monthlyRev=((Number(d['売上予定額'])||0)-bSalesLump)/months;
+    const monthlyRev=(Number(d['売上（単価）'])||0)*courses*qty;
     fyYmList.forEach(ym=>{
       if(ym<expYM||(endYM&&ym>endYM))return;
       revAmts[ym]=(revAmts[ym]||0)+monthlyRev+(ym===expYM?bSalesLump:0);
@@ -3870,7 +3884,7 @@ function computeDealCashFlowAmts(d,validYms,fyYmList){
       if(validYms.has(ym)) costAmts[ym]=(costAmts[ym]||0)+(Number(s.amount)||0);
     });
   } else if(isOngoing){
-    const monthlyCost=((Number(d['費用（合計）'])||0)-bCostLump)/months;
+    const monthlyCost=(Number(d['費用（単価）'])||0)*courses*qty;
     fyYmList.forEach(ym=>{
       if(ym<expYM||(endYM&&ym>endYM))return;
       costAmts[ym]=(costAmts[ym]||0)+monthlyCost+(ym===expYM?bCostLump:0);
@@ -4078,22 +4092,11 @@ function renderIncentiveCard(person, isTeam){
     // 商材マスタ登録済みなら金額0でも表示（未登録商材は除外）
     if(totalIncentive<=0 && !pDetail) return;
 
-    if(months<=1){
-      // スポット：売上予定月のみ
-      if(startYM>=fyStartYM){
-        if(!byMonth[startYM]) byMonth[startYM]=[];
-        byMonth[startYM].push({d, amt:totalIncentive});
-      }
-    }else{
-      // ストック：契約期間中の各月
-      for(let i=0;i<months;i++){
-        const base=new Date(startYM+'-01');
-        base.setMonth(base.getMonth()+i);
-        const ym=yyyyMM(base.getFullYear(),base.getMonth()+1);
-        if(ym<fyStartYM) continue;
-        if(!byMonth[ym]) byMonth[ym]=[];
-        byMonth[ym].push({d, amt:Math.floor(totalIncentive/months)});
-      }
+    // GAS側は月数・商材タイプに関わらず「決定→売上」確定時に契約全期間分のインセンティブを
+    // 一括計上する設計（月割り分割はしない）。表示側もそれに合わせ、売上予定月に全額を計上する。
+    if(startYM>=fyStartYM){
+      if(!byMonth[startYM]) byMonth[startYM]=[];
+      byMonth[startYM].push({d, amt:totalIncentive});
     }
   });
 
