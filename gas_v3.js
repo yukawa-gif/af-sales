@@ -1481,6 +1481,10 @@ function saveGoals(d) {
     if (!goalsSheet) goalsSheet = ss.insertSheet(SHEET_GOALS);
     goalsSheet.getRange(1, 1).setValue(goalsJson);
 
+    // mode=all（getAllData）はgoalsを含めて5分間キャッシュしているため、
+    // ここで破棄しないと保存直後のバックグラウンド再取得で古い目標値に上書きされてしまう
+    invalidateAllDataCache_();
+
     return json({ success: true });
   } catch(err) {
     return json({ success: false, error: err.message });
