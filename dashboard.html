@@ -2593,8 +2593,10 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
     // 継続課金でない通常の複数月案件は、月数どおりに一括計上済みの粗利を按分するため従来どおり合計÷月数のまま。
     const courses=Math.max(1,Number(d['コース数'])||1);
     const qty    =Math.max(1,Number(d['件数'])||1);
+    // 継続課金のB行（複合商材）は毎月繰り返し発生する契約とみなし、A行と同様に毎月計上する。
+    // 通常の複数月案件のB行は月数に関わらず一回きりの金額のため、下のループで最初の月にのみ加算する。
     const monthlyAmt=isOngoing
-      ? ((Number(d['売上（単価）'])||0)-(Number(d['費用（単価）'])||0))*courses*qty
+      ? ((Number(d['売上（単価）'])||0)-(Number(d['費用（単価）'])||0))*courses*qty+bLumpGP
       : ((Number(d['粗利'])||0)-bLumpGP)/months;
     const endYM=String(d['継続終了月']||'').slice(0,7);
     const cellAmts={};
@@ -2609,7 +2611,7 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
       if(cym>lastFyYM)break; // 表示範囲を超えたら打ち切り
       if(isOngoing&&endYM&&cym>endYM)break; // 終了月を過ぎたら打ち切り
       if(monthTotals[cym]!==undefined){
-        const amt=monthlyAmt+(i===0?bLumpGP:0);
+        const amt=isOngoing?monthlyAmt:(monthlyAmt+(i===0?bLumpGP:0));
         cellAmts[cym]=(cellAmts[cym]||0)+amt;
         if(!isLost) monthTotals[cym]+=amt; // 失注は合計に含めない
         if(isConfirmed) confirmedMonthTotals[cym]+=amt;
@@ -3874,7 +3876,8 @@ function computeDealCashFlowAmts(d,validYms,fyYmList){
   const expYM=String(d['売上予定月']||'').slice(0,7);
   const isOngoing=!!d['継続課金'];
   const endYM=String(d['継続終了月']||'').slice(0,7);
-  // B行（複合商材）は月数に関わらず一回きりの金額のため、継続課金の月別按分からは除外し
+  // B行（複合商材）は継続課金案件では毎月繰り返し発生する契約とみなし、A行と同様に毎月計上する。
+  // 継続課金でない通常の複数月案件では、B行は月数に関わらず一回きりの金額のため
   // 最初の月（売上予定月）にまとめて計上する
   const bQty=Number(d['B件数'])||0;
   const bSalesLump=(Number(d['B売上単価'])||0)*bQty;
@@ -3890,7 +3893,7 @@ function computeDealCashFlowAmts(d,validYms,fyYmList){
     const monthlyRev=(Number(d['売上（単価）'])||0)*courses*qty;
     fyYmList.forEach(ym=>{
       if(ym<expYM||(endYM&&ym>endYM))return;
-      revAmts[ym]=(revAmts[ym]||0)+monthlyRev+(ym===expYM?bSalesLump:0);
+      revAmts[ym]=(revAmts[ym]||0)+monthlyRev+bSalesLump;
     });
   } else if(validYms.has(expYM)){
     revAmts[expYM]=(revAmts[expYM]||0)+(Number(d['売上予定額'])||0);
@@ -3907,7 +3910,7 @@ function computeDealCashFlowAmts(d,validYms,fyYmList){
     const monthlyCost=(Number(d['費用（単価）'])||0)*courses*qty;
     fyYmList.forEach(ym=>{
       if(ym<expYM||(endYM&&ym>endYM))return;
-      costAmts[ym]=(costAmts[ym]||0)+monthlyCost+(ym===expYM?bCostLump:0);
+      costAmts[ym]=(costAmts[ym]||0)+monthlyCost+bCostLump;
     });
   } else if(validYms.has(expYM)){
     costAmts[expYM]=(costAmts[expYM]||0)+(Number(d['費用（合計）'])||0);
