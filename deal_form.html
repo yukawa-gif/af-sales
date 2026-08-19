@@ -578,6 +578,11 @@ function buildPersonOptions(details, personsFallback) {
       sel.appendChild(opt);
     });
   }
+  // LMS利用料・視聴料など個人の営業担当者に紐づかない費用計上用
+  const otherOpt = document.createElement('option');
+  otherOpt.value = 'その他';
+  otherOpt.textContent = 'その他';
+  sel.appendChild(otherOpt);
 }
 
 function buildProductOptions(details, topProducts) {
