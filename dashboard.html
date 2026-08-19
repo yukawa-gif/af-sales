@@ -1345,6 +1345,9 @@ function fmtMan(yen){
   }
   return fmt(v)+'万円';
 }
+// 軽量ビュー（?view=timeline）は月列が60pxと狭く、円単位のフル桁表示だと隣の列と重なって読めなくなるため、
+// GAP・粗利目標行と同じ「万」単位（円は付けない）に短縮する。通常ダッシュボードは従来どおり円単位のまま。
+function fmtCellYen(v){ return TIMELINE_ONLY ? fmt(toMan(v))+'万' : fmtYen(v); }
 
 const today=new Date();
 const todayYM=yyyyMM(today.getFullYear(),today.getMonth()+1);
@@ -2710,7 +2713,7 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
     const v=Math.round(actualDisplayByMonthYen[ym]||0); // 円
     const bg=v>0?';background:#f0fdf4':v<0?';background:#fef2f2':'';
     return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}${bg}">
-      ${v!==0?`<span class="tl-amt" style="color:${v<0?'#dc2626':'#16a34a'};font-weight:700">${fmtYen(v)}</span>`:''}
+      ${v!==0?`<span class="tl-amt" style="color:${v<0?'#dc2626':'#16a34a'};font-weight:700">${fmtCellYen(v)}</span>`:''}
     </td>`;
   }).join('');
   // 当月以降合計＝表示中の月のうち当月（todayYM）以降のセルだけを合計
@@ -2767,7 +2770,7 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
       const mgId=ymToMG[ym];
       const v=Math.round(rankMonthTotals[ym]||0); // yen
       return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)};background:${color}18">
-        ${v!==0?`<span style="color:${v<0?'#dc2626':color};font-weight:700">${fmtYen(v)}</span>`:''}
+        ${v!==0?`<span style="color:${v<0?'#dc2626':color};font-weight:700">${fmtCellYen(v)}</span>`:''}
       </td>`;
     }).join('');
 
@@ -2799,7 +2802,7 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
         const v=Math.round(cellAmts[ym]||0); // yen
         const cellBg=v>0?';background:'+color+'0d':v<0?';background:#dc262618':'';
         return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}${cellBg}">
-          ${v!==0?`<span class="tl-amt" style="color:${v<0?'#dc2626':color}">${fmtYen(v)}</span>`:''}
+          ${v!==0?`<span class="tl-amt" style="color:${v<0?'#dc2626':color}">${fmtCellYen(v)}</span>`:''}
         </td>`;
       }).join('');
 
@@ -2826,7 +2829,7 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
     const v=Math.round(confirmedMonthTotals[ym]||0); // yen
     const footBg=v>0?';background:#eff6ff':v<0?';background:#fef2f2':'';
     return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}${footBg}">
-      ${v!==0?`<span class="tl-amt" style="color:${v<0?'#dc2626':'#2563eb'};font-weight:800">${fmtYen(v)}</span>`:''}
+      ${v!==0?`<span class="tl-amt" style="color:${v<0?'#dc2626':'#2563eb'};font-weight:800">${fmtCellYen(v)}</span>`:''}
     </td>`;
   }).join('');
   const yomiPlusACells=fyMonths.map(m=>{
@@ -2836,7 +2839,7 @@ function renderTimeline(deals,actualByMonth,person,isTeam){
     const v=Math.round(confirmedPlusAMonthTotals[ym]||0); // yen
     const footBg=v>0?';background:#eff6ff':v<0?';background:#fef2f2':'';
     return `<td class="${isCur?'td-cur':''}" data-mg="${mgId}" style="${mgs(ym)}${footBg}">
-      ${v!==0?`<span class="tl-amt" style="color:${v<0?'#dc2626':'#7c3aed'};font-weight:800">${fmtYen(v)}</span>`:''}
+      ${v!==0?`<span class="tl-amt" style="color:${v<0?'#dc2626':'#7c3aed'};font-weight:800">${fmtCellYen(v)}</span>`:''}
     </td>`;
   }).join('');
   document.getElementById('tl-tfoot').innerHTML=`<tr style="border-top:2px solid var(--border)">
