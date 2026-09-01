@@ -1,0 +1,32 @@
+name: Deploy GAS via clasp
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'gas_v3.js'
+      - 'customer_master.js'
+      - 'appsscript.json'
+      - '.clasp.json'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install clasp
+        run: npm install -g @google/clasp
+
+      - name: Write clasp credentials
+        run: echo '${{ secrets.CLASP_CREDENTIALS }}' > ~/.clasprc.json
+
+      - name: Push to GAS project
+        run: clasp push --force
+
+      - name: Deploy to production Web App
+        run: clasp deploy -i AKfycbyAC_jurLseKlw5gw8s15p6Xu1q66-fmcgBDUuruAeg5IlfmAFjU7mNvRwK1Yz1k9dt -d "Auto deploy ${{ github.sha }}"
